@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edgecopilot"
+version = "1.0.0"
+description = "Explainable Edge AI Copilot for smart-campus emergency response (falls, smoke/fire, crowd) on CPU edge devices"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Team local maxima: Binay Verma, Chetan Jagannath, Bhyresh B S, Dhanush D"}]
+dependencies = [
+  "numpy>=1.24",
+  "opencv-python-headless>=4.8",
+  "onnxruntime>=1.16",
+  "scipy>=1.10",
+  "pyyaml>=6",
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+]
+
+[project.optional-dependencies]
+train = ["ultralytics>=8.3", "torch>=2.2", "onnx>=1.15", "onnxslim"]
+dev = ["pytest>=8", "httpx>=0.27", "matplotlib>=3.8", "pandas>=2"]
+
+[project.scripts]
+edgecopilot-serve = "edgecopilot.server.app:main"
+
+[tool.setuptools.packages.find]
+include = ["edgecopilot*"]
+
+[tool.setuptools.package-data]
+edgecopilot = ["server/static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
