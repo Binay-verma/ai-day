@@ -27,8 +27,11 @@ import numpy as np
 
 class CrowdFeatureExtractor:
     def __init__(self, width: int = 320, baseline_s: float = 20.0, min_mag_px: float = 0.6,
-                 exit_direction: Optional[Tuple[float, float]] = None):
+                 exit_direction: Optional[Tuple[float, float]] = None,
+                 ignore_regions: Optional[list] = None):
         self.width = width
+        # normalised [x1, y1, x2, y2] rectangles to ignore (burnt-in timestamps, banners, screens)
+        self.ignore_regions = ignore_regions or []
         self.baseline_s = baseline_s
         self.min_mag_px = min_mag_px
         self.exit_direction = None if exit_direction is None else np.asarray(exit_direction, float)
@@ -69,6 +72,10 @@ class CrowdFeatureExtractor:
         fx, fy = flow[..., 0], flow[..., 1]
         mag = np.sqrt(fx * fx + fy * fy)
         moving = mag > self.min_mag_px * max(dt * 25, 0.2)  # threshold scaled to a 25 fps reference
+        H, W = mag.shape
+        for x1, y1, x2, y2 in self.ignore_regions:
+            moving[int(y1 * H):int(y2 * H), int(x1 * W):int(x2 * W)] = False
+            mag[int(y1 * H):int(y2 * H), int(x1 * W):int(x2 * W)] = 0
         frac = float(moving.mean())
         # normalise speed by person scale when known (body-heights / s), else by image height
         norm = (person_height_px * scale) if person_height_px else gray.shape[0] / 4.0
