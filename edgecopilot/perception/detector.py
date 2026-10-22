@@ -109,6 +109,8 @@ class OnnxYolo:
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         so.intra_op_num_threads = threads or max(1, (os.cpu_count() or 2))
         so.inter_op_num_threads = 1
+        # don't let idle ORT workers busy-spin: OpenCV/NumPy share the same few cores
+        so.add_session_config_entry("session.intra_op.allow_spinning", "0")
         self.session = ort.InferenceSession(model_path, so, providers=["CPUExecutionProvider"])
         self.input_name = self.session.get_inputs()[0].name
         shape = self.session.get_inputs()[0].shape

@@ -125,3 +125,9 @@ playbooks:
     - {do: "Open all exits ({exits}) and stop further entry to {zone}", priority: 1, when: "occupancy > 1.0"}
     - {do: "Make a calm PA announcement directing people to {exits}", priority: 2, when: "speed_ratio > 3"}
     - {do: "Check for a triggering incident (fire/fall) near {zone}", priority: 2, when: "coherence > 0.6"}
+
+# ALARM vs VERIFY routing from the evidence ledger
+triage:
+  min_margin: 1.0      # log-odds above the alert line needed for ALARM
+  max_conflict: 0.35   # |sum of negative contributions| / sum of positive ones
+  strong: 0.5          # a cue this strong against = cross-modal disagreement

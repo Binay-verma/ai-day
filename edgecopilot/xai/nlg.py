@@ -36,7 +36,7 @@ HAZARD_WORDS = {
 }
 CAUSAL_MARKERS = ("due to", "because", "caused by", "driven by", "triggered by")
 
-NUM_RE = re.compile(r"(?<![\w#])[-+]?\d+(?:\.\d+)?%?")
+NUM_RE = re.compile(r"(?<![\w#.\-/])[-+]?\d+(?:\.\d+)?%?")
 
 
 def _join(items: Sequence[str]) -> str:
@@ -57,13 +57,15 @@ class Explanation:
     confidence_text: str
     text: str
     cited_cues: List[str]
+    verify_text: str = ""
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
 
 
 def explain(a: Assessment, model: HazardModel, location: str = "",
-            recommendations: Optional[List[str]] = None, max_cues: int = 3) -> Explanation:
+            recommendations: Optional[List[str]] = None, max_cues: int = 3,
+            triage: Optional[dict] = None) -> Explanation:
     title = HAZARD_TITLES.get(a.hazard, a.hazard)
     where = f" in {location}" if location else ""
     who = f" ({a.subject})" if a.subject and a.subject.startswith("person") else ""
@@ -83,10 +85,13 @@ def explain(a: Assessment, model: HazardModel, location: str = "",
     pct = round(a.prob * 100)
     conf = f"Confidence {pct}% (threshold {round(a.threshold * 100)}%)."
     recs = recommendations or []
-    text = " ".join(x for x in [headline + ".", because, cf_text, conf] if x)
+    verify_text = ""
+    if triage and triage.get("mode") == "VERIFY":
+        verify_text = "Please verify before escalating: " + "; ".join(triage["reasons"]) + "."
+    text = " ".join(x for x in [headline + ".", because, cf_text, conf, verify_text] if x)
     if recs:
         text += " Recommended: " + "; ".join(recs) + "."
-    return Explanation(headline, because, cf_text, recs, conf, text, [c.name for c in top])
+    return Explanation(headline, because, cf_text, recs, conf, text, [c.name for c in top], verify_text)
 
 
 # ----------------------------------------------------------------- verifier
@@ -146,6 +151,14 @@ def _sentences(text: str) -> List[str]:
 
 def _clauses(sentence: str) -> List[str]:
     return [c.strip() for c in re.split(r",\s+|\band\b|\bwith\b", sentence) if c.strip()]
+
+
+def numbers_in(texts: Iterable[str]) -> List[float]:
+    """Numbers appearing in trusted context strings (e.g. playbook actions, phone numbers)."""
+    out: List[float] = []
+    for t in texts:
+        out += [float(n.rstrip("%")) for n in NUM_RE.findall(t)]
+    return out
 
 
 def verify(text: str, a: Assessment, model: HazardModel, location: str = "",

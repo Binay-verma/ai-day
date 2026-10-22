@@ -66,3 +66,37 @@ def logit_to_prob_threshold(tau_logit: float) -> float:
     if math.isinf(tau_logit):
         return 1.0
     return 1 / (1 + math.exp(-tau_logit))
+
+
+class ConformalGate:
+    """Per (hazard, zone) false-alarm budget from normal-footage scores.
+
+    ``scores`` are window-max smoothed logits observed on footage known to be
+    normal (installation-time calibration run) plus every alert an operator
+    dismisses as a false alarm.  ``tau`` is the split-conformal threshold for
+    the stated ``alpha``; it is ``None`` until there are enough samples
+    (n >= 1/alpha - 1) for the guarantee to be meaningful.
+    """
+
+    def __init__(self, alpha: float = 0.05, window: int = 2000, scores=None):
+        self.alpha = alpha
+        self.window = window
+        self.scores = list(scores or [])[-window:]
+
+    def add_normal(self, score: float) -> None:
+        self.scores.append(float(score))
+        self.scores = self.scores[-self.window:]
+
+    @property
+    def n_required(self) -> int:
+        return math.ceil(1 / self.alpha - 1)
+
+    @property
+    def tau(self):
+        if len(self.scores) < self.n_required:
+            return None
+        t = conformal_threshold(np.array(self.scores), self.alpha)
+        return None if math.isinf(t) else t
+
+    def to_dict(self) -> dict:
+        return {"alpha": self.alpha, "n": len(self.scores), "tau_logit": self.tau, "scores": self.scores}

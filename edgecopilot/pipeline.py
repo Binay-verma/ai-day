@@ -26,10 +26,14 @@ from .perception.fall import FallFeatureExtractor
 from .perception.smoke import SmokeCueExtractor
 from .perception.tracker import Tracker
 from .privacy import anonymize, draw_skeleton
+from .xai.calibration import ConformalGate
 from .xai.counterfactual import explain_decision
 from .xai.fusion import Assessment, HazardModel, Hysteresis
-from .xai.nlg import explain, verify
+from .xai.nlg import explain, numbers_in, verify
 from .xai.saliency import box_renormalize, eigencam, overlay, skeleton_saliency
+from .xai.triage import triage
+
+cv2.setNumThreads(1)  # avoid oversubscribing the edge CPU (ORT owns the cores)
 
 HAZARD_COLORS = {"fall": (60, 60, 255), "fire_smoke": (0, 140, 255), "crowd": (255, 120, 40)}
 
@@ -57,6 +61,7 @@ class FrameResult:
     timings: Dict[str, float]
     ran_detector: bool
     motion: float
+    scene_change: bool = False
     values: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
 
@@ -75,6 +80,8 @@ class Copilot:
         self.keepalive = rt.get("gate_keepalive", 8)
         self.fire_every = max(1, rt.get("fire_every", 2))
         self.max_width = rt.get("max_width", 960)
+        self.scene_cut = rt.get("scene_cut", 0.55)
+        self.scene_changes = 0
         self.enable = {"fall": True, "fire_smoke": True, "crowd": True}
         self.enable.update(enable or {})
 
@@ -86,6 +93,10 @@ class Copilot:
         fb = cfg.get("feedback", {})
         self.fb_lr, self.fb_max = fb.get("lr", 0.5), fb.get("max_shift", 2.0)
         self.recommender = Recommender.from_config(cfg)
+        # conformal false-alarm budgets (per hazard for this camera's zone)
+        self.gates: Dict[str, ConformalGate] = {}
+        self.calib_path = os.path.join(root, "calibration", f"{zone.replace(' ', '_')}.json")
+        self._load_calibration()
         self.sensors = sensors or SensorHub()
         self.events = event_log or EventLog()
         self.tracker = Tracker()
@@ -112,6 +123,29 @@ class Copilot:
         return OnnxYolo(path, classes, imgsz=mcfg.get("imgsz", 640), conf=mcfg.get("conf", 0.25),
                         iou=mcfg.get("iou", 0.45), pose=pose, threads=self.threads)
 
+    def _load_calibration(self) -> None:
+        import json
+        if os.path.exists(self.calib_path):
+            with open(self.calib_path) as f:
+                data = json.load(f)
+            for hz, g in data.items():
+                self.gates[hz] = ConformalGate(g["alpha"], scores=g["scores"])
+        self._apply_gates()
+
+    def _apply_gates(self) -> None:
+        """Alert line = max(configured threshold, conformal threshold for the budget)."""
+        for hz, m in self.models.items():
+            base = self.cfg["hazards"][hz].get("threshold", 0.5)
+            g = self.gates.get(hz)
+            tau = g.tau if g else None
+            m.threshold = max(base, 1 / (1 + np.exp(-tau))) if tau is not None else base
+
+    def save_calibration(self) -> None:
+        import json
+        os.makedirs(os.path.dirname(self.calib_path), exist_ok=True)
+        with open(self.calib_path, "w") as f:
+            json.dump({hz: g.to_dict() for hz, g in self.gates.items()}, f)
+
     def reset(self) -> None:
         self.tracker.reset()
         self.fall_fx.reset()
@@ -122,6 +156,19 @@ class Copilot:
         self._prev_small = None
         self._since_heavy = 10 ** 9
         self._frame_idx = 0
+        self._last_people = []
+        self._last_fire = None
+
+    def _reset_scene(self) -> None:
+        self.tracker.reset()
+        self.fall_fx.reset()
+        self.crowd_fx.reset()
+        self.smoke_fx.reset()
+        self.hyst.reset()
+        for al in self.active.values():
+            if al.status == "open":
+                al.status = "resolved"
+        self.active.clear()
         self._last_people = []
         self._last_fire = None
 
@@ -145,6 +192,11 @@ class Copilot:
         small = cv2.cvtColor(cv2.resize(frame, (96, 54), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2GRAY)
         motion = 1.0 if self._prev_small is None else float((cv2.absdiff(small, self._prev_small) > 12).mean())
         self._prev_small = small
+        scene_change = motion > self.scene_cut and self._frame_idx > 2
+        if scene_change:
+            # camera moved / feed switched / tampering: old baselines and tracks are meaningless
+            self._reset_scene()
+            self.scene_changes += 1
         any_active = bool(self.active)
         run_heavy = (not self.motion_gate) or motion > 0.004 or self._since_heavy >= self.keepalive or any_active
         timings["gate"] = (time.perf_counter() - t0) * 1e3
@@ -254,7 +306,7 @@ class Copilot:
         timings["explain"] = (time.perf_counter() - t0) * 1e3
         timings["total"] = (time.perf_counter() - t_all) * 1e3
         self._last_frame = frame
-        res = FrameResult(t, people, hazards, assessments, new_alerts, timings, run_heavy, motion, values_all)
+        res = FrameResult(t, people, hazards, assessments, new_alerts, timings, run_heavy, motion, scene_change, values_all)
         self.last_result = res
         return res
 
@@ -286,8 +338,9 @@ class Copilot:
         model = self.models[a.hazard]
         rec = self.recommender.recommend(a, self.zone)
         rec_texts = [x["text"] for x in rec["actions"][:3]]
-        exp = explain(a, model, self.zone, rec_texts)
-        ver = verify(exp.text, a, model, self.zone)
+        tri = triage(a, **self.cfg.get("triage", {}))
+        exp = explain(a, model, self.zone, rec_texts, triage=tri)
+        ver = verify(exp.text, a, model, self.zone, extra_numbers=numbers_in(rec_texts))
         dec = explain_decision(a, model)
         sal = self._evidence_map(a, frame, people, hazards)
         safe = anonymize(frame, people, self.privacy)
@@ -303,7 +356,7 @@ class Copilot:
             cues=[c.to_dict() for c in sorted(a.cues, key=lambda c: -c.contribution)],
             snapshot_jpg_b64=_jpg_b64(self.render(frame, people, hazards, [a])),
             evidence_jpg_b64=_jpg_b64(ev), processing_ms=sum(v for k, v in timings.items() if k != "total"),
-            explain_ms=explain_ms, peak_prob=a.prob,
+            explain_ms=explain_ms, peak_prob=a.prob, triage=tri,
         )
 
     # ---------------------------------------------------------- feedback loop
@@ -312,7 +365,15 @@ class Copilot:
         if al is None:
             return None
         shift = self.models[al.hazard].feedback(al.zone, int(confirmed), al.prob, self.fb_lr, self.fb_max)
-        return {"id": alert_id, "hazard": al.hazard, "zone": al.zone, "bias_offset": shift}
+        out = {"id": alert_id, "hazard": al.hazard, "zone": al.zone, "bias_offset": shift}
+        if not confirmed and al.hazard in self.gates:
+            # a dismissed alert is a labelled normal sample: tighten the conformal budget
+            p = min(max(al.peak_prob, 1e-9), 1 - 1e-9)
+            self.gates[al.hazard].add_normal(float(np.log(p / (1 - p))))
+            self._apply_gates()
+            self.save_calibration()
+            out["threshold"] = self.models[al.hazard].threshold
+        return out
 
     # -------------------------------------------------------------- rendering
     def render(self, frame: np.ndarray, people: List[Detection], hazards: List[Detection],

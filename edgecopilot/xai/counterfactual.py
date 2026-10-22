@@ -42,7 +42,7 @@ def counterfactuals(a: Assessment, model: HazardModel, margin: float = 1e-3) -> 
     out: List[Counterfactual] = []
     if excess <= 0:
         return out
-    for cue in sorted(a.cues, key=lambda c: -c.contribution):
+    for cue in a.cues:
         if cue.contribution <= 0:
             continue
         spec = model.specs.get(cue.name)
@@ -55,7 +55,11 @@ def counterfactuals(a: Assessment, model: HazardModel, margin: float = 1e-3) -> 
             continue  # this cue alone cannot flip the decision
         direction = "below" if spec.weight > 0 else "above"
         out.append(Counterfactual(cue.name, cue.value, x_needed, spec.unit, direction))
-    return out
+    # most plausible first: the smallest change relative to the cue's range
+    def rel_change(cf: Counterfactual) -> float:
+        sp = model.specs[cf.cue]
+        return abs(cf.needed - cf.current) / (abs(sp.hi - sp.lo) + 1e-9)
+    return sorted(out, key=rel_change)
 
 
 def sufficient_reason(a: Assessment) -> Optional[List[str]]:

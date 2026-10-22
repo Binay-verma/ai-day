@@ -23,6 +23,7 @@ class Alert:
     verification: dict  # grounding check of the explanation text
     recommendations: List[dict]
     cues: List[dict]
+    triage: dict = field(default_factory=dict)  # ALARM | VERIFY with reasons
     snapshot_jpg_b64: str = ""
     evidence_jpg_b64: str = ""
     processing_ms: float = 0.0  # compute time for the frame that raised it
