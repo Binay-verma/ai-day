@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edge Copilot console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#1a2530; --panel:#223241; --panel-2:#2a3c4d; --line:#36495b;
+  --text:#e8edf1; --muted:#9aacbb; --for:#f2a33a; --against:#56b8c4;
+  --fall:#f2697a; --fire_smoke:#f2a33a; --crowd:#9b8cf2; --ok:#6fcf8e;
+  --ui:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--night);color:var(--text);font:15px/1.5 var(--body)}
+button,input{font:inherit}
+:focus-visible{outline:2px solid var(--for);outline-offset:2px}
+.top{display:flex;align-items:center;gap:16px;padding:10px 20px;border-bottom:1px solid var(--line)}
+.top h1{font:600 22px/1 var(--ui);margin:0;letter-spacing:.2px}
+.top .zone{color:var(--muted);font-family:var(--ui);font-size:17px}
+.pills{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.pill{font:500 14px/1 var(--ui);padding:6px 10px;border:1px solid var(--line);border-radius:20px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pill b{color:var(--text);font-weight:600}
+.pill.live::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px}
+.pill.off::before{background:#e05555}
+main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(360px,1fr);gap:20px;padding:20px;max-width:1600px;margin:0 auto}
+@media (max-width:980px){main{grid-template-columns:1fr;padding:12px 16px}}
+.feed{position:relative;background:#000;border-radius:6px;overflow:hidden;aspect-ratio:16/9}
+.feed img{width:100%;height:100%;object-fit:contain;display:block}
+.feed .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted)}
+h2{font:600 18px/1.2 var(--ui);margin:22px 0 10px}
+.meters{display:grid;gap:10px}
+.meter{display:grid;grid-template-columns:110px 1fr 56px;align-items:center;gap:12px}
+.meter .name{font:600 16px var(--ui)}
+.meter .bar{position:relative;height:14px;background:var(--panel);border-radius:7px;overflow:hidden}
+.meter .fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:7px;transition:width .25s linear}
+.meter .tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text);opacity:.7}
+.meter .val{text-align:right;font:600 16px var(--ui);font-variant-numeric:tabular-nums}
+.meter .why{grid-column:2/4;color:var(--muted);font-size:13px;margin-top:-6px;min-height:1.2em}
+.meter.active .name::after{content:" alerting";color:var(--for);font-weight:500}
+.timings{display:flex;gap:6px;flex-wrap:wrap}
+.timings span{background:var(--panel);border-radius:4px;padding:3px 8px;font:500 14px var(--ui);color:var(--muted);font-variant-numeric:tabular-nums}
+.timings b{color:var(--text)}
+.sensors{display:flex;gap:10px;flex-wrap:wrap}
+.sensor{background:var(--panel);border-radius:6px;padding:8px 12px;min-width:120px}
+.sensor .k{color:var(--muted);font-size:13px}.sensor .v{font:600 20px var(--ui);font-variant-numeric:tabular-nums}
+.sensor.stale{opacity:.5}
+aside{min-width:0}
+.queue{display:flex;flex-direction:column;gap:10px}
+.qempty{color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:18px}
+.alert{background:var(--panel);border-radius:6px;border-left:6px solid var(--c,var(--for));overflow:hidden}
+.alert>button.head{all:unset;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 14px;width:100%;box-sizing:border-box}
+.alert>button.head:focus-visible{outline:2px solid var(--for)}
+.alert .title{font:600 18px/1.25 var(--ui)}
+.alert .sev{font:600 13px var(--ui);padding:2px 8px;border-radius:10px;background:var(--c);color:#1a2530;align-self:start}
+.alert .meta{grid-column:1/3;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.alert .because{grid-column:1/3;margin-top:4px}
+.alert.closed .body{display:none}
+.alert.done{opacity:.6}
+.body{padding:0 14px 14px}
+.ledger{margin:6px 0 4px}
+.ledger .row{display:grid;grid-template-columns:minmax(0,1fr) 46%;gap:10px;align-items:center;font-size:13px;padding:2px 0}
+.ledger .lbl{color:var(--text);overflow-wrap:anywhere}
+.ledger .track{position:relative;height:16px}
+.ledger .seg{position:absolute;top:2px;height:12px;border-radius:2px}
+.ledger .seg.for{background:var(--for)}.ledger .seg.against{background:var(--against)}.ledger .seg.base{background:var(--line)}
+.ledger .thr{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--text);opacity:.8}
+.ledger .total{font:600 14px var(--ui);margin-top:6px;color:var(--muted)}
+.ledger .total b{color:var(--text)}
+.cf{background:var(--panel-2);border-radius:4px;padding:8px 10px;margin:10px 0;font-size:14px}
+.acts{list-style:none;margin:8px 0;padding:0;display:grid;gap:6px}
+.acts label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.acts input{margin-top:4px;accent-color:var(--for)}
+.acts .p1{font-weight:700}
+.ev{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.ev figure{margin:0}.ev img{width:100%;border-radius:4px;display:block}
+.ev figcaption{color:var(--muted);font-size:12px;margin-top:2px}
+.verified{font-size:13px;color:var(--ok)}.verified.bad{color:#ff8a8a}
+.btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--text);border-radius:4px;padding:7px 12px;cursor:pointer;font:600 15px var(--ui)}
+.btn.confirm{background:var(--for);border-color:var(--for);color:#1a2530}
+.btn:disabled{opacity:.5;cursor:default}
+.ask{display:flex;gap:6px;margin-top:10px}
+.ask input{flex:1;min-width:0;background:var(--night);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:7px 10px}
+.answer{margin-top:8px;font-size:14px;background:var(--night);border-radius:4px;padding:8px 10px;white-space:pre-wrap}
+.answer:empty{display:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chip{all:unset;cursor:pointer;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:12px;padding:2px 8px}
+.chip:focus-visible{outline:2px solid var(--for)}
+@media (prefers-reduced-motion:reduce){.meter .fill{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Edge Copilot</h1><span class="zone" id="zone">connecting…</span>
+  <div class="pills">
+    <span class="pill off" id="conn">Offline</span>
+    <span class="pill">FPS <b id="fps">–</b></span>
+    <span class="pill">Latency p50 <b id="lat">–</b> ms</span>
+    <span class="pill">People <b id="ppl">–</b></span>
+    <span class="pill">Privacy <b id="priv">–</b></span>
+  </div>
+</header>
+<main>
+  <section>
+    <div class="feed"><img id="frame" alt="Live camera with detections"><div class="empty" id="noframe">Waiting for the camera stream</div></div>
+    <h2>Risk right now</h2>
+    <div class="meters" id="meters"></div>
+    <h2>Sensors</h2>
+    <div class="sensors" id="sensors"><span class="qempty" style="padding:8px 12px">No sensor node has reported yet</span></div>
+    <h2>Where the time goes (ms per frame)</h2>
+    <div class="timings" id="timings"></div>
+  </section>
+  <aside>
+    <h2 style="margin-top:0">Alerts</h2>
+    <div class="queue" id="queue"><div class="qempty" id="qempty">No alerts. Each alert will show what triggered it, what would have changed the decision, and what to do.</div></div>
+  </aside>
+</main>
+<script>
+const HZ={fall:"Fall",fire_smoke:"Smoke / fire",crowd:"Crowd"};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const meters={};
+function meter(hz){
+  if(meters[hz])return meters[hz];
+  const d=document.createElement("div");d.className="meter";
+  d.innerHTML=`<span class="name">${HZ[hz]||hz}</span><div class="bar"><div class="fill" style="background:var(--${hz})"></div><div class="tick"></div></div><span class="val">0%</span><span class="why"></span>`;
+  $("#meters").appendChild(d);meters[hz]=d;return d;
+}
+function updateState(s){
+  $("#fps").textContent=s.fps??"–";$("#lat").textContent=s.latency_p50??"–";$("#ppl").textContent=s.people??"–";
+  for(const [hz,g] of Object.entries(s.gauges||{})){
+    const m=meter(hz);m.classList.toggle("active",!!g.active);
+    m.querySelector(".fill").style.width=(g.prob*100).toFixed(1)+"%";
+    m.querySelector(".tick").style.left=(g.threshold*100)+"%";
+    m.querySelector(".val").textContent=Math.round(g.prob*100)+"%";
+    const pos=(g.top||[]).filter(c=>c.c>0).map(c=>c.name.replace(/_/g," "));
+    m.querySelector(".why").textContent=pos.length?("pushed up by "+pos.join(", ")+(g.subject?` (${g.subject})`:"")):"nothing unusual";
+  }
+  const t=s.timings||{};$("#timings").innerHTML=Object.entries(t).map(([k,v])=>`<span>${esc(k)} <b>${v}</b></span>`).join("");
+  const sens=[];for(const [z,f] of Object.entries(s.sensors||{}))for(const [k,v] of Object.entries(f))
+    sens.push(`<div class="sensor ${v.online?"":"stale"}"><div class="k">${esc(k.replace(/_/g," "))}${v.online?"":" (offline)"}</div><div class="v">${(+v.value).toFixed(k==="temp_c"?1:0)}</div></div>`);
+  if(sens.length)$("#sensors").innerHTML=sens.join("");
+}
+function ledger(a){
+  const cues=a.cues||[];const thrP=parseInt((a.explanation.confidence_text.match(/threshold (\d+)%/)||[0,50])[1])/100;
+  const thr=Math.log(thrP/(1-thrP));const bias=Math.log(a.prob/(1-a.prob))-cues.reduce((s,c)=>s+c.contribution,0);
+  let x=bias,lo=Math.min(bias,thr),hi=Math.max(bias,thr);const steps=[];
+  for(const c of cues){const nx=x+c.contribution;steps.push([c,x,nx]);x=nx;lo=Math.min(lo,x);hi=Math.max(hi,x);}
+  lo-=.5;hi+=.5;const P=v=>((v-lo)/(hi-lo)*100).toFixed(2)+"%";const W=(a0,b0)=>(Math.abs(b0-a0)/(hi-lo)*100).toFixed(2)+"%";
+  let h=`<div class="row"><span class="lbl">Starting point (normal for this zone)</span><div class="track"><div class="seg base" style="left:${P(Math.min(lo+.5,bias))};width:${W(lo+.5,bias)}"></div><div class="thr" style="left:${P(thr)}"></div></div></div>`;
+  for(const [c,a0,b0] of steps){if(Math.abs(c.contribution)<0.05)continue;
+    h+=`<div class="row"><span class="lbl">${esc(c.phrase)} <span style="color:var(--muted)">${c.contribution>0?"+":""}${c.contribution.toFixed(2)}${c.reliability<1?` · reliability ${Math.round(c.reliability*100)}%`:""}</span></span><div class="track"><div class="seg ${c.contribution>0?"for":"against"}" style="left:${P(Math.min(a0,b0))};width:${W(a0,b0)}"></div><div class="thr" style="left:${P(thr)}"></div></div></div>`;}
+  return `<div class="ledger">${h}<div class="total">Final score <b>${Math.round(a.prob*100)}%</b> against an alert line of ${Math.round(thrP*100)}% (dashed). Bars to the right raised the risk, bars to the left lowered it.</div></div>`;
+}
+function card(a){
+  const el=document.createElement("article");el.className="alert";el.id="a-"+a.id;el.style.setProperty("--c",`var(--${a.hazard})`);
+  const ex=a.explanation;const v=a.verification||{};const t=new Date(a.wall_time*1000).toLocaleTimeString();
+  el.innerHTML=`<button class="head" aria-expanded="true"><span class="title">${esc(ex.headline)}</span><span class="sev">${esc(a.severity)}</span>
+   <span class="meta">${t} · video ${a.t_video.toFixed(1)} s · decided in ${(a.processing_ms+a.explain_ms).toFixed(0)} ms on-device</span>
+   <span class="because">${esc(ex.because)}</span></button>
+   <div class="body">${ledger(a)}
+   ${ex.counterfactual?`<div class="cf">${esc(ex.counterfactual)}</div>`:""}
+   <ul class="acts">${(a.recommendations||[]).map((r,i)=>`<li><label><input type="checkbox"><span class="${r.priority==1?"p1":""}">${esc(r.text)}</span></label></li>`).join("")}</ul>
+   <div class="ev"><figure><img alt="Anonymised snapshot" data-k="snapshot_jpg_b64"><figcaption>Snapshot (anonymised)</figcaption></figure><figure><img alt="Evidence heat map" data-k="evidence_jpg_b64"><figcaption>What the model relied on</figcaption></figure></div>
+   <div class="verified ${v.groundedness<1?"bad":""}">Explanation checked against the evidence: ${Math.round((v.groundedness??1)*100)}% of ${v.n_claims??0} claims supported</div>
+   <div class="btns"><button class="btn confirm" data-c="1">Confirm emergency</button><button class="btn" data-c="0">Dismiss as false alarm</button></div>
+   <div class="ask"><input placeholder="Ask about this alert, e.g. what if the sensor is wrong?" aria-label="Ask the copilot"><button class="btn">Ask</button></div>
+   <div class="chips">${["Why?","What would change it?","How sure are you?","What should I do?"].map(q=>`<button class="chip">${q}</button>`).join("")}</div>
+   <div class="answer" aria-live="polite"></div></div>`;
+  const head=el.querySelector(".head");head.onclick=()=>{el.classList.toggle("closed");head.setAttribute("aria-expanded",!el.classList.contains("closed"));};
+  fetch("/api/alerts/"+a.id).then(r=>r.json()).then(full=>el.querySelectorAll("img[data-k]").forEach(i=>{if(full[i.dataset.k])i.src="data:image/jpeg;base64,"+full[i.dataset.k];}));
+  el.querySelectorAll("[data-c]").forEach(b=>b.onclick=async()=>{
+    const r=await fetch(`/api/alerts/${a.id}/feedback`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmed:b.dataset.c==="1"})}).then(r=>r.json());
+    el.querySelectorAll("[data-c]").forEach(x=>x.disabled=true);el.classList.add("done");
+    el.querySelector(".answer").textContent=b.dataset.c==="1"?"Confirmed. Logged for the incident report.":`Dismissed. ${HZ[a.hazard]} sensitivity in ${a.zone} adjusted (offset ${r.bias_offset.toFixed(2)} log-odds, capped).`;});
+  const ask=async q=>{if(!q)return;const r=await fetch(`/api/alerts/${a.id}/ask`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})}).then(r=>r.json());el.querySelector(".answer").textContent=r.answer;};
+  const inp=el.querySelector(".ask input");el.querySelector(".ask .btn").onclick=()=>ask(inp.value);inp.onkeydown=e=>{if(e.key==="Enter")ask(inp.value)};
+  el.querySelectorAll(".chip").forEach(c=>c.onclick=()=>ask(c.textContent));
+  return el;
+}
+function addAlert(a,prepend=true){
+  if(document.getElementById("a-"+a.id))return;$("#qempty")?.remove();
+  document.querySelectorAll(".alert:not(.closed)").forEach(x=>{x.classList.add("closed");x.querySelector(".head").setAttribute("aria-expanded","false")});
+  const c=card(a);prepend?$("#queue").prepend(c):$("#queue").append(c);
+}
+function connect(){
+  const ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
+  ws.onopen=()=>{$("#conn").textContent="Live";$("#conn").className="pill live";};
+  ws.onclose=()=>{$("#conn").textContent="Offline, retrying";$("#conn").className="pill live off";setTimeout(connect,2000);};
+  ws.onmessage=e=>{const m=JSON.parse(e.data);
+    if(m.type==="hello"){(m.alerts||[]).reverse().forEach(a=>addAlert(a));}
+    else if(m.type==="frame"){$("#frame").src="data:image/jpeg;base64,"+m.jpg;$("#noframe").style.display="none";updateState(m.state);}
+    else if(m.type==="alert"){addAlert(m.alert);}};
+}
+fetch("/api/status").then(r=>r.json()).then(s=>{$("#zone").textContent=s.zone;$("#priv").textContent=s.privacy;});
+connect();
+</script>
+</body>
+</html>
