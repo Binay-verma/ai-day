@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+models/*.pt
+models/*.onnx
+!models/README.md
+data/
+runs/
+outputs/
+logs/
+*.egg-info/
+.venv/
