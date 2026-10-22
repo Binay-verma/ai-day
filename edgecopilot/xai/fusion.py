@@ -191,22 +191,31 @@ class Hysteresis:
 
 
 def fit_weights(X: np.ndarray, y: np.ndarray, specs: List[CueSpec], prior_bias: float,
-                l2: float = 1.0, iters: int = 2000, lr: float = 0.05):
+                l2: float = 1.0, iters: int = 2000, lr: float = 0.05, monotone: bool = True,
+                sample_weight: Optional[np.ndarray] = None):
     """Fit additive weights on transformed cues, L2-pulled towards expert priors.
 
-    Returns (bias, weights). Plain gradient descent - no sklearn needed on device.
+    ``monotone=True`` keeps every weight's sign equal to the expert prior's
+    (projected gradient descent): more evidence can never *lower* the risk,
+    which keeps the model safe and its explanations sensible even when the
+    training labels have quirks.  Returns (bias, weights).
     """
     Z = np.stack([[s.transform(v) for s, v in zip(specs, row)] for row in X])
     w0 = np.array([s.weight for s in specs], dtype=float)
     w = w0.copy()
     b = float(prior_bias)
     n = len(y)
+    sw = np.ones(n) if sample_weight is None else np.asarray(sample_weight, float)
+    sw = sw * n / sw.sum()
     scale = Z.std(0) + 1e-6
+    sign = np.sign(w0)
     for _ in range(iters):
         p = 1 / (1 + np.exp(-(Z @ w + b)))
-        g = p - y
+        g = (p - y) * sw
         gw = Z.T @ g / n + l2 * (w - w0) / n
         gb = g.mean()
         w -= lr * gw / scale**2
         b -= lr * gb
+        if monotone:
+            w = np.where(sign > 0, np.maximum(w, 0), np.where(sign < 0, np.minimum(w, 0), w))
     return b, w

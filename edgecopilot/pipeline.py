@@ -266,7 +266,9 @@ class Copilot:
             fv["smoke_conf"] = max([d.score for d in hazards if d.label == "smoke"], default=0.0)
             fv["fire_conf"] = max([d.score for d in hazards if d.label == "fire"], default=0.0)
             if crowd_vals and "coherence" in crowd_vals:
-                fv["rapid_exit"] = float(crowd_vals["coherence"] * np.clip((crowd_vals["speed_ratio"] - 1.0) / 3.0, 0, 1))
+                # people running (surge) AND either all one way (coherence) or leaving the view (exodus)
+                fv["rapid_exit"] = float(np.clip((crowd_vals["surge"] - 1.0) / 3.0, 0, 1)
+                                         * max(crowd_vals["coherence"], crowd_vals["exodus"]))
             for k in ("smoke_ppm", "temp_rise"):
                 if k in sens_vals:
                     fv[k] = sens_vals[k]

@@ -32,6 +32,7 @@ hazards:
     cues:
       torso_angle:   {weight: 0.06, ref: 30.0, lo: 0.0, hi: 90.0, unit: deg, phrase: "torso tilted {v:.0f} deg from vertical", keywords: [torso, tilted]}
       descent_speed: {weight: 2.0, ref: 0.4, lo: 0.0, hi: 3.0, unit: "body-heights/s", phrase: "a rapid descent of {v:.1f} body-heights/s", keywords: [descent]}
+      tilt_rate:     {weight: 0.02, ref: 60.0, lo: 0.0, hi: 400.0, unit: "deg/s", phrase: "the torso rotating {v:.0f} deg/s", keywords: [rotating, rotation]}
       height_drop:   {weight: 3.0, ref: 0.3, lo: 0.0, hi: 1.0, unit: "", phrase: "body height dropped by {v:.0%}", keywords: [height]}
       aspect_ratio:  {weight: 1.5, ref: 0.8, lo: 0.2, hi: 3.0, unit: "", phrase: "a horizontal body shape (width/height {v:.1f})", keywords: [horizontal, shape]}
       ground_time:   {weight: 0.5, ref: 1.0, lo: 0.0, hi: 10.0, unit: s, phrase: "no movement on the ground for {v:.1f} s", keywords: [ground, movement]}
@@ -51,10 +52,11 @@ hazards:
     bias: -5.0
     threshold: 0.6
     cues:
-      occupancy:     {weight: 4.0, ref: 0.8, lo: 0.0, hi: 3.0, unit: "x capacity", phrase: "occupancy at {v:.0%} of zone capacity", keywords: [occupancy, capacity]}
-      speed_ratio:   {weight: 0.8, ref: 2.0, lo: 0.0, hi: 15.0, unit: "x normal", phrase: "crowd motion {v:.1f}x faster than normal", keywords: [faster, motion]}
-      acceleration:  {weight: 0.4, ref: 1.0, lo: -5.0, hi: 20.0, unit: "", phrase: "a sudden surge in movement (+{v:.1f}x in 1 s)", keywords: [surge]}
-      coherence:     {weight: 1.5, ref: 0.5, lo: 0.0, hi: 1.0, unit: "", phrase: "people moving in one direction (coherence {v:.2f})", keywords: [direction, coherence]}
+      occupancy:     {weight: 4.0, ref: 0.8, lo: 0.8, hi: 3.0, unit: "x capacity", phrase: "occupancy at {v:.0%} of zone capacity", keywords: [occupancy, capacity]}
+      surge:         {weight: 0.8, ref: 2.0, lo: 0.0, hi: 15.0, unit: "x normal", phrase: "people moving {v:.1f}x faster than normal", keywords: [faster]}
+      exodus:        {weight: 4.0, ref: 0.2, lo: 0.0, hi: 1.0, unit: "", phrase: "{v:.0%} of the people leaving the view within 3 s", keywords: [leaving, left]}
+      divergence:    {weight: 2.0, ref: 0.3, lo: -2.0, hi: 4.0, unit: "body-heights/s", phrase: "people scattering outwards ({v:.1f} body-heights/s)", keywords: [scattering, outwards]}
+      coherence:     {weight: 1.0, ref: 0.5, lo: 0.5, hi: 1.0, unit: "", phrase: "people moving in one direction (coherence {v:.2f})", keywords: [direction, coherence]}
       sound_db:      {weight: 0.08, ref: 75.0, lo: 30.0, hi: 120.0, unit: dB, phrase: "sound level {v:.0f} dB", source: sensor, keywords: [sound]}
 
 # Temporal smoothing / hysteresis per (hazard, subject)
@@ -123,7 +125,7 @@ playbooks:
   crowd:
     - {do: "Notify {security_desk} and the {warden}", priority: 1}
     - {do: "Open all exits ({exits}) and stop further entry to {zone}", priority: 1, when: "occupancy > 1.0"}
-    - {do: "Make a calm PA announcement directing people to {exits}", priority: 2, when: "speed_ratio > 3"}
+    - {do: "Make a calm PA announcement directing people to {exits}", priority: 2, when: "surge > 3"}
     - {do: "Check for a triggering incident (fire/fall) near {zone}", priority: 2, when: "coherence > 0.6"}
 
 # ALARM vs VERIFY routing from the evidence ledger

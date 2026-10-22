@@ -1,0 +1,343 @@
+{
+  "n_frames": 7739,
+  "abnormal_frac": 0.14678899082568808,
+  "feature_auc_standard_labels": {
+    "occupancy": 0.07919375635914533,
+    "surge": 0.8566887943593714,
+    "exodus": 0.7384951462523437,
+    "divergence": 0.802469214804197,
+    "coherence": 0.6507990659388712,
+    "speed": 0.7312937141248216,
+    "fast_speed": 0.7182851958030174,
+    "energy": 0.5707420922627999,
+    "motion_area": 0.4791255388609104
+  },
+  "tolerant_mask_frames": 7203,
+  "feature_auc_tolerant": {
+    "occupancy": 0.08484981718887398,
+    "surge": 0.9339511886579966,
+    "exodus": 0.8246633035590318,
+    "divergence": 0.865106986933247,
+    "coherence": 0.6371904509683933,
+    "speed": 0.8570310718919966,
+    "fast_speed": 0.8489686984156369,
+    "energy": 0.7090569071408614,
+    "motion_area": 0.5973462818119643
+  },
+  "conformal_alpha0.01": {
+    "events": [
+      {
+        "clip": 0,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 16.0
+      },
+      {
+        "clip": 1,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 3.73,
+        "normal_s": 22.0
+      },
+      {
+        "clip": 2,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": -0.57,
+        "normal_s": 10.3
+      },
+      {
+        "clip": 3,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 1.93,
+        "normal_s": 18.8
+      },
+      {
+        "clip": 4,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 1.23,
+        "normal_s": 16.2
+      },
+      {
+        "clip": 5,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": -0.07,
+        "normal_s": 14.6
+      },
+      {
+        "clip": 6,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 0.77,
+        "normal_s": 24.3
+      },
+      {
+        "clip": 7,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 1.5,
+        "normal_s": 14.9
+      },
+      {
+        "clip": 8,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 0.53,
+        "normal_s": 18.5
+      },
+      {
+        "clip": 9,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": -0.13,
+        "normal_s": 20.0
+      },
+      {
+        "clip": 10,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 0.0,
+        "normal_s": 24.1
+      }
+    ],
+    "tau_logit": {
+      "0": 7.987793436521727,
+      "1": 6.104233802240195,
+      "2": -2.6987390924944545,
+      "3": -1.8408587092437796,
+      "4": -1.8158356494182786,
+      "5": -2.671548094427145,
+      "6": -1.7543396833070657,
+      "7": -1.8408587092437796,
+      "8": 0.21444197613949945,
+      "9": 0.18988723221716572,
+      "10": -0.5142268415428974
+    },
+    "detected": 10,
+    "false_alarms": 0,
+    "normal_frames_flagged": 0.011661366045736787
+  },
+  "conformal_alpha0.002": {
+    "events": [
+      {
+        "clip": 0,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 16.0
+      },
+      {
+        "clip": 1,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 3.73,
+        "normal_s": 22.0
+      },
+      {
+        "clip": 2,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 10.3
+      },
+      {
+        "clip": 3,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 2.7,
+        "normal_s": 18.8
+      },
+      {
+        "clip": 4,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 16.2
+      },
+      {
+        "clip": 5,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 1.6,
+        "normal_s": 14.6
+      },
+      {
+        "clip": 6,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 24.3
+      },
+      {
+        "clip": 7,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 14.9
+      },
+      {
+        "clip": 8,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 0.57,
+        "normal_s": 18.5
+      },
+      {
+        "clip": 9,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 20.0
+      },
+      {
+        "clip": 10,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 24.1
+      }
+    ],
+    "tau_logit": {
+      "0": 8.47006776516261,
+      "1": 6.152965270940305,
+      "2": 2.0117191375124577,
+      "3": 2.004051078840806,
+      "4": 2.0117191375124577,
+      "5": -1.6167462997457198,
+      "6": 2.0117191375124577,
+      "7": 2.0117191375124577,
+      "8": 0.5646485909552219,
+      "9": 2.566434374150178,
+      "10": 2.566434374150178
+    },
+    "detected": 4,
+    "false_alarms": 0,
+    "normal_frames_flagged": 0.004694835680751174
+  },
+  "expert_model": {
+    "frame_auc": 0.8268388728554882,
+    "frame_auc_tolerant": 0.9135223667227185,
+    "events": [
+      {
+        "clip": 0,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 0.4,
+        "normal_s": 16.0
+      },
+      {
+        "clip": 1,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 3.7,
+        "normal_s": 22.0
+      },
+      {
+        "clip": 2,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 10.3
+      },
+      {
+        "clip": 3,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 2.33,
+        "normal_s": 18.8
+      },
+      {
+        "clip": 4,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 16.2
+      },
+      {
+        "clip": 5,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 1.9,
+        "normal_s": 14.6
+      },
+      {
+        "clip": 6,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 24.3
+      },
+      {
+        "clip": 7,
+        "false_alarms_before_onset": 0,
+        "detected": false,
+        "delay_s": null,
+        "normal_s": 14.9
+      },
+      {
+        "clip": 8,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 0.57,
+        "normal_s": 18.5
+      },
+      {
+        "clip": 9,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": -0.1,
+        "normal_s": 20.0
+      },
+      {
+        "clip": 10,
+        "false_alarms_before_onset": 0,
+        "detected": true,
+        "delay_s": 0.3,
+        "normal_s": 24.1
+      }
+    ]
+  },
+  "loso_refit": {
+    "per_scene": {
+      "scene1": {
+        "auc": 0.9722426177174781,
+        "weights": {
+          "occupancy": 4.0,
+          "surge": 0.486719071420366,
+          "exodus": 2.8173447236103284,
+          "divergence": 1.880595957981012,
+          "coherence": 2.149673300164173
+        },
+        "bias": -2.2268680886039367
+      },
+      "scene2": {
+        "auc": 0.8005655259348171,
+        "weights": {
+          "occupancy": 4.0,
+          "surge": 0.34978033603530845,
+          "exodus": 3.1221663923432277,
+          "divergence": 3.310224998355652,
+          "coherence": 4.7908290749455
+        },
+        "bias": -4.276119953566438
+      },
+      "scene3": {
+        "auc": 0.9880770687882232,
+        "weights": {
+          "occupancy": 4.0,
+          "surge": 0.28119079701748756,
+          "exodus": 2.930027152037529,
+          "divergence": 3.1305134078780257,
+          "coherence": 2.984164672256758
+        },
+        "bias": -1.9301793287194313
+      }
+    },
+    "pooled_auc": 0.780756532988633,
+    "pooled_auc_tolerant": 0.8709231747598943
+  }
+}
