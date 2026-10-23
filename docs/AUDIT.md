@@ -96,7 +96,7 @@ also keeps it outside the EU AI Act's high-risk "emergency dispatch" category (A
 
 **Engineering: industry standard for a pilot.** The code, security, operations and supply-chain
 practices match what a professional team would ship to a supervised campus pilot. Every defect the
-independent audits found is fixed and pinned by a test (128 tests). The explainability core, an
+independent audits found is fixed and pinned by a test (130 tests). The explainability core, an
 exact additive evidence ledger with counterfactuals and a grounding verifier, is stronger than what
 commercial video-analytics products expose.
 
