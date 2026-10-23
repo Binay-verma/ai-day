@@ -31,6 +31,13 @@ def run(*args: str) -> None:
 
 
 def main():
+    try:
+        import onnx  # noqa: F401
+        import ultralytics  # noqa: F401
+    except ImportError:
+        raise SystemExit('exporting models needs the training extras: pip install -e ".[train]"\n'
+                         "(or download the prebuilt ONNX models from the release into models/; "
+                         "the edge runtime itself only needs onnxruntime)") from None
     ap = argparse.ArgumentParser()
     ap.add_argument("--fire-weights", default=os.path.join(ROOT, "models", "fire_smoke.pt"),
                     help="fine-tuned fire/smoke checkpoint (see scripts/train_fire.py)")

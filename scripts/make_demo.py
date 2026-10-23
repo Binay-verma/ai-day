@@ -22,7 +22,7 @@ import os
 import cv2
 import numpy as np
 
-DS = "/home/claude/datasets"
+DS = os.environ.get("EDGECOPILOT_DATASETS", "/home/claude/datasets")  # root holding the public datasets below
 W, H, FPS = 960, 540, 15.0
 
 SEGMENTS = [
@@ -72,6 +72,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="demo/demo_campus.mp4")
     args = ap.parse_args()
+    missing = [seg["src"] for seg in SEGMENTS if not os.path.exists(seg["src"])]
+    if missing:
+        raise SystemExit("source clips not found (set EDGECOPILOT_DATASETS to the folder holding the datasets, "
+                         "or use the prebuilt demo/demo_campus.mp4 from the release):\n  " + "\n  ".join(missing))
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     vw = cv2.VideoWriter(args.out, cv2.VideoWriter.fourcc(*"mp4v"), FPS, (W, H))
     t = 0.0

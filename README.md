@@ -111,10 +111,11 @@ production-readiness verdict.
 ## Quick start
 
 ```bash
-pip install -e ".[dev]"                       # runtime: onnxruntime + opencv + fastapi (no torch)
-python scripts/setup_models.py                # download + export models to ONNX (needs the [train] extra once)
-python scripts/make_demo.py                   # builds demo/demo_campus.mp4 from public datasets
-python -m edgecopilot.server.app --source demo/demo_campus.mp4   # open http://127.0.0.1:8000
+pip install -e ".[dev]"            # runtime: onnxruntime + opencv + fastapi (no torch)
+# models + demo video: unzip the release asset edge-copilot-models-and-demo.zip into the repo root
+#   (or build them yourself: pip install -e ".[train]" && python scripts/setup_models.py,
+#    and EDGECOPILOT_DATASETS=<datasets folder> python scripts/make_demo.py)
+python -m edgecopilot.server.app --source demo/demo_campus.mp4 --demo   # open http://127.0.0.1:8000
 python -m edgecopilot.cli --source 0          # headless, webcam
 pytest -q
 ```
