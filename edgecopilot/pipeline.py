@@ -446,9 +446,9 @@ class Copilot:
         # tracks that disappeared close their fall alerts (and start the re-alert cooldown)
         for key in [k for k in self.active if k.startswith("fall:")]:
             tid = int(key.split("#")[-1])
-            tr = self.tracker.tracks.get(tid)
-            if tr is not None:
-                self._fall_box[key] = tr.last.box.copy()
+            live = self.tracker.tracks.get(tid)
+            if live is not None:
+                self._fall_box[key] = live.last.box.copy()
             else:
                 al = self.active.pop(key)
                 if al.status == "open":
