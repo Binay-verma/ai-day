@@ -77,7 +77,7 @@ analysis: [`docs/RESULTS.md`](docs/RESULTS.md).
 | Explanation exactness | per-cue contributions sum to the score with max error **1.8e-15** (73 real alerts) |
 | Grounded text | **0 %** unsupported claims in generated explanations; verifier catches **99.2 %** of injected narrator errors at **1.2 %** false rejects |
 | Counterfactuals | **100 %** valid; explanation + verification in **0.54 ms** |
-| Crowd panic (UMN) | **10/11** panics detected, **0** false alarms with per-camera conformal calibration (α = 0.01); median delay 0.8 s |
+| Abnormal crowd movement (UMN sudden-dispersal scenes) | **10/11** dispersal events detected, **0** false alarms with per-camera conformal calibration (α = 0.01); median delay 0.8 s |
 | Fire/smoke detector | mAP@0.5 **0.73** on Home-fire test and **0.73** on DBA-Fire hold-out (start checkpoint: 0.38 / 0.27) |
 | Fire, system level (FURG videos) | **13/17** fire videos detected, **1** false alarm in 4.7 min of non-fire video incl. moving cameras |
 | Falls (GMDCSA24, cross-subject) | F1 **0.83** on a hard set with lying-on-bed negatives; false-alarm budget α = 0.1 met (0.099) |

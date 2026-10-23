@@ -26,3 +26,22 @@ groups:
         expr: increase(edgecopilot_notifications_total{ok="false"}[15m]) > 3
         labels: {severity: high}
         annotations: {summary: "Alert notifications are failing"}
+      - alert: SensorStale
+        expr: edgecopilot_sensor_age_seconds > 60
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "Sensor {{ $labels.sensor }} in {{ $labels.zone }} silent for over a minute"}
+      - alert: AlertRateDrift
+        # far more alerts than the conformal budget predicts: scene changed, camera moved, or a bug
+        expr: sum by (camera, hazard) (increase(edgecopilot_alerts_total[6h])) > 10
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.camera }} raised over 10 {{ $labels.hazard }} alerts in 6 h - re-check calibration"}
+  - name: edgecopilot-slo
+    rules:
+      - record: edgecopilot:camera_availability:ratio_1h
+        expr: avg_over_time(edgecopilot_camera_up[1h])
+      - alert: CameraAvailabilitySLOBurn
+        # SLO: each camera live >= 99.5 % of the time; fast burn = more than 14x budget over 1 h
+        expr: (1 - edgecopilot:camera_availability:ratio_1h) > 14 * 0.005
+        labels: {severity: high}
+        annotations: {summary: "{{ $labels.camera }} is burning its availability error budget"}

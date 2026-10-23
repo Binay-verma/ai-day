@@ -1,0 +1,5 @@
+# Each sensor node may only publish its own zone's topic; the copilot may read all sensors and publish alerts.
+pattern write campus/%u/sensors
+user edgecopilot
+topic read campus/+/sensors
+topic write campus/alerts

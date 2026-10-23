@@ -28,14 +28,24 @@ services:
     restart: unless-stopped
     volumes:
       - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-    ports: ["1883:1883"]
+      - ./deploy/mosquitto/acl:/mosquitto/config/acl:ro
+      - ./deploy/mosquitto/passwd:/mosquitto/config/passwd:ro
+      - ./deploy/mosquitto/certs:/mosquitto/certs:ro
+    ports: ["8883:8883"]
   prometheus:
     image: prom/prometheus:v2.55.1
     restart: unless-stopped
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./deploy/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
-    ports: ["9090:9090"]
+      - ./deploy/prometheus/metrics_token:/etc/prometheus/metrics_token:ro
+    ports: ["127.0.0.1:9090:9090"]
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    volumes:
+      - ./deploy/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports: ["127.0.0.1:9093:9093"]
   grafana:
     image: grafana/grafana:11.3.0
     restart: unless-stopped
@@ -43,6 +53,6 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
     volumes:
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
-    ports: ["3000:3000"]
+    ports: ["127.0.0.1:3000:3000"]
 volumes:
   copilot-data:

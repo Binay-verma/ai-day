@@ -1,0 +1,10 @@
+# Routes alerts ABOUT the safety system (camera down, copilot down, notification failures) to people.
+route:
+  receiver: security-desk
+  group_by: [alertname, camera]
+  repeat_interval: 30m
+receivers:
+  - name: security-desk
+    webhook_configs:
+      - url: https://hooks.slack.com/services/REPLACE/ME   # or an on-call system
+        send_resolved: true
