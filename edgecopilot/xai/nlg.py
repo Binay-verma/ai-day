@@ -176,9 +176,12 @@ def verify(text: str, a: Assessment, model: HazardModel, location: str = "",
     globals_ok += [float(s) for s in sid] + [float(s) for s in re.findall(r"\d+", location)]
 
     # 1) hazard claims: any hazard word mentioned must be the assessed hazard
+    #    (the "Recommended:" part is instantiated from the trusted playbook and may
+    #    legitimately say e.g. "check for a triggering incident (fire/fall)")
+    narrative = low.split("recommended:")[0]
     for hz, words in HAZARD_WORDS.items():
         for w in words:
-            if re.search(rf"\b{re.escape(w)}\b", low):
+            if re.search(rf"\b{re.escape(w)}\b", narrative):
                 ok = hz == a.hazard or any(
                     w in keywords.get(c.name, []) for c in a.cues)
                 v.claims.append(Claim("hazard", w, ok, "" if ok else f"assessed hazard is {a.hazard}"))
@@ -198,8 +201,16 @@ def _check_clause(clause: str, in_causal: bool, keywords: Dict[str, List[str]], 
                   cfs: list, globals_ok: List[float], a: Assessment, v: Verification) -> None:
     cl = clause.lower()
     bound = [n for n, kws in keywords.items() if any(re.search(rf"\b{re.escape(k)}", cl) for k in kws)]
-    for num in NUM_RE.findall(clause):
-        if bound:
+    for mt in NUM_RE.finditer(clause):
+        num = mt.group(0)
+        before = cl[max(0, mt.start() - 18):mt.start()]
+        if re.search(r"threshold|alert line", before):
+            ok = _matches(num, a.threshold) or _matches(num, a.threshold * 100)
+            detail = "" if ok else f"{num} is not the alert threshold"
+        elif re.search(r"confidence|probability|risk|likelihood", before):
+            ok = _matches(num, a.prob) or _matches(num, a.prob * 100)
+            detail = "" if ok else f"{num} is not the assessed probability"
+        elif bound:
             cand = [cue_by_name[n].value for n in bound if n in cue_by_name]
             cand += [cf.needed for cf in cfs if cf.cue in bound]
             ok = any(_matches(num, x) for x in cand) if cand else any(_matches(num, g) for g in globals_ok)

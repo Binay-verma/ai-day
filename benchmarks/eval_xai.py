@@ -55,7 +55,7 @@ def collect_alerts(cfg, fall_cache, umn_cache):
         m = HazardModel.from_config("fall", cfg["hazards"]["fall"])
         for it in pickle.load(open(fall_cache, "rb")):
             h = Hysteresis(**cfg["hysteresis"])
-            for t, tid, vals, rel in cue_series(it):
+            for t, tid, vals, rel in cue_series(it, min_score=cfg["models"]["pose"]["conf"]):
                 a = h.update(f"f{tid}", m.assess(f"person#{tid}", t, vals, rel))
                 if not it["label"]:
                     normal_vals["fall"].append(vals)
@@ -124,7 +124,7 @@ def paraphrase(text, rng):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/campus.yaml")
-    ap.add_argument("--fall-cache", default="data/gmdcsa24_cues.pkl")
+    ap.add_argument("--fall-cache", default="data/gmdcsa24_lowconf.pkl")
     ap.add_argument("--umn-cache", default="data/umn_features.pkl")
     ap.add_argument("--out", default="benchmarks/results/xai.json")
     args = ap.parse_args()
