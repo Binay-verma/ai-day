@@ -340,6 +340,18 @@ class EdgeService:
                 self.store.update_alert(al.id, cleared_at=time.time(), peak_prob=float(al.peak_prob))
             elif change == "reopened":
                 self.store.update_alert(al.id, cleared_at=None, peak_prob=float(al.peak_prob))
+            elif change == "long_lie":
+                self.store.update_alert(al.id, severity="CRITICAL", triage="ALARM")
+                self.store.audit("system", "system", "long_lie_escalation", al.id, {"zone": al.zone, "subject": al.subject})
+                rec = self.store.get_alert(al.id) or {}
+                if rec:
+                    rec = {**rec, "severity": "CRITICAL", "triage": "ALARM",
+                           "explanation": {**(rec.get("explanation") or {}),
+                                           "headline": f"STILL DOWN: {al.subject} in {al.zone} has not got up after the fall",
+                                           "text": f"Escalation: {al.subject} in {al.zone} is still on the ground "
+                                                   "a long time after the fall alert. "
+                                                   + (rec.get("explanation") or {}).get("text", "")}}
+                    self.notifier.alert(rec)
             self._broadcast({"type": "alert_update", "id": al.id, "change": change})
         except Exception:  # noqa: BLE001
             log.exception("failed to persist status change of %s", al.id)

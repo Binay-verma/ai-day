@@ -34,6 +34,7 @@ class Alert:
     operator_note: str = ""
     peak_prob: float = 0.0
     peak_ema: float = -1e9  # peak smoothed logit while active (calibration units)
+    long_lie: bool = False  # person still down long after the fall (escalated once)
 
     def summary(self) -> dict:
         d = asdict(self)

@@ -145,7 +145,8 @@ class Store:
     def update_alert(self, alert_id: str, **fields) -> bool:
         if not fields:
             return False
-        allowed = {"status", "operator", "operator_note", "ack_time", "peak_prob", "clip_path", "legal_hold", "cleared_at"}
+        allowed = {"status", "operator", "operator_note", "ack_time", "peak_prob", "clip_path", "legal_hold", "cleared_at",
+                   "severity", "triage"}
         bad = set(fields) - allowed
         if bad:
             raise ValueError(f"cannot update {bad}")

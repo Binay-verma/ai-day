@@ -293,6 +293,16 @@ $("#resumebtn").addEventListener("click", async () => {
   catch (e) { alert("Could not resume: " + e.message); }
 });
 
+async function refreshSelfTest() {
+  try {
+    const r = await api("/api/selftest");
+    const p = $("#selftest");
+    p.textContent = r.ok === true ? "Self-test OK" : (r.ok === false ? "Self-test FAILED" : "Self-test –");
+    p.className = "pill " + (r.ok === true ? "live" : (r.ok === false ? "off" : ""));
+    if (r.time_utc) p.title = "Last self-test " + r.time_utc;
+  } catch (e) { /* not logged in yet */ }
+}
+
 async function boot() {
   try { me = await api("/api/me"); } catch (e) { return; }
   role = me.role;
@@ -301,5 +311,7 @@ async function boot() {
   api("/api/status").then(s => { $("#priv").textContent = s.privacy; }).catch(() => {});
   connect();
   setInterval(() => api("/api/cameras").then(renderCams).catch(() => {}), 10000);
+  $("#handover").hidden = !(role === "operator" || role === "admin");
+  refreshSelfTest(); setInterval(refreshSelfTest, 60000);
 }
 boot();

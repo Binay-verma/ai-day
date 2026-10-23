@@ -88,6 +88,7 @@ class Copilot:
         self.max_width = rt.get("max_width", 960)
         self.scene_cut = rt.get("scene_cut", 0.75)
         self.cooldown_s = rt.get("realert_cooldown_s", 30.0)
+        self.long_lie_s = float(rt.get("long_lie_s", 60.0))
         self._closed: Dict[str, tuple] = {}  # key -> (alert, t_closed) for re-alert cooldown
         self._fall_box: Dict[str, np.ndarray] = {}  # last box of each open/closed fall incident (re-identification)
         self.exposure_jump = rt.get("exposure_jump", 0.45)
@@ -436,6 +437,7 @@ class Copilot:
                     cb(alert)
             elif a.active and key in self.active:
                 self.active[key].peak_prob = max(self.active[key].peak_prob, a.prob)
+                self._check_long_lie(a, self.active[key])
                 self.active[key].peak_ema = max(self.active[key].peak_ema, a.ema_logit if a.ema_logit is not None else a.logit)
             elif not a.active and key in self.active:
                 al = self.active.pop(key)
@@ -519,6 +521,20 @@ class Copilot:
         )
 
     # ---------------------------------------------------------- feedback loop
+    def _check_long_lie(self, a: Assessment, al: Alert) -> bool:
+        """Long lie: the person has not got up - a stumble has become a casualty. Escalate once."""
+        if a.hazard != "fall" or self.long_lie_s <= 0 or al.long_lie:
+            return False
+        gt = next((c.value for c in a.cues if c.name == "ground_time"), 0.0)
+        if gt < self.long_lie_s:
+            return False
+        al.long_lie = True
+        al.severity = "CRITICAL"
+        al.triage = {**(al.triage or {}), "mode": "ALARM",
+                     "reasons": [f"person still down after {gt:.0f} s"] + list((al.triage or {}).get("reasons", []))}
+        self._notify_status(al, "long_lie")
+        return True
+
     def _notify_status(self, al: Alert, change: str) -> None:
         for cb in self.status_listeners:
             try:

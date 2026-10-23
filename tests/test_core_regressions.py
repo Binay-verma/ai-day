@@ -349,3 +349,18 @@ def test_fall_reacquired_under_new_track_id_is_not_a_second_alert(tmp_path):
     assert cop._same_fall_incident("person#7", 5.0) == "fall:person#1"
     cop.tracker.tracks = {7: track(7, box + 400, 5.0)}   # somewhere else: a different person
     assert cop._same_fall_incident("person#7", 5.0) is None
+
+
+def test_long_lie_escalates_once(tmp_path):
+    from edgecopilot.xai.fusion import Assessment, Cue
+    cop = Copilot(no_models(), root=str(tmp_path), zone="Corridor B")
+    seen = []
+    cop.status_listeners.append(lambda al, ch: seen.append(ch))
+    al = Alert("fall", "person#1", "Corridor B", 1.0, 0.9, "HIGH", {}, {}, {}, [], [], triage={"mode": "VERIFY", "reasons": []})
+
+    def a(gt):
+        return Assessment("fall", "person#1", 0, -3, 2, 0.88, 0.6, [Cue("ground_time", gt, "s", 0.7, 1.0, "", "vision")])
+    assert not cop._check_long_lie(a(10.0), al)
+    assert cop._check_long_lie(a(cop.long_lie_s + 1), al)
+    assert al.severity == "CRITICAL" and al.triage["mode"] == "ALARM" and seen == ["long_lie"]
+    assert not cop._check_long_lie(a(cop.long_lie_s + 50), al)  # only once

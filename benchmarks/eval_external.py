@@ -12,6 +12,10 @@ during development:
 * normal activity: UR-Fall ADL sample plus 6 Intel IoT DevKit sample videos
   (walking, aisles, classroom, worker zone) - all-hazard false alarms per hour.
 
+UR-Fall cam-0 videos store depth (left) and RGB (right) side by side; only the RGB half
+is used. (The first run of this script fed the whole double frame - an input bug, corrected
+on 2026-10-24 and disclosed in docs/RESULTS.md.)
+
 Many fall clips end within a second of the impact (UR-Fall: 2.0-2.5 s total),
 so each fall clip is followed by the last frame held for ``--hold`` seconds,
 i.e. "the person stays down". This is stated in the output.
@@ -68,7 +72,10 @@ def run(path, target_fps, hold_s):
     stride = max(1, round(src.fps / target_fps))
     src = VideoSource(path, stride=stride)
     alerts, last, t = [], None, 0.0
+    side_by_side = os.path.basename(path).startswith(("fall-", "adl-"))  # UR cam0 = depth | RGB
     for frame, t in src:
+        if side_by_side and frame.shape[1] >= 2 * frame.shape[0]:
+            frame = frame[:, frame.shape[1] // 2:]
         res = cop.process(frame, t)
         alerts += res.new_alerts
         last = frame

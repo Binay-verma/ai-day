@@ -1,0 +1,6 @@
+# Removed from the cair "Normal Images" set after visual review of every image the detector fired on:
+# they show real (if controlled) fire or smoke, so they must not be trained as "no fire".
+241996-2560x1920.jpg.600x350_q85_crop.jpg
+4d97215bd7b0c4672f62c62cebaf38c7.jpg
+x14862823.jpg
+# plus every file whose name contains fire / smoke / flame / burn / candle / blaze (filtered in code)

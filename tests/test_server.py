@@ -261,3 +261,42 @@ def test_self_test_flags_degraded_camera_and_sends_test(env, tmp_path):
     assert any(x["hazard"] == "self_test" and "TEST" in x["explanation"]["text"] for x in sent)
     assert c.get("/api/selftest", headers=vw).json()["ok"] is False
     del svc.cameras["camT"]
+
+
+def test_long_lie_escalation_is_persisted_audited_and_notified(env):
+    from types import SimpleNamespace
+    c, svc = env
+    seed_alert(svc)
+    sent = []
+    svc.notifier.alert = lambda rec: sent.append(rec)
+    svc._on_status(SimpleNamespace(id="a1", zone="Corridor B", subject="person#1", peak_prob=0.9), "long_lie")
+    a = svc.store.get_alert("a1")
+    assert a["severity"] == "CRITICAL" and a["triage"] == "ALARM"
+    assert sent and sent[0]["explanation"]["headline"].startswith("STILL DOWN")
+    assert any(r["action"] == "long_lie_escalation" for r in svc.store.audit_log(10))
+
+
+def test_incident_correlation_and_handover(env):
+    c, svc = env
+    now = time.time()
+
+    def rec(i, cam, zone, hz, t, status="open", sev="HIGH"):
+        return {"id": i, "camera_id": cam, "zone": zone, "hazard": hz, "subject": "s", "t_video": 0.0, "wall_time": t,
+                "prob": 0.9, "peak_prob": 0.9, "severity": sev, "triage": "ALARM", "status": status,
+                "explanation": {"headline": f"{hz} in {zone}", "text": "x"}, "decision": {}, "verification": {},
+                "recommendations": [], "cues": []}
+    svc.store.save_alert(rec("f1", "cam1", "Lab A", "fire_smoke", now - 300))
+    svc.store.save_alert(rec("c1", "cam2", "Lab A", "crowd", now - 260, sev="CRITICAL"))   # same incident, other camera
+    svc.store.save_alert(rec("x1", "cam3", "Hall", "fall", now - 250, status="dismissed"))
+    svc.store.save_alert(rec("f2", "cam1", "Lab A", "fire_smoke", now - 3000, status="resolved"))  # separate (time gap)
+    h = {"Authorization": f"Bearer {login(c, 'asha', 'operator pass 1')}"}
+    inc = c.get("/api/incidents?hours=2", headers=h).json()
+    lab = [i for i in inc if i["zone"] == "Lab A"]
+    assert len(lab) == 2
+    big = max(lab, key=lambda i: i["n_alerts"])
+    assert big["n_alerts"] == 2 and big["multi_signal"] and big["severity"] == "CRITICAL" and big["open"]
+    d = c.get("/api/handover?hours=2", headers=h).json()
+    assert len(d["open_incidents"]) == 1 and d["dismissed"][0]["id"] == "x1"
+    page = c.get("/api/handover.html?hours=2", headers=h)
+    assert page.status_code == 200 and "Open incidents" in page.text and "<script" not in page.text
+    assert any(r["action"] == "handover_exported" for r in svc.store.audit_log(5))

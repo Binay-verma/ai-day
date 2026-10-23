@@ -36,6 +36,7 @@ class RuntimeCfg(_Strict):
     exposure_jump: float = Field(0.45, gt=0, le=1)
     realert_cooldown_s: float = Field(30, ge=0, le=3600)
     track_high_conf: float = Field(0.35, gt=0, lt=1)
+    long_lie_s: float = Field(60, ge=0, le=3600, description="escalate a fall when the person is still down this long (0 = off)")
     self_test_minutes: float = Field(60, ge=0, le=1440, description="end-to-end self-test period (0 = off)")
 
 

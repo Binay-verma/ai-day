@@ -397,6 +397,23 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
                              outcome="confirmed" if fb.confirmed else "dismissed").inc()
         return r
 
+    @app.get("/api/incidents")
+    def incidents(hours: float = Query(24.0, gt=0, le=24 * 31), p: Principal = Depends(viewer)):
+        """Alerts grouped into incidents (same zone, close in time, across cameras and hazards)."""
+        from ..handover import correlate
+        return correlate(service.store.list_alerts(500, since=time.time() - hours * 3600))
+
+    @app.get("/api/handover")
+    def handover(hours: float = Query(12.0, gt=0, le=24 * 7), p: Principal = Depends(viewer)):
+        from ..handover import build_handover
+        return build_handover(service, hours)
+
+    @app.get("/api/handover.html")
+    def handover_html(hours: float = Query(12.0, gt=0, le=24 * 7), p: Principal = Depends(operator)):
+        from ..handover import build_handover, render_handover
+        service.store.audit(p.username, p.role, "handover_exported", "", {"hours": hours})
+        return HTMLResponse(render_handover(build_handover(service, hours), p.username))
+
     @app.post("/api/alerts/{alert_id}/whatif")
     def what_if(alert_id: str, body: WhatIf, p: Principal = Depends(viewer)):
         _alert_or_404(alert_id)
