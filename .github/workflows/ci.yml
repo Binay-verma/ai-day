@@ -40,9 +40,14 @@ jobs:
       - run: python -m pip install --upgrade pip "setuptools>=83" wheel build && pip install -e . && python -m build --wheel
       - name: SBOM (CycloneDX, incl. ML models when present)
         run: python scripts/make_sbom.py > sbom.cdx.json
+      - name: Checksums (always; verifiable on private repos too)
+        run: sha256sum dist/*.whl sbom.cdx.json | tee SHA256SUMS
       - name: Build provenance (SLSA)
+        # GitHub artifact attestations are unavailable for user-owned private repositories;
+        # they run automatically once the repository is public (or on an organisation plan).
+        if: ${{ !github.event.repository.private }}
         uses: actions/attest-build-provenance@v1
         with: {subject-path: "dist/*.whl"}
       - uses: actions/upload-artifact@v4
-        with: {name: release, path: "dist/*.whl\nsbom.cdx.json"}
+        with: {name: release, path: "dist/*.whl\nsbom.cdx.json\nSHA256SUMS"}
       - run: docker build -t edge-copilot:ci .

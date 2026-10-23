@@ -8,7 +8,7 @@ version = "1.1.0"
 description = "Explainable Edge AI Copilot for smart-campus emergency response (falls, smoke/fire, crowd) on CPU edge devices"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
 authors = [{name = "Team local maxima: Binay Verma, Chetan Jagannath, Bhyresh B S, Dhanush D"}]
 dependencies = [
   "numpy>=1.24",
