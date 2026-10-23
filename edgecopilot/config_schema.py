@@ -44,6 +44,7 @@ class ModelCfg(_Strict):
     conf: float = Field(0.25, gt=0, lt=1)
     iou: float = Field(0.45, gt=0, lt=1)
     classes: Optional[List[str]] = None
+    sha256: Optional[str] = Field(None, pattern=r"^[0-9a-f]{64}$", description="pin: refuse to load any other file")
 
 
 class ModelsCfg(_Strict):
@@ -290,10 +291,28 @@ class Config(_Strict):
         return self
 
 
-def load_validated(path: str) -> Config:
+def _deep_merge(base: dict, over: dict) -> dict:
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _deep_merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def load_raw(path: str, _depth: int = 0) -> dict:
+    """YAML with optional ``extends: base.yaml`` overlay (site config on top of the shared model config)."""
     with open(path) as f:
-        raw = yaml.safe_load(f)
-    return Config.model_validate(raw)
+        raw = yaml.safe_load(f) or {}
+    base = raw.pop("extends", None)
+    if base:
+        if _depth > 3:
+            raise ValueError("config 'extends' chain too deep")
+        base_path = base if os.path.isabs(base) else os.path.join(os.path.dirname(os.path.abspath(path)), base)
+        raw = _deep_merge(load_raw(base_path, _depth + 1), raw)
+    return raw
+
+
+def load_validated(path: str) -> Config:
+    return Config.model_validate(load_raw(path))
 
 
 def load_config_dict(path: str) -> dict:

@@ -161,6 +161,8 @@ class CameraWorker:
         self.thread = threading.Thread(target=self._run, daemon=True, name=f"cam-{cam_id}")
         self.latest_jpg: bytes = b""
         self.latency_ms: Deque[float] = collections.deque(maxlen=300)
+        self.paused_until = 0.0  # human override: analysis paused (stream still monitored)
+        self.paused_by = ""
         self.state: dict = {}
         self._lock = threading.Lock()
 
@@ -176,12 +178,27 @@ class CameraWorker:
         self.thread.join(timeout)
         self.health.state = "stopped"
 
+    def pause(self, seconds: float, by: str) -> None:
+        """Stop AI analysis on this camera for a bounded time (maintenance, drills, events)."""
+        self.paused_until = time.time() + max(0.0, seconds)
+        self.paused_by = by
+
+    def resume(self) -> None:
+        self.paused_until = 0.0
+        self.paused_by = ""
+
+    @property
+    def paused(self) -> bool:
+        return time.time() < self.paused_until
+
     def status(self) -> dict:
         h = self.health
         age = time.time() - h.last_frame_wall if h.last_frame_wall else None
         if h.state == "live" and age is not None and age > self.stale_s:
             h.state = "stale"
-        return {"id": self.cam_id, "zone": self.copilot.zone, "health": h.to_dict(), "state": self.state}
+        return {"id": self.cam_id, "zone": self.copilot.zone, "health": h.to_dict(), "state": self.state,
+                "paused": self.paused, "paused_until": self.paused_until if self.paused else None,
+                "paused_by": self.paused_by if self.paused else ""}
 
     def _open(self):
         cap = cv2.VideoCapture(self.source)
@@ -265,7 +282,23 @@ class CameraWorker:
             h.faults[k] = v
         cop = self.copilot
         cop.sensors.advance(t)
+        if self.paused:
+            img = frame.copy()
+            cv2.putText(img, f"AI ANALYSIS PAUSED by {self.paused_by}", (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 4, cv2.LINE_AA)
+            cv2.putText(img, f"AI ANALYSIS PAUSED by {self.paused_by}", (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 200, 255), 2, cv2.LINE_AA)
+            safe = anonymize(img, [], "raw" if cop.privacy == "raw" else "skeleton")
+            ok, buf = cv2.imencode(".jpg", safe, [cv2.IMWRITE_JPEG_QUALITY, 60])
+            with self._lock:
+                if ok:
+                    self.latest_jpg = buf.tobytes()
+                self.state = {"t": round(t, 2), "paused": True}
+            if self.on_frame:
+                self.on_frame(self.cam_id, self.latest_jpg, self.state)
+            return
         res = cop.process(frame, t)
+        if res.scene_change and not self.is_file and self.on_fault:
+            # a live camera's field of view changed (moved, knocked, re-aimed): calibration no longer applies
+            self.on_fault(self.cam_id, "view_changed", f"camera {self.cam_id}: field of view changed - re-calibrate")
         self.latency_ms.append(res.timings.get("total", 0.0))
         view = cop._last_frame if cop._last_frame is not None else frame
         img = cop.render(view, res.people, res.hazards, res.assessments)

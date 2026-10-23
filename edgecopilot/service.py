@@ -17,8 +17,11 @@ import base64
 import hashlib
 import logging
 import os
+import socket
 import threading
 import time
+import uuid
+from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
 from . import __version__
@@ -30,6 +33,38 @@ from .pipeline import Copilot
 from .storage import Store
 
 log = logging.getLogger("edgecopilot.service")
+
+
+FAULT_TEXT = {
+    "offline": "camera offline / stream unreachable",
+    "frozen": "frozen image (stream stuck or replayed still)",
+    "blackout": "image black (lens covered, power or IR failure)",
+    "defocus": "image lost its detail (lens obstructed, sprayed or moved)",
+    "view_changed": "field of view changed (camera moved) - calibration no longer valid",
+}
+
+
+def utc_iso(ts: Optional[float]) -> Optional[str]:
+    """ISO-8601 UTC timestamp (records are kept in UTC; displays convert to local time)."""
+    if ts is None:
+        return None
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def sd_notify(msg: str) -> bool:
+    """systemd notify protocol (READY=1 / WATCHDOG=1) without extra dependencies."""
+    addr = os.environ.get("NOTIFY_SOCKET")
+    if not addr:
+        return False
+    if addr.startswith("@"):
+        addr = "\0" + addr[1:]
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as s:
+            s.connect(addr)
+            s.send(msg.encode())
+        return True
+    except OSError:
+        return False
 
 
 def file_sha256(path: str) -> Optional[str]:
@@ -77,6 +112,9 @@ class EdgeService:
             base_url=os.environ.get("EDGECOPILOT_PUBLIC_URL", ""))
         self._retention_stop = threading.Event()
         self._retention = threading.Thread(target=self._retention_loop, daemon=True, name="retention")
+        self._watchdog = threading.Thread(target=self._watchdog_loop, daemon=True, name="watchdog")
+        self._fault_last: Dict[str, float] = {}
+        self.fault_cooldown_s = 900.0
 
     def _abs(self, p: str) -> str:
         return p if os.path.isabs(p) else os.path.join(self.root, p)
@@ -89,7 +127,9 @@ class EdgeService:
         cop = Copilot(cfg, root=self.root, zone=cam["zone"], sensors=self.sensors, event_log=EventLog(),
                       enable=cam.get("hazards") or None)
         st = self.cfg.get("storage", {})
-        w = CameraWorker(cam["id"], cam["source"], cop, stride=cam.get("stride", 1), realtime=cam.get("realtime", True),
+        # ${VAR} in camera URLs is filled from the environment so credentials never sit in the config file
+        source = os.path.expandvars(str(cam["source"]))
+        w = CameraWorker(cam["id"], source, cop, stride=cam.get("stride", 1), realtime=cam.get("realtime", True),
                          loop=cam.get("loop", False), on_alert=self._on_alert, on_fault=self._on_fault,
                          on_clip=self._on_clip, on_frame=self._on_frame,
                          clip=ClipBuffer(st.get("clip_pre_s", 5.0), st.get("clip_post_s", 10.0)),
@@ -103,7 +143,9 @@ class EdgeService:
         for w in self.cameras.values():
             w.start()
         self._retention.start()
+        self._watchdog.start()
         self.store.audit("system", "admin", "service_start", "", {"cameras": list(self.cameras), **self.provenance})
+        sd_notify("READY=1")
 
     def stop(self) -> None:
         for w in self.cameras.values():
@@ -113,6 +155,23 @@ class EdgeService:
         if self.mqtt:
             self.mqtt.stop()
         self.store.audit("system", "admin", "service_stop", "", {})
+
+    def healthy(self) -> bool:
+        """Liveness for the watchdog: every enabled camera thread alive and producing frames (or paused)."""
+        for w in self.cameras.values():
+            if w.health.state == "stopped":
+                continue
+            if not w.thread.is_alive():
+                return False
+        return True
+
+    def _watchdog_loop(self) -> None:
+        """Kick the systemd watchdog only while healthy: a hung pipeline gets restarted automatically."""
+        while not self._retention_stop.wait(5.0):
+            if self.healthy():
+                sd_notify("WATCHDOG=1")
+            else:
+                log.error("watchdog: a camera thread died - withholding WATCHDOG=1 so the service is restarted")
 
     def _retention_loop(self) -> None:
         while True:  # purge at start-up, then hourly
@@ -157,9 +216,34 @@ class EdgeService:
         self._broadcast({"type": "alert", "alert": rec})
 
     def _on_fault(self, cam_id: str, kind: str, detail: str) -> None:
-        self.store.audit("system", "admin", "camera_fault", cam_id, {"kind": kind, "detail": detail})
-        log.error("camera fault %s: %s", cam_id, detail, extra={"camera": cam_id, "event": "camera_fault"})
+        """Trouble signal: a failing camera is itself an incident (FM 3232-style), routed like an alert."""
+        key = f"{cam_id}:{kind}"
+        now = time.time()
         self._broadcast({"type": "camera_fault", "camera": cam_id, "kind": kind, "detail": detail})
+        if now - self._fault_last.get(key, 0.0) < self.fault_cooldown_s:
+            return  # already reported recently (reconnect loops must not flood operators)
+        self._fault_last[key] = now
+        w = self.cameras.get(cam_id)
+        zone = w.copilot.zone if w else ""
+        text = FAULT_TEXT.get(kind, kind)
+        rec = {"id": uuid.uuid4().hex[:10], "camera_id": cam_id, "zone": zone, "hazard": "camera_fault", "subject": kind,
+               "t_video": 0.0, "wall_time": now, "prob": 1.0, "peak_prob": 1.0, "severity": "HIGH", "triage": "TROUBLE",
+               "status": "open",
+               "explanation": {"headline": f"Camera {cam_id} ({zone}): {text}", "because": detail,
+                               "text": f"Camera {cam_id} in {zone}: {text}. This area is NOT being monitored until it is fixed.",
+                               "confidence_text": "", "counterfactual": ""},
+               "decision": {}, "verification": {"groundedness": 1.0, "n_claims": 0},
+               "recommendations": [{"text": f"Inspect camera {cam_id} in {zone} and restore the view", "priority": 1},
+                                   {"text": f"Arrange manual patrols of {zone} until monitoring is restored", "priority": 1}],
+               "cues": [], "provenance": self.provenance}
+        try:
+            self.store.save_alert(rec)
+            self.store.audit("system", "admin", "camera_fault", cam_id, {"kind": kind, "detail": detail, "alert": rec["id"]})
+        except Exception:  # noqa: BLE001
+            log.exception("failed to persist camera fault")
+        log.error("camera fault %s: %s", cam_id, detail, extra={"camera": cam_id, "event": "camera_fault"})
+        self.notifier.alert(rec)
+        self._broadcast({"type": "alert", "alert": rec})
 
     def _on_clip(self, cam_id: str, alert_id: str, frames) -> None:
         def work():
@@ -190,8 +274,27 @@ class EdgeService:
         self._broadcast({"type": "alert_update", "id": alert_id, "status": status, "operator": actor})
         return out
 
+    # -------------------------------------------------- human oversight
+    def pause_camera(self, cam_id: str, seconds: float, actor: str, role: str, reason: str = "") -> Optional[dict]:
+        w = self.cameras.get(cam_id)
+        if w is None:
+            return None
+        w.pause(seconds, actor)
+        self.store.audit(actor, role, "camera_paused", cam_id, {"seconds": seconds, "reason": reason[:200]})
+        self._broadcast({"type": "camera_paused", "camera": cam_id, "by": actor, "until": w.paused_until})
+        return w.status()
+
+    def resume_camera(self, cam_id: str, actor: str, role: str) -> Optional[dict]:
+        w = self.cameras.get(cam_id)
+        if w is None:
+            return None
+        w.resume()
+        self.store.audit(actor, role, "camera_resumed", cam_id, {})
+        self._broadcast({"type": "camera_resumed", "camera": cam_id, "by": actor})
+        return w.status()
+
     def status(self) -> dict:
-        return {"version": __version__, "uptime_s": round(time.time() - self.started, 1),
+        return {"version": __version__, "uptime_s": round(time.time() - self.started, 1), "now_utc": utc_iso(time.time()),
                 "cameras": [w.status() for w in self.cameras.values()],
                 "sensors": self.sensors.status(time.time()),
                 "mqtt": {"connected": bool(self.mqtt and self.mqtt.connected.is_set()),

@@ -1,7 +1,7 @@
 // Operator console. All server data is inserted with textContent / DOM APIs (never innerHTML),
 // so names, notes and explanation text cannot inject markup (CSP also forbids inline script).
 "use strict";
-const HZ = {fall: "Fall", fire_smoke: "Smoke / fire", crowd: "Crowd"};
+const HZ = {fall: "Fall", fire_smoke: "Smoke / fire", crowd: "Crowd", camera_fault: "Camera fault"};
 const $ = s => document.querySelector(s);
 const el = (tag, props = {}, ...kids) => {
   const e = document.createElement(tag);
@@ -79,9 +79,10 @@ function renderCams(list) {
   const h = $("#camhealth"); h.replaceChildren();
   for (const c of cams.values()) {
     const st = c.health || {}, faults = Object.entries(st.faults || {}).filter(([, v]) => v).map(([k]) => k);
-    h.append(el("span", {class: st.state === "live" && !faults.length ? "" : "bad",
-      textContent: `${c.id}: ${st.state || "?"}${faults.length ? " · " + faults.join(", ") : ""}`}));
+    h.append(el("span", {class: c.paused ? "paused" : (st.state === "live" && !faults.length ? "" : "bad"),
+      textContent: `${c.id}: ${c.paused ? "AI paused by " + c.paused_by : (st.state || "?")}${faults.length ? " · " + faults.join(", ") : ""}`}));
   }
+  $("#camctl").hidden = !(role === "operator" || role === "admin") || !currentCam;
 }
 
 function ledger(a) {
@@ -171,6 +172,7 @@ function upsertAlert(a, fresh) {
   if (old && old._node) old._node.remove();
   alerts.set(a.id, a);
   renderQueue();
+  if (fresh && a.hazard === "camera_fault") api("/api/cameras").then(renderCams).catch(() => {});
   if (fresh && a._node) { document.querySelectorAll(".alert:not(.closed)").forEach(x => { if (x !== a._node) x.classList.add("closed"); }); }
 }
 
@@ -191,9 +193,21 @@ function connect() {
     }
     else if (m.type === "alert") upsertAlert(m.alert, true);
     else if (m.type === "alert_update") { const a = alerts.get(m.id); if (a) { a.status = m.status; a.operator = m.operator; a._node = null; renderQueue(); } }
-    else if (m.type === "camera_fault") api("/api/cameras").then(renderCams).catch(() => {});
+    else if (["camera_fault", "camera_paused", "camera_resumed"].includes(m.type)) api("/api/cameras").then(renderCams).catch(() => {});
   };
 }
+
+$("#pausebtn").addEventListener("click", async () => {
+  try {
+    await api(`/api/cameras/${encodeURIComponent(currentCam)}/pause`, {method: "POST",
+      body: JSON.stringify({minutes: +$("#pausemin").value, reason: $("#pausereason").value})});
+    renderCams(await api("/api/cameras"));
+  } catch (e) { alert("Could not pause: " + e.message); }
+});
+$("#resumebtn").addEventListener("click", async () => {
+  try { await api(`/api/cameras/${encodeURIComponent(currentCam)}/resume`, {method: "POST"}); renderCams(await api("/api/cameras")); }
+  catch (e) { alert("Could not resume: " + e.message); }
+});
 
 async function boot() {
   try { me = await api("/api/me"); } catch (e) { return; }

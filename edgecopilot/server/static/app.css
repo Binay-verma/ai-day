@@ -2,8 +2,9 @@
   --night:#1a2530; --panel:#223241; --panel-2:#2a3c4d; --line:#36495b;
   --text:#e8edf1; --muted:#9aacbb; --for:#f2a33a; --against:#56b8c4;
   --fall:#f2697a; --fire_smoke:#f2a33a; --crowd:#9b8cf2; --ok:#6fcf8e; --bad:#ff8a8a;
-  --ui:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
-  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* system fonts only: the console must work on an offline campus network */
+  --ui:"Barlow Semi Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--night);color:var(--text);font:15px/1.5 var(--body)}
@@ -98,3 +99,7 @@ aside{min-width:0}
 .chip{all:unset;cursor:pointer;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:12px;padding:2px 8px}
 .chip:focus-visible{outline:2px solid var(--for)}
 @media (prefers-reduced-motion:reduce){.meter .fill{transition:none}}
+.camctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;color:var(--muted);font-size:14px}
+.camctl select,.camctl input{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:3px 6px}
+.camhealth span.paused{background:#4a3a14;color:#ffe2a8}
+.disclaimer{max-width:1600px;margin:0 auto;padding:6px 20px 20px;color:var(--muted);font-size:12px}

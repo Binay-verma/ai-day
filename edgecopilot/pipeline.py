@@ -125,7 +125,7 @@ class Copilot:
         if not os.path.exists(path):
             return None
         return OnnxYolo(path, classes, imgsz=mcfg.get("imgsz", 640), conf=mcfg.get("conf", 0.25),
-                        iou=mcfg.get("iou", 0.45), pose=pose, threads=self.threads)
+                        iou=mcfg.get("iou", 0.45), pose=pose, threads=self.threads, sha256=mcfg.get("sha256"))
 
     def _load_calibration(self) -> None:
         import json

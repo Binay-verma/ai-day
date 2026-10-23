@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS alerts (
   t_video REAL, wall_time REAL, prob REAL, peak_prob REAL, severity TEXT, triage TEXT,
   status TEXT, operator TEXT, operator_note TEXT, ack_time REAL,
   explanation TEXT, decision TEXT, verification TEXT, recommendations TEXT, cues TEXT,
-  provenance TEXT, snapshot_path TEXT, evidence_path TEXT, clip_path TEXT, purged INTEGER DEFAULT 0
+  provenance TEXT, snapshot_path TEXT, evidence_path TEXT, clip_path TEXT, purged INTEGER DEFAULT 0,
+  legal_hold INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS ix_alerts_time ON alerts(wall_time);
 CREATE INDEX IF NOT EXISTS ix_alerts_status ON alerts(status);
@@ -77,12 +78,20 @@ class Store:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.fernet = None
         if encrypt_media:
             key = _load_key(key_env, os.path.join(os.path.dirname(db_path) or ".", ".media_key"))
             if key is None:
                 raise RuntimeError("encrypt_media=true but the 'cryptography' package is not installed")
             self.fernet = Fernet(key)
+
+    def _migrate(self) -> None:
+        """Forward-only schema migrations for databases created by older versions."""
+        cols = {r[1] for r in self.conn.execute("PRAGMA table_info(alerts)")}
+        if "legal_hold" not in cols:
+            self.conn.execute("ALTER TABLE alerts ADD COLUMN legal_hold INTEGER DEFAULT 0")
+        self.conn.execute("INSERT OR REPLACE INTO meta (k, v) VALUES ('schema_version', '2')")
 
     def close(self) -> None:
         with self.lock:
@@ -131,7 +140,7 @@ class Store:
     def update_alert(self, alert_id: str, **fields) -> bool:
         if not fields:
             return False
-        allowed = {"status", "operator", "operator_note", "ack_time", "peak_prob", "clip_path"}
+        allowed = {"status", "operator", "operator_note", "ack_time", "peak_prob", "clip_path", "legal_hold"}
         bad = set(fields) - allowed
         if bad:
             raise ValueError(f"cannot update {bad}")
@@ -196,6 +205,25 @@ class Store:
                     pass
         return d
 
+    def erase(self, alert_id: str) -> Dict[str, int]:
+        """Data-subject erasure: delete an incident's media and personal fields now."""
+        with self.lock:
+            row = self.conn.execute("SELECT snapshot_path, evidence_path, clip_path, legal_hold FROM alerts WHERE id = ?",
+                                    (alert_id,)).fetchone()
+        if row is None:
+            return {"found": 0, "files": 0}
+        if row[3]:
+            raise PermissionError("incident is under legal hold")
+        files = 0
+        for p in row[:3]:
+            if p and os.path.exists(p) and os.path.realpath(p).startswith(os.path.realpath(self.media_dir)):
+                os.remove(p)
+                files += 1
+        with self.lock:
+            self.conn.execute("UPDATE alerts SET snapshot_path = NULL, evidence_path = NULL, clip_path = NULL, "
+                              "operator_note = NULL, subject = 'redacted', purged = 1 WHERE id = ?", (alert_id,))
+        return {"found": 1, "files": files}
+
     # --------------------------------------------------------------- audit
     def audit(self, actor: str, role: str, action: str, target: str = "", detail: Optional[dict] = None) -> str:
         with self.lock:
@@ -233,7 +261,7 @@ class Store:
         cutoff = now - retention_days * 86400
         with self.lock:
             rows = self.conn.execute("SELECT id, snapshot_path, evidence_path, clip_path FROM alerts "
-                                     "WHERE wall_time < ? AND purged = 0", (cutoff,)).fetchall()
+                                     "WHERE wall_time < ? AND purged = 0 AND legal_hold = 0", (cutoff,)).fetchall()
         files: int = 0
         for _id, *paths in rows:
             for p in paths:
@@ -242,12 +270,15 @@ class Store:
                     files += 1
         with self.lock:
             self.conn.execute("UPDATE alerts SET snapshot_path = NULL, evidence_path = NULL, clip_path = NULL, "
-                              "operator_note = NULL, subject = 'redacted', purged = 1 WHERE wall_time < ? AND purged = 0",
-                              (cutoff,))
-        # stray media files (e.g. from a crash) older than the cutoff
+                              "operator_note = NULL, subject = 'redacted', purged = 1 "
+                              "WHERE wall_time < ? AND purged = 0 AND legal_hold = 0", (cutoff,))
+            held = {p for r in self.conn.execute("SELECT snapshot_path, evidence_path, clip_path FROM alerts "
+                                                 "WHERE legal_hold = 1").fetchall() for p in r if p}
+        # stray media files (e.g. from a crash) older than the cutoff, except media under legal hold
+        held_real = {os.path.realpath(p) for p in held}
         for fn in os.listdir(self.media_dir):
             p = os.path.join(self.media_dir, fn)
-            if os.path.isfile(p) and os.path.getmtime(p) < cutoff:
+            if os.path.isfile(p) and os.path.getmtime(p) < cutoff and os.path.realpath(p) not in held_real:
                 os.remove(p)
                 files += 1
         if rows or files:

@@ -36,6 +36,8 @@ def format_text(a: dict, base_url: str = "") -> str:
     tri = tri.get("mode", "") if isinstance(tri, dict) else str(tri)
     acts = "; ".join(r["text"] for r in (a.get("recommendations") or [])[:3])
     link = f"\nOpen: {base_url.rstrip('/')}/#alert-{a['id']}" if base_url else ""
+    if a.get("hazard") == "fire_smoke":
+        link += "\n(AI decision support - follow the building fire alarm and fire-safety procedures.)"
     return (f"[{a.get('severity')}{' / ' + tri if tri else ''}] {exp.get('headline', a.get('hazard'))}\n"
             f"{exp.get('because', '')}\n{exp.get('confidence_text', '')}\nDo: {acts}{link}")
 

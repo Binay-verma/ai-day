@@ -142,3 +142,30 @@ def test_websocket_requires_auth(env):
     with c.websocket_connect(f"/ws?token={tok}") as ws:
         hello = ws.receive_json()
         assert hello["type"] == "hello" and hello["role"] == "viewer"
+
+
+def test_legal_hold_and_erasure(env):
+    c, svc = env
+    seed_alert(svc)
+    adm = {"Authorization": f"Bearer {login(c, 'root', 'admin pass 123')}"}
+    op = {"Authorization": f"Bearer {login(c, 'asha', 'operator pass 1')}"}
+    assert c.post("/api/alerts/a1/erase", headers=op).status_code == 403
+    assert c.post("/api/alerts/a1/hold", json={"hold": True}, headers=adm).json()["legal_hold"]
+    assert c.post("/api/alerts/a1/erase", headers=adm).status_code == 409  # held incidents cannot be erased
+    assert svc.store.purge(0.0)["incidents"] == 0  # nor purged
+    c.post("/api/alerts/a1/hold", json={"hold": False}, headers=adm)
+    r = c.post("/api/alerts/a1/erase", headers=adm).json()
+    assert r["files"] == 1 and svc.store.get_alert("a1")["subject"] == "redacted"
+    assert c.get("/api/alerts/a1", headers=adm).json()["snapshot_jpg_b64"] == ""
+    assert c.get("/api/alerts", headers=adm).json()[0]["time_utc"].endswith("Z")
+
+
+def test_camera_fault_is_a_trouble_alert_and_deduplicated(env):
+    c, svc = env
+    sent = []
+    svc.notifier.alert = lambda rec: sent.append(rec)
+    svc._on_fault("cam9", "blackout", "camera cam9: blackout detected")
+    svc._on_fault("cam9", "blackout", "camera cam9: blackout detected")  # within cooldown
+    rows = svc.store.list_alerts(hazard="camera_fault")
+    assert len(rows) == 1 and rows[0]["triage"] == "TROUBLE" and len(sent) == 1
+    assert "NOT being monitored" in rows[0]["explanation"]["text"]

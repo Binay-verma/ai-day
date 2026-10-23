@@ -1,0 +1,52 @@
+# Site configuration for a campus pilot. Shared model/cue/playbook settings come from campus.yaml;
+# only site-specific parts live here. Validate with:  python -m edgecopilot.config_schema configs/production.example.yaml
+extends: campus.yaml
+
+models:
+  pose:
+    path: models/yolo11n-pose.int8.onnx   # INT8: 3.6x smaller, ~20 % faster on CPU
+    # pin the exact file you validated; any other file is refused at start-up (scripts/make_sbom.py prints hashes)
+    sha256: a745298dd97e42c8c02c6b8052696a2b26f98255a20d477b1cc901dda49f41fa
+  fire_smoke:
+    path: models/fire_smoke.int8.onnx
+    sha256: aa0f28e34730e02070607cdf2f7d424fe36d940122fbe57f117494a923be2a24
+
+cameras:
+  - {id: corridor-b-1, source: "rtsp://copilot:${CAM_PASS}@10.20.0.11:554/stream1", zone: Corridor B}
+  - {id: lab-a-1, source: "rtsp://copilot:${CAM_PASS}@10.20.0.12:554/stream1", zone: Lab Block A, hazards: {crowd: false}}
+  - {id: audi-1, source: "rtsp://copilot:${CAM_PASS}@10.20.0.13:554/stream1", zone: Auditorium, stride: 2}
+
+server:
+  host: 0.0.0.0             # behind an HTTPS reverse proxy
+  port: 8000
+  stream_fps: 4
+  auth:
+    enabled: true
+    token_ttl_s: 28800
+    users:                  # python -m edgecopilot.security hash
+      - {username: security.desk, role: operator, password_hash: "scrypt$00000000000000000000000000000000$0000000000000000000000000000000000000000000000000000000000000000"}
+      - {username: safety.officer, role: admin, password_hash: "scrypt$00000000000000000000000000000000$0000000000000000000000000000000000000000000000000000000000000000"}
+    sensor_api_keys:        # python -m edgecopilot.security keygen  (digests only)
+      - "0000000000000000000000000000000000000000000000000000000000000000"
+
+storage:
+  retention_days: 30
+  clip_pre_s: 5
+  clip_post_s: 10
+
+notifications:
+  webhooks:
+    security_slack: {url: "https://hooks.slack.com/services/REPLACE/ME", kind: slack, min_severity: MEDIUM}
+    warden_teams: {url: "https://example.webhook.office.com/REPLACE", kind: teams, min_severity: HIGH}
+  email: {host: smtp.campus.example, port: 587, sender: copilot@campus.example, to: [safety@campus.example], min_severity: HIGH}
+  escalation:
+    - {after_s: 0, channels: [security_slack]}
+    - {after_s: 60, channels: [warden_teams, email]}
+
+mqtt:
+  host: mosquitto
+  port: 8883
+  tls: true
+  sensor_topic: campus/+/sensors
+  username_env: MQTT_USER
+  password_env: MQTT_PASSWORD

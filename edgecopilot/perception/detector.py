@@ -99,12 +99,22 @@ class OnnxYolo:
         pose: bool = False,
         threads: Optional[int] = None,
         class_agnostic_nms: bool = False,
+        sha256: Optional[str] = None,
     ) -> None:
         if ort is None:
             raise ImportError("onnxruntime is required: pip install onnxruntime")
         if not os.path.exists(model_path):
             raise FileNotFoundError(
                 f"{model_path} not found. Run `python scripts/setup_models.py` first.")
+        if sha256:
+            import hashlib
+            h = hashlib.sha256()
+            with open(model_path, "rb") as f:
+                for chunk in iter(lambda: f.read(1 << 20), b""):
+                    h.update(chunk)
+            if h.hexdigest() != sha256.lower():
+                raise ValueError(f"{model_path}: SHA-256 mismatch (expected {sha256[:12]}..., got {h.hexdigest()[:12]}...) "
+                                 "- refusing to load an unexpected model file")
         so = ort.SessionOptions()
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         so.intra_op_num_threads = threads or max(1, (os.cpu_count() or 2))

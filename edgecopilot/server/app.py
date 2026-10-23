@@ -41,7 +41,7 @@ from ..config_schema import load_config_dict
 from ..copilot.qa import answer
 from ..logging_setup import setup as setup_logging
 from ..security import AuthManager, Principal, RateLimiter, load_secret
-from ..service import EdgeService
+from ..service import EdgeService, utc_iso
 from . import metrics as prom
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -64,6 +64,15 @@ class Feedback(BaseModel):
 
 class Question(BaseModel):
     question: str = Field(min_length=1, max_length=300)
+
+
+class Pause(BaseModel):
+    minutes: float = Field(30, gt=0, le=12 * 60, description="bounded: analysis always resumes automatically")
+    reason: str = Field("", max_length=200)
+
+
+class Hold(BaseModel):
+    hold: bool
 
 
 class SensorReading(BaseModel):
@@ -92,7 +101,7 @@ class SecurityHeaders(BaseHTTPMiddleware):
         resp.headers["Cache-Control"] = "no-store"
         resp.headers["Content-Security-Policy"] = (
             "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; "
+            "style-src 'self' 'unsafe-inline'; font-src 'self'; "
             "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         return resp
 
@@ -228,6 +237,20 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
             raise HTTPException(404, "no frame")
         return Response(w.latest_jpg, media_type="image/jpeg")
 
+    @app.post("/api/cameras/{cam_id}/pause")
+    def camera_pause(cam_id: str, body: Pause, p: Principal = Depends(operator)):
+        st = service.pause_camera(cam_id, body.minutes * 60, p.username, p.role, body.reason)
+        if st is None:
+            raise HTTPException(404, "unknown camera")
+        return st
+
+    @app.post("/api/cameras/{cam_id}/resume")
+    def camera_resume(cam_id: str, p: Principal = Depends(operator)):
+        st = service.resume_camera(cam_id, p.username, p.role)
+        if st is None:
+            raise HTTPException(404, "unknown camera")
+        return st
+
     @app.get("/api/stats")
     def stats(hours: float = Query(24.0, gt=0, le=24 * 365), p: Principal = Depends(viewer)):
         return service.store.stats(since=time.time() - hours * 3600)
@@ -238,6 +261,7 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
                hazard: Optional[str] = None, camera: Optional[str] = None, p: Principal = Depends(viewer)):
         rows = service.store.list_alerts(limit_, status=status_, hazard=hazard, camera_id=camera)
         for r in rows:
+            r["time_utc"] = utc_iso(r.get("wall_time"))
             for k in ("snapshot_path", "evidence_path", "clip_path"):
                 r[f"has_{k.split('_')[0]}"] = bool(r.pop(k, None))
         return rows
@@ -257,6 +281,7 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
             data = service.store.get_media(a.pop(k)) if a.get(k) else None
             a[out] = base64.b64encode(data).decode() if data else ""
         a["has_clip"] = bool(a.pop("clip_path", None))
+        a["time_utc"] = utc_iso(a.get("wall_time"))
         return a
 
     @app.get("/api/alerts/{alert_id}/clip.mp4")
@@ -291,6 +316,23 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
             imgs[k] = base64.b64encode(data).decode() if data else ""
         service.store.audit(p.username, p.role, "report_exported", alert_id, {})
         return HTMLResponse(render_report(a, imgs, p.username))
+
+    @app.post("/api/alerts/{alert_id}/hold")
+    def alert_hold(alert_id: str, body: Hold, p: Principal = Depends(admin)):
+        _alert_or_404(alert_id)
+        service.store.update_alert(alert_id, legal_hold=int(body.hold))
+        service.store.audit(p.username, p.role, "legal_hold_set" if body.hold else "legal_hold_released", alert_id, {})
+        return {"id": alert_id, "legal_hold": body.hold}
+
+    @app.post("/api/alerts/{alert_id}/erase")
+    def alert_erase(alert_id: str, p: Principal = Depends(admin)):
+        _alert_or_404(alert_id)
+        try:
+            r = service.store.erase(alert_id)
+        except PermissionError as e:
+            raise HTTPException(409, str(e)) from e
+        service.store.audit(p.username, p.role, "erased", alert_id, r)
+        return r
 
     # ------------------------------------------------------------- admin
     @app.get("/api/audit")
@@ -387,7 +429,7 @@ def render_report(a: dict, imgs: dict, user: str) -> str:
     cfs = "".join(f"<li>{e(c['text'])}</li>" for c in (a.get("decision") or {}).get("counterfactuals", []))
     img = lambda k, cap: (f'<figure><img src="data:image/jpeg;base64,{imgs[k]}" alt="{cap}"><figcaption>{cap}</figcaption></figure>'  # noqa: E731
                           if imgs.get(k) else "")
-    t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(a.get("wall_time") or 0))
+    t = f"{utc_iso(a.get('wall_time') or 0)} (UTC)"
     ver = a.get("verification") or {}
     prov = a.get("provenance") or {}
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Incident {e(a['id'])}</title>
@@ -395,7 +437,9 @@ def render_report(a: dict, imgs: dict, user: str) -> str:
 table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #ccc;padding:4px 8px;text-align:left}}
 figure{{display:inline-block;margin:0 12px 12px 0;width:48%}}img{{width:100%}}.k{{color:#555}}</style></head><body>
 <h1>Incident report {e(a['id'])}</h1>
-<p class="k">Generated {e(time.strftime('%Y-%m-%d %H:%M:%S'))} by {e(user)} · Explainable Edge AI Copilot {e(prov.get('version', ''))}</p>
+<p class="k">Generated {e(utc_iso(time.time()))} (UTC) by {e(user)} · Explainable Edge AI Copilot {e(prov.get('version', ''))}</p>
+<p class="k"><b>Decision support only.</b> This system supplements, and does not replace, the building's certified fire
+alarm system (IS 2189 / NBC 2016) or professional medical assessment.</p>
 <table><tr><th>Time</th><td>{e(t)}</td><th>Camera / zone</th><td>{e(a.get('camera_id'))} / {e(a.get('zone'))}</td></tr>
 <tr><th>Hazard</th><td>{e(a.get('hazard'))}</td><th>Severity / triage</th><td>{e(a.get('severity'))} / {e(a.get('triage'))}</td></tr>
 <tr><th>Probability</th><td>{(a.get('prob') or 0):.2f} (peak {(a.get('peak_prob') or 0):.2f})</td><th>Status</th><td>{e(a.get('status'))} by {e(a.get('operator'))}</td></tr></table>

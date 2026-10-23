@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Edge Copilot console</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -36,6 +34,11 @@
   <section>
     <div class="feed"><img id="frame" alt="Live camera with detections"><div class="empty" id="noframe">Waiting for the camera stream</div></div>
     <div class="camhealth" id="camhealth"></div>
+    <div class="camctl" id="camctl" hidden>
+      <label>Pause AI analysis for <select id="pausemin"><option>15</option><option selected>30</option><option>60</option><option>120</option></select> min</label>
+      <input id="pausereason" placeholder="reason (drill, maintenance, event)" maxlength="200" aria-label="Reason for pausing">
+      <button class="btn small" id="pausebtn">Pause</button><button class="btn small" id="resumebtn">Resume</button>
+    </div>
     <h2>Risk right now</h2>
     <div class="meters" id="meters"></div>
     <h2>Sensors</h2>
@@ -49,6 +52,8 @@
     <div class="queue" id="queue"><div class="qempty" id="qempty">No alerts. Each alert will show what triggered it, what would have changed the decision, and what to do.</div></div>
   </aside>
 </main>
+<footer class="disclaimer">Decision support only: supplements, and never replaces, the certified fire alarm system, trained
+first responders and emergency services (112 / 108 / 101). Recommended actions are suggestions for a human to take.</footer>
 <template id="alerttpl">
   <article class="alert">
     <button class="head" aria-expanded="true"><span class="title"></span><span class="sev"></span><span class="meta"></span><span class="because"></span></button>
