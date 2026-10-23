@@ -83,6 +83,8 @@ class Copilot:
         self.scene_cut = rt.get("scene_cut", 0.75)
         self.cooldown_s = rt.get("realert_cooldown_s", 30.0)
         self._closed: Dict[str, tuple] = {}  # key -> (alert, t_closed) for re-alert cooldown
+        self.exposure_jump = rt.get("exposure_jump", 0.45)
+        self._unstable_until = -1.0
         self.scene_changes = 0
         self.enable = {"fall": True, "fire_smoke": True, "crowd": True}
         self.enable.update(enable or {})
@@ -157,6 +159,7 @@ class Copilot:
         self.active.clear()
         self._closed.clear()
         self._prev_small = None
+        self._unstable_until = -1.0
         self._since_heavy = 10 ** 9
         self._frame_idx = 0
         self._last_people = []
@@ -253,12 +256,21 @@ class Copilot:
         # a moving camera invalidates every "compared with this scene's normal" cue
         ego = crowd_vals.get("ego_motion", 0.0)
         cam_rel = float(np.clip(1.0 - (ego - 0.02) / 0.08, 0.2, 1.0))
+        # a sudden global change below the scene-cut level (auto-exposure jump, lights
+        # switched, camera bumped) also makes flow / background cues meaningless for ~1 s
+        if motion > self.exposure_jump:
+            self._unstable_until = t + 1.0
+        if t < self._unstable_until:
+            cam_rel = 0.2
         if self.enable["crowd"]:
             cv_ = dict(crowd_vals)
             if "sound_db" in sens_vals:
                 cv_["sound_db"] = sens_vals["sound_db"]
             rel_c = dict(sens_rel)
-            rel_c.update({k: cam_rel for k in ("surge", "divergence", "coherence", "exodus")})
+            # crowd motion cues describe *people*: flames, trees or a moving robot are not a crowd
+            recent_people = max([c for _, c in self.crowd_fx.count_hist] + [0])
+            people_rel = 1.0 if recent_people >= 2 else 0.0
+            rel_c.update({k: cam_rel * people_rel for k in ("surge", "divergence", "coherence", "exodus")})
             a = self.models["crowd"].assess(self.zone, t, cv_, rel_c, zone_key=self.zone)
             assessments.append(self.hyst.update("crowd", a))
             values_all["crowd"] = cv_

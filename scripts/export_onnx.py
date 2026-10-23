@@ -52,14 +52,21 @@ def main():
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--feature", choices=["none", "p3", "p4", "p5"], default="p3")
     args = ap.parse_args()
+    import tempfile
     from ultralytics import YOLO
-    model = YOLO(args.weights)
+    # Ultralytics writes <weights>.onnx next to the weights file; export from a
+    # temporary copy so an export at another size can never overwrite a model in use
+    workdir = tempfile.mkdtemp(prefix="export_")
+    wcopy = os.path.join(workdir, os.path.basename(args.weights))
+    shutil.copy(args.weights, wcopy)
+    model = YOLO(wcopy)
     tmp = model.export(format="onnx", imgsz=args.imgsz, opset=17, simplify=True, dynamic=False)
     if args.feature != "none":
         name = add_feature_output(tmp, args.out, args.feature)
         print(f"added feature output {name}")
     else:
         shutil.copy(tmp, args.out)
+    shutil.rmtree(workdir, ignore_errors=True)
     print("wrote", args.out, os.path.getsize(args.out) // 1024, "KB")
 
 

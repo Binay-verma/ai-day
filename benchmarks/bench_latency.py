@@ -80,26 +80,19 @@ def main():
     args = ap.parse_args()
     base = load_config(args.config)
     sensor_csv = os.path.splitext(args.video)[0] + "_sensors.csv"
-    variants = {"default": base}
+    variants = {"fp32_640": base}
     if not args.quick:
-        for sz in (480, 320):
+        def with_models(pose, fire, **rt):
             c = copy.deepcopy(base)
-            c["models"]["pose"]["imgsz"] = sz
-            c["models"]["fire_smoke"]["imgsz"] = sz
-            variants[f"imgsz{sz}"] = c
-        c = copy.deepcopy(base)
-        c["runtime"]["motion_gate"] = False
-        c["runtime"]["fire_every"] = 1
-        variants["no_cascade"] = c
-        for name in list(variants):
-            c = copy.deepcopy(variants[name])
-            ok = True
-            for k in ("pose", "fire_smoke"):
-                p = c["models"][k]["path"].replace(".onnx", ".int8.onnx")
-                ok &= os.path.exists(p)
-                c["models"][k]["path"] = p
-            if ok and name in ("default", "imgsz480"):
-                variants[name + "_int8"] = c
+            c["models"]["pose"]["path"], c["models"]["fire_smoke"]["path"] = pose, fire
+            c["runtime"].update(rt)
+            return c
+        if os.path.exists("models/yolo11n-pose.int8.onnx") and os.path.exists("models/fire_smoke.int8.onnx"):
+            variants["int8_640"] = with_models("models/yolo11n-pose.int8.onnx", "models/fire_smoke.int8.onnx")
+        if os.path.exists("models/yolo11n-pose_416.onnx") and os.path.exists("models/fire_smoke_416.onnx"):
+            variants["fp32_416"] = with_models("models/yolo11n-pose_416.onnx", "models/fire_smoke_416.onnx")
+        variants["fp32_640_no_cascade"] = with_models(base["models"]["pose"]["path"], base["models"]["fire_smoke"]["path"],
+                                                      motion_gate=False, fire_every=1)
     res = {"cpu_count": os.cpu_count(), "threads": base["runtime"]["threads"], "video": args.video, "variants": {}}
     for name, cfg in variants.items():
         r = run(cfg, args.video, args.frames, args.zone, sensor_csv, args.stride)

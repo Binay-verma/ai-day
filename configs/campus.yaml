@@ -10,6 +10,7 @@ runtime:
   fire_every: 2           # run the fire/smoke detector every N processed frames
   max_width: 960          # downscale very large frames before processing
   scene_cut: 0.75         # fraction of changed pixels that means "camera moved / feed switched"
+  exposure_jump: 0.45     # smaller global jumps (auto-exposure, lights) mute flow/background cues for 1 s
   realert_cooldown_s: 30  # the same hazard on the same subject re-opens its incident instead of a new alert
   track_high_conf: 0.35   # detections below this can continue a track but never start one
 
