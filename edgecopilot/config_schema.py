@@ -81,6 +81,15 @@ class HazardCfg(_Strict):
     cues: Dict[str, CueCfg]
     alpha: Optional[float] = Field(None, gt=0, lt=1, description="conformal false-alarm budget")
     min_threshold: float = Field(0.2, gt=0, lt=1, description="floor for calibrated alert lines")
+    max_threshold: float = Field(0.9, gt=0, lt=1, description="ceiling for calibrated alert lines: operator "
+                                 "feedback can never desensitise a camera beyond this")
+
+    @model_validator(mode="after")
+    def _threshold_order(self):
+        if not self.min_threshold <= self.threshold <= self.max_threshold:
+            raise ValueError(f"need min_threshold <= threshold <= max_threshold, got "
+                             f"{self.min_threshold} / {self.threshold} / {self.max_threshold}")
+        return self
 
 
 class HysteresisCfg(_Strict):

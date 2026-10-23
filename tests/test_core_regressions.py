@@ -247,6 +247,21 @@ def test_c16_dismissal_uses_peak_ema_and_no_bias_shift(tmp_path):
     assert cop.models["fire_smoke"].bias_offset == {}
 
 
+def test_s5_calibrated_line_has_a_ceiling(tmp_path):
+    """Many dismissed alerts (or a stolen operator token) cannot silence a hazard."""
+    from edgecopilot.xai.calibration import ConformalGate
+    cop = Copilot(no_models(), root=str(tmp_path), zone="Lab Block A")
+    cop.gates["fire_smoke"] = ConformalGate(0.1, scores=[8.0] * 50)  # sigmoid(8) = 0.9997
+    cop._apply_gates()
+    assert cop.models["fire_smoke"].threshold == pytest.approx(0.9)
+
+
+def test_threshold_order_validated():
+    from edgecopilot.config_schema import HazardCfg
+    with pytest.raises(ValueError):
+        HazardCfg(bias=-3, threshold=0.95, cues={}, max_threshold=0.9)
+
+
 # C18 - clearing is persisted (latched alerts stay open until acknowledged)
 def test_c18_cleared_persisted(tmp_path):
     from edgecopilot.config_schema import load_config_dict
