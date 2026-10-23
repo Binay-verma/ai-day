@@ -1,10 +1,10 @@
 {
  "bomFormat": "CycloneDX",
  "specVersion": "1.5",
- "serialNumber": "urn:uuid:a2e62995-e206-42e1-b4e0-e61ab6a83175",
+ "serialNumber": "urn:uuid:93b1a5a6-2dd6-4ab4-99ba-fc54a9448b3c",
  "version": 1,
  "metadata": {
-  "timestamp": "2026-10-23T06:14:22.739760+00:00",
+  "timestamp": "2026-10-23T14:59:03.682603+00:00",
   "component": {
    "type": "application",
    "name": "edgecopilot",
@@ -396,7 +396,7 @@
    "hashes": [
     {
      "alg": "SHA-256",
-     "content": "aa0f28e34730e02070607cdf2f7d424fe36d940122fbe57f117494a923be2a24"
+     "content": "1319f0719152040e8e4ea2eb013f14aeed3fab3f41623d1134b6728722d71b10"
     }
    ],
    "supplier": {
@@ -420,7 +420,7 @@
    "hashes": [
     {
      "alg": "SHA-256",
-     "content": "aaa6a2c76bece38e9a7ae4a05759cbd3eaa977dfb7d246a7fffd06e2362a4360"
+     "content": "f50ba7706a354c2f69ed507c6c578d5642584b0e819810ebbc0d80bb4b528d1a"
     }
    ],
    "supplier": {
@@ -444,7 +444,7 @@
    "hashes": [
     {
      "alg": "SHA-256",
-     "content": "1356d29bd1e3178a8fac4480ccf3c746df04dffe74773603433c6b9d2165df8a"
+     "content": "b3cf99ce13f4ab884c5252713026a61f314f930c461398391e8165242f688da5"
     }
    ],
    "supplier": {

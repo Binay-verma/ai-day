@@ -9,7 +9,7 @@ models:
     sha256: a745298dd97e42c8c02c6b8052696a2b26f98255a20d477b1cc901dda49f41fa
   fire_smoke:
     path: models/fire_smoke.int8.onnx
-    sha256: aa0f28e34730e02070607cdf2f7d424fe36d940122fbe57f117494a923be2a24
+    sha256: 1319f0719152040e8e4ea2eb013f14aeed3fab3f41623d1134b6728722d71b10
 
 cameras:
   - {id: corridor-b-1, source: "rtsp://copilot:${CAM_PASS}@10.20.0.11:554/stream1", zone: Corridor B}
