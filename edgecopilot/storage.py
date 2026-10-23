@@ -123,7 +123,8 @@ class Store:
             if c in JSON_FIELDS and v is not None and not isinstance(v, str):
                 v = json.dumps(v, default=float)
             vals.append(v)
-        q = f"INSERT OR REPLACE INTO alerts ({','.join(cols)}) VALUES ({','.join('?' * len(cols))})"
+        # column names come from the fixed list above, values are bound parameters
+        q = f"INSERT OR REPLACE INTO alerts ({','.join(cols)}) VALUES ({','.join('?' * len(cols))})"  # noqa: S608  # nosec B608
         with self.lock:
             self.conn.execute(q, vals)
 
@@ -136,7 +137,8 @@ class Store:
             raise ValueError(f"cannot update {bad}")
         sets = ", ".join(f"{k} = ?" for k in fields)
         with self.lock:
-            cur = self.conn.execute(f"UPDATE alerts SET {sets} WHERE id = ?", [*fields.values(), alert_id])
+            # keys were checked against the `allowed` whitelist above; values are bound
+            cur = self.conn.execute(f"UPDATE alerts SET {sets} WHERE id = ?", [*fields.values(), alert_id])  # noqa: S608  # nosec B608
             return cur.rowcount > 0
 
     def get_alert(self, alert_id: str) -> Optional[Dict[str, Any]]:
@@ -148,7 +150,8 @@ class Store:
 
     def list_alerts(self, limit: int = 100, since: Optional[float] = None, status: Optional[str] = None,
                     hazard: Optional[str] = None, camera_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        q, args = "SELECT * FROM alerts WHERE 1=1", []
+        q = "SELECT * FROM alerts WHERE 1=1"
+        args: List[Any] = []
         for col, val in (("status", status), ("hazard", hazard), ("camera_id", camera_id)):
             if val:
                 q += f" AND {col} = ?"
@@ -166,18 +169,18 @@ class Store:
 
     def stats(self, since: Optional[float] = None) -> Dict[str, Any]:
         q = "SELECT hazard, status, COUNT(*) FROM alerts"
-        args: list = []
+        args: List[Any] = []
         if since is not None:
             q += " WHERE wall_time >= ?"
             args.append(since)
         q += " GROUP BY hazard, status"
         with self.lock:
             rows = self.conn.execute(q, args).fetchall()
-        out: Dict[str, Dict[str, int]] = {}
+        out: Dict[str, Dict[str, Any]] = {}
         for hz, st, n in rows:
             out.setdefault(hz, {})[st] = n
         # precision as judged by operators: confirmed / (confirmed + dismissed)
-        for hz, d in out.items():
+        for d in out.values():
             c, x = d.get("confirmed", 0), d.get("dismissed", 0)
             d["operator_precision"] = round(c / (c + x), 3) if c + x else None
         return out
@@ -231,7 +234,7 @@ class Store:
         with self.lock:
             rows = self.conn.execute("SELECT id, snapshot_path, evidence_path, clip_path FROM alerts "
                                      "WHERE wall_time < ? AND purged = 0", (cutoff,)).fetchall()
-        files = 0
+        files: int = 0
         for _id, *paths in rows:
             for p in paths:
                 if p and os.path.exists(p) and os.path.realpath(p).startswith(os.path.realpath(self.media_dir)):

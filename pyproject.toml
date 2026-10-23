@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "edgecopilot"
-version = "1.0.0"
+version = "1.1.0"
 description = "Explainable Edge AI Copilot for smart-campus emergency response (falls, smoke/fire, crowd) on CPU edge devices"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -17,15 +17,23 @@ dependencies = [
   "scipy>=1.10",
   "pyyaml>=6",
   "fastapi>=0.110",
-  "uvicorn>=0.27",
+  "uvicorn[standard]>=0.27",
+  "pydantic>=2.5",
+  "pyjwt>=2.8",
+  "cryptography>=42",
+  "prometheus-client>=0.20",
 ]
 
 [project.optional-dependencies]
+mqtt = ["paho-mqtt>=2.0"]
 train = ["ultralytics>=8.3", "torch>=2.2", "onnx>=1.15", "onnxslim"]
-dev = ["pytest>=8", "httpx>=0.27", "matplotlib>=3.8", "pandas>=2"]
+dev = ["pytest>=8", "pytest-cov>=5", "httpx>=0.27", "pandas>=2", "ruff>=0.6", "mypy>=1.10", "bandit>=1.7",
+       "pip-audit>=2.7", "types-PyYAML", "paho-mqtt>=2.0"]
 
 [project.scripts]
 edgecopilot-serve = "edgecopilot.server.app:main"
+edgecopilot-run = "edgecopilot.cli:main"
+edgecopilot-lint-config = "edgecopilot.config_schema:main"
 
 [tool.setuptools.packages.find]
 include = ["edgecopilot*"]
@@ -33,5 +41,33 @@ include = ["edgecopilot*"]
 [tool.setuptools.package-data]
 edgecopilot = ["server/static/*"]
 
+[tool.ruff]
+line-length = 130
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "S", "UP", "SIM"]
+ignore = ["E501", "E731", "B905", "S101", "S311", "UP006", "UP007", "UP035", "UP045", "SIM108", "SIM105"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.params.Depends"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B", "SIM115"]
+"benchmarks/*" = ["S", "B007"]
+"scripts/*" = ["S"]
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = false
+
+[tool.coverage.run]
+source = ["edgecopilot"]
+omit = ["edgecopilot/cli.py"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]

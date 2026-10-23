@@ -136,9 +136,8 @@ def test_metrics_token(env):
 def test_websocket_requires_auth(env):
     c, _ = env
     from starlette.websockets import WebSocketDisconnect
-    with pytest.raises(WebSocketDisconnect):
-        with c.websocket_connect("/ws") as ws:
-            ws.receive_text()
+    with pytest.raises(WebSocketDisconnect), c.websocket_connect("/ws") as ws:
+        ws.receive_text()
     tok = login(c, "vik", "viewer pass 12")
     with c.websocket_connect(f"/ws?token={tok}") as ws:
         hello = ws.receive_json()

@@ -190,6 +190,8 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
             service.store.audit(body.username, "-", "login_failed", "", {"ip": ip})
             raise HTTPException(401, "invalid credentials or temporarily locked")
         p = auth.verify(tok)
+        if p is None:  # cannot happen for a freshly issued token; keeps type-checkers honest
+            raise HTTPException(500, "session error")
         service.store.audit(p.username, p.role, "login", "", {"ip": ip})
         secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
         response.set_cookie(COOKIE, tok, httponly=True, samesite="strict", secure=secure, max_age=auth.ttl_s, path="/")

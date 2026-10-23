@@ -118,7 +118,7 @@ class HazardModel:
         self.bias_offset: Dict[str, float] = {}
 
     @classmethod
-    def from_config(cls, hazard: str, cfg: dict) -> "HazardModel":
+    def from_config(cls, hazard: str, cfg: dict) -> HazardModel:
         specs = [CueSpec(name=k, **v) for k, v in cfg["cues"].items()]
         return cls(hazard, cfg.get("bias", 0.0), specs, cfg.get("threshold", 0.5))
 

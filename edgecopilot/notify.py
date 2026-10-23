@@ -62,8 +62,9 @@ class WebhookChannel(Channel):
 
     def send(self, alert: dict, text: str) -> None:
         data = json.dumps(self.payload(alert, text), default=float).encode()
-        req = urllib.request.Request(self.url, data=data, headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=self.timeout) as r:  # noqa: S310 - scheme checked in __init__
+        req = urllib.request.Request(self.url, data=data, headers={"Content-Type": "application/json"},  # noqa: S310
+                                     method="POST")  # scheme restricted to https/localhost in __init__
+        with urllib.request.urlopen(req, timeout=self.timeout) as r:  # noqa: S310  # nosec B310 - https/localhost enforced in __init__
             if r.status >= 300:
                 raise RuntimeError(f"HTTP {r.status}")
 
@@ -125,7 +126,7 @@ class Notifier:
         self._t.start()
 
     @classmethod
-    def from_config(cls, ncfg: dict, is_open, audit=None, mqtt_publish=None, base_url: str = "") -> "Notifier":
+    def from_config(cls, ncfg: dict, is_open, audit=None, mqtt_publish=None, base_url: str = "") -> Notifier:
         ch: Dict[str, Channel] = {}
         min_sev: Dict[str, str] = {}
         for name, w in (ncfg.get("webhooks") or {}).items():

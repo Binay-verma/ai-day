@@ -1,6 +1,7 @@
 """Prometheus metrics (own registry) refreshed from the running service every 2 s."""
 from __future__ import annotations
 
+import logging
 import threading
 import time
 
@@ -66,7 +67,7 @@ def start_collector(service, period: float = 2.0) -> None:
             try:
                 refresh(service)
             except Exception:  # noqa: BLE001 - metrics must never take the service down
-                pass
+                logging.getLogger("edgecopilot.metrics").exception("metrics refresh failed")
             time.sleep(period)
     threading.Thread(target=loop, daemon=True, name="metrics").start()
 

@@ -172,7 +172,7 @@ class EdgeService:
     # ---------------------------------------------------- operator actions
     def is_open(self, alert_id: str) -> bool:
         a = self.store.get_alert(alert_id)
-        return bool(a) and a["status"] == "open"
+        return a is not None and a["status"] == "open"
 
     def feedback(self, alert_id: str, confirmed: bool, actor: str, role: str, note: str = "") -> Optional[dict]:
         a = self.store.get_alert(alert_id)

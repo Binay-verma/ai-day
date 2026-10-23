@@ -139,7 +139,7 @@ class AuthCfg(_Strict):
     users: List[UserCfg] = Field(default_factory=list)
     token_ttl_s: int = Field(8 * 3600, ge=60, le=7 * 24 * 3600)
     sensor_api_keys: List[str] = Field(default_factory=list, description="sha256 hex digests of device keys")
-    secret_env: str = "EDGECOPILOT_SECRET"
+    secret_env: str = "EDGECOPILOT_SECRET"  # noqa: S105 - name of an env var, not a secret
 
 
 class ServerCfg(_Strict):
@@ -172,7 +172,7 @@ class EmailCfg(_Strict):
     host: str
     port: int = 587
     user_env: str = "SMTP_USER"
-    password_env: str = "SMTP_PASSWORD"
+    password_env: str = "SMTP_PASSWORD"  # noqa: S105 - name of an env var, not a secret
     sender: str
     to: List[str]
     starttls: bool = True

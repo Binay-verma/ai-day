@@ -93,7 +93,7 @@ class FallFeatureExtractor:
             ang_box = 90.0 * min(1.0, max(0.0, (w / max(h, 1) - 0.4) / 1.2))
             ang, rel_ang = ang_box, 0.4
         else:
-            rel_ang = float(np.mean([kp[i, 2] for i in (L_SH, R_SH, L_HIP, R_HIP)]))
+            rel_ang = float(np.mean([kp[i, 2] for i in (L_SH, R_SH, L_HIP, R_HIP)]))  # type: ignore[index]  # kp set when ang is not None
         upright = ang < 30 and h > w
         if upright:
             st.standing_heights.append(h)

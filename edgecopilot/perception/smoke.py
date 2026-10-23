@@ -39,7 +39,7 @@ class SmokeCueExtractor:
         self.cell_delta: Optional[np.ndarray] = None
 
     def reset(self) -> None:
-        self.__init__(self.width, self.grid, self.patch, self.alpha)
+        self.__init__(self.width, self.grid, self.patch, self.alpha)  # type: ignore[misc]
 
     def _cells(self, img: np.ndarray, fn) -> np.ndarray:
         h, w = img.shape[:2]
@@ -73,8 +73,8 @@ class SmokeCueExtractor:
         contrast_loss = float(np.clip(closs[k], 0, 1))
         if not alert_active:
             a = self.alpha if self.n > 25 else 0.3
-            self.base_dark = (1 - a) * self.base_dark + a * d_cells
-            self.base_contrast = (1 - a) * self.base_contrast + a * c_cells
+            self.base_dark = (1 - a) * self.base_dark + a * d_cells  # type: ignore[operator]
+            self.base_contrast = (1 - a) * self.base_contrast + a * c_cells  # type: ignore[operator]
         self.n += 1
         # growth: density change per second over ~1 s
         self.hist.append((t, density))

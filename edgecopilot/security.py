@@ -173,7 +173,7 @@ class RateLimiter:
         self.rate = per_min / 60.0
         self.burst = burst or max(10, per_min // 4)
         self.max_keys = max_keys
-        self.buckets: "OrderedDict[str, Tuple[float, float]]" = OrderedDict()
+        self.buckets: OrderedDict[str, Tuple[float, float]] = OrderedDict()
         self.lock = threading.Lock()
 
     def allow(self, key: str, cost: float = 1.0) -> bool:

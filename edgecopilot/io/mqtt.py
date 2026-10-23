@@ -36,7 +36,8 @@ def parse_sensor_payload(topic: str, payload: bytes, now: Optional[float] = None
     if not isinstance(data, dict):
         return None
     parts = topic.split("/")
-    zone = data.get("zone") if isinstance(data.get("zone"), str) else (parts[1] if len(parts) >= 3 else "default")
+    z = data.get("zone")
+    zone: str = z if isinstance(z, str) else (parts[1] if len(parts) >= 3 else "default")
     zone = zone.replace("_", " ")[:60]
     out = {"zone": zone, "t": now if now is not None else time.time()}
     for k, (lo, hi) in RANGES.items():
@@ -71,7 +72,7 @@ class MqttBridge:
         self.client.reconnect_delay_set(min_delay=1, max_delay=30)
 
     @classmethod
-    def from_config(cls, mcfg: dict, on_reading, clock=time.time) -> "MqttBridge":
+    def from_config(cls, mcfg: dict, on_reading, clock=time.time) -> MqttBridge:
         user = os.environ.get(mcfg["username_env"]) if mcfg.get("username_env") else None
         pw = os.environ.get(mcfg["password_env"]) if mcfg.get("password_env") else None
         return cls(mcfg.get("host", "localhost"), mcfg.get("port", 1883), mcfg.get("sensor_topic", "campus/+/sensors"),

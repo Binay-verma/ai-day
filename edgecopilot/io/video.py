@@ -25,7 +25,7 @@ class VideoSource:
         self.max_frames = max_frames
         self.cap = cv2.VideoCapture(self.src)
         if not self.cap.isOpened():
-            raise IOError(f"cannot open video source {src!r}")
+            raise OSError(f"cannot open video source {src!r}")
         fps = self.cap.get(cv2.CAP_PROP_FPS)
         self.fps = fps if fps and fps > 1 else 25.0
         self.live = isinstance(self.src, int) or str(self.src).startswith(("rtsp://", "http://", "https://"))

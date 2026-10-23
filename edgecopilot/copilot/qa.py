@@ -86,7 +86,7 @@ def answer(alert: Dict, question: str) -> Dict:
         txt += f". Explanation groundedness {ver.get('groundedness', 1):.0%}. If it is a false alarm, press Dismiss: the zone's threshold adapts (bounded)."
         return {"intent": intent, "answer": txt}
     # evidence
-    src = {}
+    src: Dict[str, List[str]] = {}
     for c in cues:
         src.setdefault(c.get("source", "vision"), []).append(c["phrase"])
     txt = " ".join(f"{k.capitalize()}: {'; '.join(v)}." for k, v in src.items())

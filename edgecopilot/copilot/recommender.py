@@ -94,7 +94,7 @@ class Recommender:
         self.contacts = contacts or {}
 
     @classmethod
-    def from_config(cls, cfg: dict) -> "Recommender":
+    def from_config(cls, cfg: dict) -> Recommender:
         zones = {name: Zone(name=name, **z) for name, z in cfg.get("zones", {}).items()}
         return cls(zones, cfg.get("playbooks", {}), cfg.get("contacts", {}))
 

@@ -1,15 +1,37 @@
 name: ci
 on: [push, pull_request]
+permissions: {contents: read}
 jobs:
-  test:
+  quality:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
+        with: {python-version: "3.11", cache: pip}
       - run: pip install -e ".[dev]"
-      - run: pytest -q
+      - name: Lint
+        run: ruff check edgecopilot tests
+      - name: Types
+        run: mypy edgecopilot
+      - name: Security (static)
+        run: bandit -q -r edgecopilot -c pyproject.toml
+      - name: Dependency vulnerabilities
+        run: pip-audit --skip-editable
+      - name: Config lint
+        run: python -m edgecopilot.config_schema configs/campus.yaml
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: {python: ["3.10", "3.11", "3.12"]}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ matrix.python }}", cache: pip}
+      - run: pip install -e ".[dev]"
+      - run: pytest -q --cov --cov-report=term-missing --cov-fail-under=75
+  docker:
+    runs-on: ubuntu-latest
+    needs: [quality, test]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t edge-copilot:ci .

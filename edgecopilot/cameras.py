@@ -41,6 +41,7 @@ class Health:
     last_frame_wall: float = 0.0
     reconnects: int = 0
     frames: int = 0
+    dropped: int = 0  # frames skipped because processing was slower than real time
     faults: Dict[str, bool] = field(default_factory=dict)  # frozen / blackout / defocus
     last_error: str = ""
 
@@ -81,8 +82,10 @@ class TamperDetector:
         out = {}
         for k, c in conds.items():
             if c:
-                self.since[k] = self.since[k] if self.since[k] is not None else t
-                out[k] = (t - self.since[k]) >= hold[k]
+                start = self.since[k]
+                if start is None:
+                    start = self.since[k] = t
+                out[k] = (t - start) >= hold[k]
             else:
                 self.since[k] = None
                 out[k] = False
@@ -209,6 +212,14 @@ class CameraWorker:
                     self.copilot.sensors.load_csv(self.sensors_csv)
             idx, t0, last = 0, time.perf_counter(), time.perf_counter()
             while not self.stop_ev.is_set():
+                if self.is_file and self.realtime:
+                    # behave like a live camera under load: skip frames we are too slow for
+                    behind = int((time.perf_counter() - t0) * fps) - idx
+                    for _ in range(max(0, behind - 1)):
+                        if not cap.grab():
+                            break
+                        idx += 1
+                        self.health.dropped = getattr(self.health, "dropped", 0) + 1
                 ok, frame = cap.read()
                 if not ok or frame is None:
                     break
@@ -268,7 +279,7 @@ class CameraWorker:
             if self.on_alert:
                 self.on_alert(self.cam_id, al)
         ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 72])
-        gauges = {}
+        gauges: Dict[str, dict] = {}
         for a in res.assessments:
             g = gauges.get(a.hazard)
             if g is None or a.prob > g["prob"]:
