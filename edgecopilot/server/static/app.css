@@ -103,3 +103,4 @@ aside{min-width:0}
 .camctl select,.camctl input{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:3px 6px}
 .camhealth span.paused{background:#4a3a14;color:#ffe2a8}
 .disclaimer{max-width:1600px;margin:0 auto;padding:6px 20px 20px;color:var(--muted);font-size:12px}
+.btn.on{background:var(--warn,#b45309);color:#fff;border-color:transparent}

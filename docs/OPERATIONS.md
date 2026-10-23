@@ -27,6 +27,27 @@ Docker alternative: `docker compose up -d` (copilot + MQTT broker + Prometheus +
    **with the fire officer's permission**; check that alerts arrive within seconds and notifications reach the right people.
 6. Record the commissioning result in the safety log (date, tester, alerts observed).
 
+## Time discipline (do this on every edge box)
+
+Alert, audit and report timestamps are stored as UTC (ISO-8601 with `Z`), and
+camera kinematics use a monotonic clock, so a clock step can't corrupt fall
+speeds. The *wall* clock still has to be right for evidence to hold up. IEC 62676
+and CERT-In (April 2022 directions) expect clocks synchronised to an authoritative
+source, and CERT-In names the NIC / NPL servers for Indian organisations:
+
+```bash
+sudo apt install chrony
+sudo tee /etc/chrony/sources.d/india.sources >/dev/null <<'CONF'
+server samay1.nic.in iburst
+server samay2.nic.in iburst
+server time.nplindia.org iburst
+CONF
+sudo systemctl restart chrony && chronyc tracking   # "System time" offset should be well under 1 s
+```
+
+If the campus firewall blocks NTP, use the campus NTP server instead. Check
+`chronyc tracking` in the weekly checks.
+
 ## Daily / weekly
 
 | When | Check | How |
@@ -35,11 +56,16 @@ Docker alternative: `docker compose up -d` (copilot + MQTT broker + Prometheus +
 | Daily | notifications working | Prometheus `NotificationFailures`; a weekly test alert |
 | Weekly | operator precision per hazard | `GET /api/stats?hours=168` — dismissed alerts feed recalibration automatically |
 | Weekly | audit log intact | `GET /api/audit/verify` (admin) must return `ok: true` |
+| Weekly | clock synchronised | `chronyc tracking` offset < 1 s |
 | Monthly | retention purge ran | audit entries `retention_purge` |
+| Monthly | console mutes | audit entries `console_muted`; the audible alarm should normally be on at the security desk |
 | Per model update | regression benchmarks | `python benchmarks/eval_*.py`; compare with docs/RESULTS.md before deploying |
 
 ## Incident response (when an alert fires)
 
+0. With **Sound on** (header button), the console rings a two-tone alarm every 4 s while an
+   ALARM-mode alert is open and unacknowledged, a single chime for VERIFY alerts, and three low
+   beeps for a camera trouble signal. Muting is recorded in the audit log.
 1. Read the explanation and the evidence ledger; **VERIFY** means look first, **ALARM** means act.
 2. Follow the recommended actions (they cite their trigger and the zone's AED / exits / wardens).
 3. Press **Confirm** or **Dismiss** — this is recorded with your name and tunes that camera.

@@ -72,6 +72,10 @@ class Pause(BaseModel):
     reason: str = Field("", max_length=200)
 
 
+class Sound(BaseModel):
+    on: bool
+
+
 class Hold(BaseModel):
     hold: bool
 
@@ -278,6 +282,12 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
             auth.revoke(tok)
         service.store.audit(p.username, p.role, "logout", "", {})
         response.delete_cookie(COOKIE, path="/")
+        return {"ok": True}
+
+    @app.post("/api/console/sound")
+    def console_sound(body: Sound, p: Principal = Depends(viewer)):
+        """The console's audible alarm was switched on/off - muting is an auditable act."""
+        service.store.audit(p.username, p.role, "console_sound_on" if body.on else "console_muted", "", {})
         return {"ok": True}
 
     @app.get("/api/me")

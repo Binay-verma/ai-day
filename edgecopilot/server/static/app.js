@@ -176,6 +176,45 @@ function upsertAlert(a, fresh) {
   if (fresh && a._node) { document.querySelectorAll(".alert:not(.closed)").forEach(x => { if (x !== a._node) x.classList.add("closed"); }); }
 }
 
+// ---- audible alarm (IEC 62676 / FM 3232: alarm and trouble must be distinguishable and audible)
+// Web Audio only (no files). Browsers allow sound only after a user gesture, hence the button.
+let audio = null, soundOn = false, ringTimer = null;
+function tone(freq, start, dur, type = "square", gain = 0.08) {
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = type; o.frequency.value = freq; g.gain.value = gain;
+  o.connect(g); g.connect(audio.destination);
+  o.start(audio.currentTime + start); o.stop(audio.currentTime + start + dur);
+}
+function pattern(kind) {
+  if (!soundOn || !audio) return;
+  if (kind === "alarm") { for (let i = 0; i < 4; i++) { tone(960, i * 0.5, 0.25); tone(720, i * 0.5 + 0.25, 0.25); } }
+  else if (kind === "fault") { for (let i = 0; i < 3; i++) tone(330, i * 0.35, 0.2, "sawtooth", 0.06); }
+  else tone(880, 0, 0.35, "sine", 0.1);  // VERIFY: single chime
+}
+function ringing() {
+  // keep ringing while any ALARM-mode hazard alert is open and unacknowledged
+  return [...alerts.values()].some(a => a.status === "open" && a.hazard !== "camera_fault" && (a.triage || {}).mode === "ALARM");
+}
+function updateRing() {
+  if (soundOn && ringing()) { if (!ringTimer) { pattern("alarm"); ringTimer = setInterval(() => ringing() ? pattern("alarm") : updateRing(), 4000); } }
+  else if (ringTimer) { clearInterval(ringTimer); ringTimer = null; }
+}
+function announce(a) {
+  if (a.hazard === "camera_fault") pattern("fault");
+  else if ((a.triage || {}).mode !== "ALARM") pattern("verify");
+  updateRing();
+}
+$("#sound").addEventListener("click", () => {
+  soundOn = !soundOn;
+  if (soundOn && !audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { soundOn = false; } }
+  $("#sound").textContent = soundOn ? "Sound on" : "Sound off";
+  $("#sound").setAttribute("aria-pressed", String(soundOn));
+  $("#sound").classList.toggle("on", soundOn);
+  api("/api/console/sound", {method: "POST", body: JSON.stringify({on: soundOn})}).catch(() => {});
+  if (soundOn) pattern("verify");
+  updateRing();
+});
+
 function connect() {
   ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
   ws.onopen = () => { $("#conn").textContent = "Live"; $("#conn").className = "pill live"; };
@@ -191,8 +230,8 @@ function connect() {
       if (m.camera === currentCam) { $("#frame").src = "data:image/jpeg;base64," + m.jpg; $("#noframe").style.display = "none"; }
       updateState(m.camera, m.state);
     }
-    else if (m.type === "alert") upsertAlert(m.alert, true);
-    else if (m.type === "alert_update") { const a = alerts.get(m.id); if (a) { a.status = m.status; a.operator = m.operator; a._node = null; renderQueue(); } }
+    else if (m.type === "alert") { upsertAlert(m.alert, true); announce(m.alert); }
+    else if (m.type === "alert_update") { const a = alerts.get(m.id); if (a) { a.status = m.status; a.operator = m.operator; a._node = null; renderQueue(); } updateRing(); }
     else if (["camera_fault", "camera_paused", "camera_resumed"].includes(m.type)) api("/api/cameras").then(renderCams).catch(() => {});
   };
 }

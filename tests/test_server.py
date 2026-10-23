@@ -169,3 +169,13 @@ def test_camera_fault_is_a_trouble_alert_and_deduplicated(env):
     rows = svc.store.list_alerts(hazard="camera_fault")
     assert len(rows) == 1 and rows[0]["triage"] == "TROUBLE" and len(sent) == 1
     assert "NOT being monitored" in rows[0]["explanation"]["text"]
+
+
+def test_console_mute_is_audited(env):
+    c, svc = env
+    h = {"Authorization": f"Bearer {login(c, 'asha', 'operator pass 1')}"}
+    assert c.post("/api/console/sound", json={"on": False}, headers=h).status_code == 200
+    acts = [r["action"] for r in svc.store.audit_log(20)]
+    assert "console_muted" in acts
+    c.cookies.clear()
+    assert c.post("/api/console/sound", json={"on": True}).status_code == 401
