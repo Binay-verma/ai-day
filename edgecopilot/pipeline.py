@@ -80,7 +80,9 @@ class Copilot:
         self.keepalive = rt.get("gate_keepalive", 8)
         self.fire_every = max(1, rt.get("fire_every", 2))
         self.max_width = rt.get("max_width", 960)
-        self.scene_cut = rt.get("scene_cut", 0.55)
+        self.scene_cut = rt.get("scene_cut", 0.75)
+        self.cooldown_s = rt.get("realert_cooldown_s", 30.0)
+        self._closed: Dict[str, tuple] = {}  # key -> (alert, t_closed) for re-alert cooldown
         self.scene_changes = 0
         self.enable = {"fall": True, "fire_smoke": True, "crowd": True}
         self.enable.update(enable or {})
@@ -153,6 +155,7 @@ class Copilot:
         self.smoke_fx.reset()
         self.hyst.reset()
         self.active.clear()
+        self._closed.clear()
         self._prev_small = None
         self._since_heavy = 10 ** 9
         self._frame_idx = 0
@@ -169,6 +172,7 @@ class Copilot:
             if al.status == "open":
                 al.status = "resolved"
         self.active.clear()
+        self._closed.clear()
         self._last_people = []
         self._last_fire = None
 
@@ -285,7 +289,14 @@ class Copilot:
         new_alerts: List[Alert] = []
         for a in assessments:
             key = f"{a.hazard}:{a.subject}"
-            if a.onset:
+            recent = self._closed.get(key)
+            if a.onset and recent is not None and t - recent[1] <= self.cooldown_s and recent[0].status in ("resolved", "open"):
+                # same incident flaring up again: re-open it instead of paging the operator twice
+                al = recent[0]
+                al.status = "open"
+                al.peak_prob = max(al.peak_prob, a.prob)
+                self.active[key] = al
+            elif a.onset:
                 alert = self._make_alert(a, frame, people, hazards, timings)
                 self.active[key] = alert
                 self.events.add(alert)
@@ -298,6 +309,7 @@ class Copilot:
                 al = self.active.pop(key)
                 if al.status == "open":
                     al.status = "resolved"
+                self._closed[key] = (al, t)
         # tracks that disappeared close their fall alerts
         for key in [k for k in self.active if k.startswith("fall:")]:
             tid = int(key.split("#")[-1])

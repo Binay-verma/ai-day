@@ -59,10 +59,11 @@ def main():
     ap.add_argument("--out", default="data/gmdcsa24_cues.pkl")
     ap.add_argument("--stride", type=int, default=2)
     ap.add_argument("--imgsz", type=int, default=640)
+    ap.add_argument("--conf", type=float, default=0.1, help="low on purpose: thresholds are swept offline")
     args = ap.parse_args()
     items = load_labels(args.root)
     print(f"{len(items)} videos ({sum(i['label'] for i in items)} falls)")
-    pose = OnnxYolo(args.model, ["person"], imgsz=args.imgsz, conf=0.35, iou=0.5, pose=True, threads=2)
+    pose = OnnxYolo(args.model, ["person"], imgsz=args.imgsz, conf=args.conf, iou=0.5, pose=True, threads=2)
     t0 = time.time()
     for k, it in enumerate(items):
         frames = []

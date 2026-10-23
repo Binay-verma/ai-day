@@ -149,3 +149,20 @@ def test_recommender_and_qa():
     r = answer(alert, "what if the torso angle was wrong?")
     assert r["intent"] == "whatif" and "Without torso angle" in r["answer"]
     assert answer(alert, "what should I do now?")["intent"] == "action"
+
+
+def test_cue_phrases_bind_only_to_their_own_cue():
+    """Config lint: the verifier binds numbers/causes through keywords, so a
+    phrase must contain its own keyword and no other cue's keyword."""
+    import re as _re
+    for hz, hcfg in CFG["hazards"].items():
+        m = HazardModel.from_config(hz, hcfg)
+        for name, spec in m.specs.items():
+            phrase = spec.phrase.format(v=1.0, name=name, unit=spec.unit).lower()
+            own = [k for k in spec.keywords if _re.search(rf"\b{_re.escape(k.lower())}", phrase)]
+            assert own, (hz, name, phrase, spec.keywords)
+            for other, ospec in m.specs.items():
+                if other == name:
+                    continue
+                clash = [k for k in ospec.keywords if _re.search(rf"\b{_re.escape(k.lower())}", phrase)]
+                assert not clash, (hz, name, "phrase matches keywords of", other, clash)

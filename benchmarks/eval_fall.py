@@ -35,12 +35,12 @@ from edgecopilot.xai.calibration import conformal_threshold  # noqa: E402
 from edgecopilot.xai.fusion import CueSpec, HazardModel, Hysteresis, fit_weights, sigmoid  # noqa: E402
 
 
-def cue_series(item, fx_kwargs=None):
+def cue_series(item, fx_kwargs=None, min_score=0.35):
     """Replay tracker + fall cue extraction -> list of (t, track, values, rel)."""
     tracker, fx = Tracker(), FallFeatureExtractor(**(fx_kwargs or {}))
     out = []
     for fr in item["frames"]:
-        dets = [Detection(np.array(b, float), s, 0, "person", np.array(k, float)) for b, s, k in fr["dets"]]
+        dets = [Detection(np.array(b, float), s, 0, "person", np.array(k, float)) for b, s, k in fr["dets"] if s >= min_score]
         for tr in tracker.update(dets, fr["t"]):
             if tr.hits < 2:
                 continue
@@ -123,14 +123,16 @@ def main():
     ap.add_argument("--cache", default="data/gmdcsa24_cues.pkl")
     ap.add_argument("--config", default="configs/campus.yaml")
     ap.add_argument("--alpha", type=float, default=0.1)
+    ap.add_argument("--min-score", type=float, default=None, help="person confidence (default: config pose conf)")
     ap.add_argument("--out", default="benchmarks/results/fall_gmdcsa24.json")
     args = ap.parse_args()
     items = pickle.load(open(args.cache, "rb"))
     cfg = load_config(args.config)
     hyst = cfg["hysteresis"]
     expert = HazardModel.from_config("fall", cfg["hazards"]["fall"])
-    series_all = [cue_series(it) for it in items]
-    res = {"dataset": "GMDCSA24", "videos": len(items), "falls": sum(i["label"] for i in items)}
+    min_score = args.min_score if args.min_score is not None else cfg["models"]["pose"]["conf"]
+    series_all = [cue_series(it, min_score=min_score) for it in items]
+    res = {"dataset": "GMDCSA24", "videos": len(items), "falls": sum(i["label"] for i in items), "min_score": min_score}
 
     rows = evaluate(items, series_all, expert, hyst)
     res["expert"] = {"overall": metrics(rows), "per_subject": {s: metrics([r for r in rows if r["subject"] == s]) for s in (1, 2, 3, 4)}}

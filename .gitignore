@@ -10,3 +10,6 @@ outputs/
 logs/
 *.egg-info/
 .venv/
+demo/*.mp4
+demo/*_sensors.csv
+demo/*_timeline.json

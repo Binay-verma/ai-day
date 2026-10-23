@@ -21,11 +21,12 @@ import os
 import threading
 import time
 from collections import deque
+from contextlib import asynccontextmanager
 from typing import Optional
 
 import cv2
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from ..copilot.events import EventLog
@@ -129,13 +130,16 @@ class Runner:
 
 
 def create_app(copilot: Copilot, runner: Optional[Runner]) -> FastAPI:
-    app = FastAPI(title="Explainable Edge AI Copilot")
-
-    @app.on_event("startup")
-    async def _startup():
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
         if runner is not None:
             runner.loop_ref = asyncio.get_running_loop()
             runner.start()
+        yield
+        if runner is not None:
+            runner.stop.set()
+
+    app = FastAPI(title="Explainable Edge AI Copilot", lifespan=lifespan)
 
     @app.get("/")
     def index():
@@ -146,6 +150,36 @@ def create_app(copilot: Copilot, runner: Optional[Runner]) -> FastAPI:
         return {"state": runner.state if runner else {}, "zone": copilot.zone, "privacy": copilot.privacy,
                 "models": {"pose": bool(copilot.pose), "fire_smoke": bool(copilot.fire)},
                 "bias_offsets": {hz: m.bias_offset for hz, m in copilot.models.items()}}
+
+    @app.get("/metrics", response_class=PlainTextResponse)
+    def metrics():
+        """Prometheus exposition format (scrape from Grafana / Prometheus)."""
+        st = runner.state if runner else {}
+        lines = [
+            "# HELP edgecopilot_fps Processed frames per second",
+            "# TYPE edgecopilot_fps gauge",
+            f"edgecopilot_fps {st.get('fps', 0)}",
+            "# HELP edgecopilot_latency_ms_p50 Median per-frame processing latency (ms)",
+            "# TYPE edgecopilot_latency_ms_p50 gauge",
+            f"edgecopilot_latency_ms_p50 {st.get('latency_p50', 0)}",
+            "# HELP edgecopilot_people People currently in view",
+            "# TYPE edgecopilot_people gauge",
+            f"edgecopilot_people {st.get('people', 0)}",
+            "# HELP edgecopilot_risk Current hazard probability",
+            "# TYPE edgecopilot_risk gauge",
+        ]
+        for hz, g in (st.get("gauges") or {}).items():
+            lines.append(f'edgecopilot_risk{{hazard="{hz}",zone="{copilot.zone}"}} {g["prob"]}')
+        counts: dict = {}
+        for a in copilot.events.recent(10 ** 6):
+            k = (a.hazard, a.status)
+            counts[k] = counts.get(k, 0) + 1
+        lines += ["# HELP edgecopilot_alerts Alerts raised, by hazard and operator status",
+                  "# TYPE edgecopilot_alerts gauge"]
+        for (hz, status), n in sorted(counts.items()):
+            lines.append(f'edgecopilot_alerts{{hazard="{hz}",status="{status}",zone="{copilot.zone}"}} {n}')
+        lines.append(f"edgecopilot_scene_changes {copilot.scene_changes}")
+        return "\n".join(lines) + "\n"
 
     @app.get("/api/alerts")
     def alerts(n: int = 50):

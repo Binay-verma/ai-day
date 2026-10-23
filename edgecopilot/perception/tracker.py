@@ -68,8 +68,9 @@ class Track:
 
 
 class Tracker:
-    def __init__(self, iou_thr: float = 0.3, max_misses: int = 15, dist_frac: float = 0.6):
+    def __init__(self, iou_thr: float = 0.3, max_misses: int = 15, dist_frac: float = 0.6, high_thr: float = 0.35):
         self.iou_thr = iou_thr
+        self.high_thr = high_thr
         self.max_misses = max_misses
         self.dist_frac = dist_frac
         self.tracks: Dict[int, Track] = {}
@@ -79,37 +80,58 @@ class Tracker:
         self.tracks.clear()
         self._next_id = 1
 
+    def _associate(self, ids: List[int], dets: List[Detection], t: float) -> tuple:
+        """Hungarian matching of ``dets`` to tracks ``ids``; returns (matched track ids, matched det idx)."""
+        if not ids or not dets:
+            return set(), set()
+        prev = np.array([self.tracks[i].last.box for i in ids])
+        cur = np.array([d.box for d in dets])
+        iou = iou_matrix(prev, cur)
+        # centre-distance term rescues fast motion (e.g. a person falling)
+        pc = (prev[:, :2] + prev[:, 2:]) / 2
+        cc = (cur[:, :2] + cur[:, 2:]) / 2
+        diag = np.hypot(prev[:, 2] - prev[:, 0], prev[:, 3] - prev[:, 1])[:, None] + 1e-6
+        dist = np.linalg.norm(pc[:, None] - cc[None], axis=2) / diag
+        cost = (1 - iou) + 0.5 * np.clip(dist, 0, 2)
+        r, c = linear_sum_assignment(cost)
+        mt, md = set(), set()
+        for ri, ci in zip(r, c):
+            if iou[ri, ci] >= self.iou_thr or dist[ri, ci] <= self.dist_frac:
+                tr = self.tracks[ids[ri]]
+                d = dets[ci]
+                tr.history.append(TrackState(t, d.box.copy(), None if d.keypoints is None else d.keypoints.copy(), d.score))
+                tr.misses = 0
+                tr.hits += 1
+                d.track_id = tr.track_id
+                mt.add(tr.track_id)
+                md.add(ci)
+        return mt, md
+
     def update(self, dets: List[Detection], t: float) -> List[Track]:
+        """ByteTrack-style two-stage association.
+
+        High-confidence detections are matched first and may start new tracks;
+        low-confidence ones (score < ``high_thr``) can only *continue* an
+        existing track.  A person lying on the floor is often detected with low
+        confidence - this keeps their track (and fall evidence) alive without
+        letting low-confidence clutter create phantom people.
+        """
+        for d in dets:
+            d.track_id = -1
         ids = list(self.tracks.keys())
-        prev = np.array([self.tracks[i].last.box for i in ids]) if ids else np.zeros((0, 4))
-        cur = np.array([d.box for d in dets]) if dets else np.zeros((0, 4))
-        matched_det = set()
-        if len(ids) and len(dets):
-            iou = iou_matrix(prev, cur)
-            # centre-distance term rescues fast motion (e.g. a person falling)
-            pc = (prev[:, :2] + prev[:, 2:]) / 2
-            cc = (cur[:, :2] + cur[:, 2:]) / 2
-            diag = np.hypot(prev[:, 2] - prev[:, 0], prev[:, 3] - prev[:, 1])[:, None] + 1e-6
-            dist = np.linalg.norm(pc[:, None] - cc[None], axis=2) / diag
-            cost = (1 - iou) + 0.5 * np.clip(dist, 0, 2)
-            r, c = linear_sum_assignment(cost)
-            for ri, ci in zip(r, c):
-                if iou[ri, ci] >= self.iou_thr or dist[ri, ci] <= self.dist_frac:
-                    tr = self.tracks[ids[ri]]
-                    d = dets[ci]
-                    tr.history.append(TrackState(t, d.box.copy(), None if d.keypoints is None else d.keypoints.copy(), d.score))
-                    tr.misses = 0
-                    tr.hits += 1
-                    d.track_id = tr.track_id
-                    matched_det.add(ci)
-        matched_tracks = {d.track_id for d in dets if d.track_id >= 0}
+        high = [d for d in dets if d.score >= self.high_thr]
+        low = [d for d in dets if d.score < self.high_thr]
+        mt1, md1 = self._associate(ids, high, t)
+        rest = [i for i in ids if i not in mt1]
+        mt2, _ = self._associate(rest, low, t)
+        matched_tracks = mt1 | mt2
         for i in ids:
             if i not in matched_tracks:
                 self.tracks[i].misses += 1
                 if self.tracks[i].misses > self.max_misses:
                     del self.tracks[i]
-        for ci, d in enumerate(dets):
-            if ci in matched_det:
+        for ci, d in enumerate(high):
+            if ci in md1:
                 continue
             tr = Track(self._next_id)
             self._next_id += 1
