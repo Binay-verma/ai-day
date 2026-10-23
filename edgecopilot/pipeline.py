@@ -101,7 +101,7 @@ class Copilot:
         self._load_calibration()
         self.sensors = sensors or SensorHub()
         self.events = event_log or EventLog()
-        self.tracker = Tracker()
+        self.tracker = Tracker(high_thr=rt.get("track_high_conf", 0.35))
         self.fall_fx = FallFeatureExtractor()
         self.crowd_fx = CrowdFeatureExtractor()
         self.smoke_fx = SmokeCueExtractor()
@@ -219,6 +219,8 @@ class Copilot:
         timings["pose"] = (time.perf_counter() - t0) * 1e3
         t0 = time.perf_counter()
         tracks = self.tracker.update(people, t)
+        # low-confidence detections only survive if they continued an existing track (ByteTrack)
+        people = [d for d in people if d.track_id >= 0]
         timings["track"] = (time.perf_counter() - t0) * 1e3
 
         assessments: List[Assessment] = []

@@ -173,6 +173,7 @@ def main():
     ap.add_argument("--weights", nargs="*", default=[])
     ap.add_argument("--onnx", nargs="*", default=[])
     ap.add_argument("--limit", type=int, default=400)
+    ap.add_argument("--onnx-names", default="smoke,fire", help="class order of the ONNX model(s)")
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--out", default="benchmarks/results/fire_eval.json")
     args = ap.parse_args()
@@ -189,7 +190,7 @@ def main():
         os.makedirs(os.path.dirname(args.out), exist_ok=True)
         json.dump(allres, open(args.out, "w"), indent=2)
     for w in args.onnx:
-        allres[w] = evaluate(OnnxPredictor(w), sets)
+        allres[w] = evaluate(OnnxPredictor(w, tuple(args.onnx_names.split(","))), sets)
         print(w, json.dumps(allres[w]), flush=True)
         json.dump(allres, open(args.out, "w"), indent=2)
 

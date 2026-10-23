@@ -11,16 +11,17 @@ runtime:
   max_width: 960          # downscale very large frames before processing
   scene_cut: 0.75         # fraction of changed pixels that means "camera moved / feed switched"
   realert_cooldown_s: 30  # the same hazard on the same subject re-opens its incident instead of a new alert
+  track_high_conf: 0.35   # detections below this can continue a track but never start one
 
 models:
   pose:
     path: models/yolo11n-pose.onnx
     imgsz: 640
-    conf: 0.35
+    conf: 0.1              # low on purpose: only continues existing tracks (see track_high_conf)
     iou: 0.5
   fire_smoke:
     path: models/fire_smoke.onnx
-    classes: [fire, smoke]
+    classes: [smoke, fire]   # order of the fine-tuned checkpoint
     imgsz: 640
     conf: 0.25
     iou: 0.45

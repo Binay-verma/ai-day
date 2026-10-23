@@ -2,87 +2,81 @@
   "dataset": "GMDCSA24",
   "videos": 160,
   "falls": 79,
+  "min_score": 0.1,
   "expert": {
     "overall": {
       "n": 160,
-      "tp": 40,
-      "fp": 6,
-      "fn": 39,
-      "tn": 75,
-      "accuracy": 0.71875,
-      "precision": 0.8695652173913043,
-      "recall": 0.5063291139240507,
-      "f1": 0.6400000000000001,
-      "specificity": 0.9259259259259259,
-      "delay_median_s": 1.767101851851852,
-      "delay_p90_s": 3.648947997493735
+      "tp": 59,
+      "fp": 7,
+      "fn": 20,
+      "tn": 74,
+      "accuracy": 0.83125,
+      "precision": 0.8939393939393939,
+      "recall": 0.7468354430379747,
+      "f1": 0.8137931034482758,
+      "specificity": 0.9135802469135802,
+      "delay_median_s": 1.1771519434628974,
+      "delay_p90_s": 2.6183281413751645
     },
     "per_subject": {
       "1": {
         "n": 32,
-        "tp": 11,
+        "tp": 12,
         "fp": 3,
-        "fn": 5,
+        "fn": 4,
         "tn": 13,
-        "accuracy": 0.75,
-        "precision": 0.7857142857142857,
-        "recall": 0.6875,
-        "f1": 0.7333333333333334,
+        "accuracy": 0.78125,
+        "precision": 0.8,
+        "recall": 0.75,
+        "f1": 0.7741935483870969,
         "specificity": 0.8125,
-        "delay_median_s": 1.7739666666666667,
-        "delay_p90_s": 2.9077259668508284
+        "delay_median_s": 1.1490568952442854,
+        "delay_p90_s": 1.953812019704434
       },
       "2": {
         "n": 48,
-        "tp": 17,
+        "tp": 22,
         "fp": 1,
-        "fn": 8,
+        "fn": 3,
         "tn": 22,
-        "accuracy": 0.8125,
-        "precision": 0.9444444444444444,
-        "recall": 0.68,
-        "f1": 0.7906976744186047,
+        "accuracy": 0.9166666666666666,
+        "precision": 0.9565217391304348,
+        "recall": 0.88,
+        "f1": 0.9166666666666666,
         "specificity": 0.9565217391304348,
-        "delay_median_s": 1.6867247706422024,
-        "delay_p90_s": 5.161953878536922
+        "delay_median_s": 1.1650139964228068,
+        "delay_p90_s": 2.6684384570120954
       },
       "3": {
         "n": 43,
-        "tp": 7,
+        "tp": 16,
         "fp": 0,
-        "fn": 14,
+        "fn": 5,
         "tn": 22,
-        "accuracy": 0.6744186046511628,
+        "accuracy": 0.8837209302325582,
         "precision": 1.0,
-        "recall": 0.3333333333333333,
-        "f1": 0.5,
+        "recall": 0.7619047619047619,
+        "f1": 0.8648648648648648,
         "specificity": 1.0,
-        "delay_median_s": 2.5894344086021506,
-        "delay_p90_s": 3.4205979858156033
+        "delay_median_s": 1.331102396434126,
+        "delay_p90_s": 2.630988485306043
       },
       "4": {
         "n": 37,
-        "tp": 5,
-        "fp": 2,
-        "fn": 12,
-        "tn": 18,
-        "accuracy": 0.6216216216216216,
-        "precision": 0.7142857142857143,
-        "recall": 0.29411764705882354,
-        "f1": 0.4166666666666667,
-        "specificity": 0.9,
-        "delay_median_s": 1.277985342789598,
-        "delay_p90_s": 2.8030701810814236
+        "tp": 9,
+        "fp": 3,
+        "fn": 8,
+        "tn": 17,
+        "accuracy": 0.7027027027027027,
+        "precision": 0.75,
+        "recall": 0.5294117647058824,
+        "f1": 0.6206896551724139,
+        "specificity": 0.85,
+        "delay_median_s": 0.6795323741007191,
+        "delay_p90_s": 2.027434328201079
       }
     },
     "errors": [
-      {
-        "video": "S1/Fall/01.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Falling from sitting on the chair to the ground. Left side Fall. Full body not visible"
-      },
       {
         "video": "S1/Fall/02.mp4",
         "label": 1,
@@ -133,20 +127,6 @@
         "desc": "Sitting on the bed to sleeping left side on the bed. Face towards the ceiling"
       },
       {
-        "video": "S2/Fall/01.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Right side fall on the ground"
-      },
-      {
-        "video": "S2/Fall/02.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Right side fall on the ground after walking"
-      },
-      {
         "video": "S2/Fall/03.mp4",
         "label": 1,
         "pred": false,
@@ -154,32 +134,11 @@
         "desc": "Forward fall on the bed"
       },
       {
-        "video": "S2/Fall/04.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Seeing outside the window then backward fall"
-      },
-      {
         "video": "S2/Fall/05.mp4",
         "label": 1,
         "pred": false,
         "delay": null,
         "desc": "Left side fall (face hidden by hand)"
-      },
-      {
-        "video": "S2/Fall/08.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Reading a newspaper in the sitting position on the ground then falling backward"
-      },
-      {
-        "video": "S2/Fall/15.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Writing while sitting on the bed; then falling on the ground"
       },
       {
         "video": "S2/Fall/24.mp4",
@@ -196,53 +155,11 @@
         "desc": "Walking; removing dust from the bed using a pillow; and sleeping on the bed"
       },
       {
-        "video": "S3/Fall/01.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "falling forward"
-      },
-      {
-        "video": "S3/Fall/02.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Falling on the bed (forward)"
-      },
-      {
-        "video": "S3/Fall/04.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Walking and then falling backward on the floor"
-      },
-      {
         "video": "S3/Fall/09.mp4",
         "label": 1,
         "pred": false,
         "delay": null,
         "desc": "Reading the book while sitting on the ground; then falling backward"
-      },
-      {
-        "video": "S3/Fall/10.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Falling forward on the bed"
-      },
-      {
-        "video": "S3/Fall/12.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Falling backward from the bed"
-      },
-      {
-        "video": "S3/Fall/13.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Writing something in a notebook while sitting position on the floor; then falling backward"
       },
       {
         "video": "S3/Fall/14.mp4",
@@ -259,25 +176,11 @@
         "desc": "Trying to drink water from the water bottle and then falling on the floor"
       },
       {
-        "video": "S3/Fall/16.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Walking and then falling left side on the floor"
-      },
-      {
         "video": "S3/Fall/17.mp4",
         "label": 1,
         "pred": false,
         "delay": null,
         "desc": "Reading newspaper then falling Backward on the bed"
-      },
-      {
-        "video": "S3/Fall/18.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Sitting on the bed; then falling on the floor"
       },
       {
         "video": "S3/Fall/19.mp4",
@@ -287,32 +190,11 @@
         "desc": "Falling on the floor from the standing position"
       },
       {
-        "video": "S3/Fall/21.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Drinking in standing position then falling sideways"
-      },
-      {
         "video": "S4/Fall/02.mp4",
         "label": 1,
         "pred": false,
         "delay": null,
         "desc": "Falling (LS) from the bed to the floor"
-      },
-      {
-        "video": "S4/Fall/03.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Walking then falling (forward) view 1"
-      },
-      {
-        "video": "S4/Fall/05.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Falling (RS) on the bed from sitting on the bed"
       },
       {
         "video": "S4/Fall/06.mp4",
@@ -343,13 +225,6 @@
         "desc": "Reading a book while sitting on the chair then falling (FW) on the ground"
       },
       {
-        "video": "S4/Fall/11.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Walking then falling (FW: only waist to toe is visible after falling)"
-      },
-      {
         "video": "S4/Fall/12.mp4",
         "label": 1,
         "pred": false,
@@ -371,11 +246,11 @@
         "desc": "Falling (FW) on the floor from sitting on the bed"
       },
       {
-        "video": "S4/Fall/17.mp4",
-        "label": 1,
-        "pred": false,
+        "video": "S4/ADL/07.mp4",
+        "label": 0,
+        "pred": true,
         "delay": null,
-        "desc": "Falling (LS) on the bed from sitting on the bed"
+        "desc": "Doing exercise (push-up); view 3"
       },
       {
         "video": "S4/ADL/10.mp4",
@@ -397,143 +272,147 @@
     "overall": {
       "n": 160,
       "tp": 70,
-      "fp": 18,
+      "fp": 23,
       "fn": 9,
-      "tn": 63,
-      "accuracy": 0.83125,
-      "precision": 0.7954545454545454,
+      "tn": 58,
+      "accuracy": 0.8,
+      "precision": 0.7526881720430108,
       "recall": 0.8860759493670886,
-      "f1": 0.8383233532934132,
-      "specificity": 0.7777777777777778,
-      "delay_median_s": 0.7880309859154933,
-      "delay_p90_s": 1.4879434267532137
+      "f1": 0.8139534883720929,
+      "specificity": 0.7160493827160493,
+      "delay_median_s": 0.8875616942909756,
+      "delay_p90_s": 1.7861402610229282
     },
     "folds": {
       "test_subject_1": {
-        "bias": -2.986054283473022,
+        "bias": -1.5178497917527027,
         "weights": {
-          "torso_angle": 0.03697806485693767,
-          "descent_speed": 3.0983536489383545,
-          "height_drop": 1.1639172866218546,
-          "aspect_ratio": 1.0103227763402804,
-          "ground_time": -0.5450329307788232
+          "torso_angle": 0.014059699196694283,
+          "descent_speed": 1.1396311956996665,
+          "tilt_rate": 0.005417753179947769,
+          "height_drop": 0.3479462536848755,
+          "aspect_ratio": 0.7883373757146582,
+          "ground_time": 0.0
         },
         "loso": {
           "n": 32,
-          "tp": 14,
+          "tp": 15,
           "fp": 4,
-          "fn": 2,
+          "fn": 1,
           "tn": 12,
-          "accuracy": 0.8125,
-          "precision": 0.7777777777777778,
-          "recall": 0.875,
-          "f1": 0.823529411764706,
+          "accuracy": 0.84375,
+          "precision": 0.7894736842105263,
+          "recall": 0.9375,
+          "f1": 0.8571428571428572,
           "specificity": 0.75,
-          "delay_median_s": 0.7574268733850128,
-          "delay_p90_s": 1.1051475648854965
+          "delay_median_s": 0.9209803921568627,
+          "delay_p90_s": 1.9909049110820571
         },
-        "conformal_tau_logit": 1.766618506606191,
+        "conformal_tau_logit": 1.0990655262658668,
         "conformal": {
           "n": 32,
-          "tp": 11,
+          "tp": 12,
           "fp": 1,
-          "fn": 5,
+          "fn": 4,
           "tn": 15,
-          "accuracy": 0.8125,
-          "precision": 0.9166666666666666,
-          "recall": 0.6875,
-          "f1": 0.7857142857142857,
+          "accuracy": 0.84375,
+          "precision": 0.9230769230769231,
+          "recall": 0.75,
+          "f1": 0.8275862068965517,
           "specificity": 0.9375,
-          "delay_median_s": 1.157357622739018,
-          "delay_p90_s": 1.328902255639098
+          "delay_median_s": 1.1661964909275202,
+          "delay_p90_s": 1.4327732330827068
         }
       },
       "test_subject_2": {
-        "bias": -2.5738214866607563,
+        "bias": -1.1278226277952632,
         "weights": {
-          "torso_angle": 0.03670079647365952,
-          "descent_speed": 3.48928620739352,
-          "height_drop": 3.3529458946312944,
-          "aspect_ratio": 0.2223413489279369,
-          "ground_time": -0.7757044606399932
+          "torso_angle": 0.015060242944575114,
+          "descent_speed": 1.706178398673576,
+          "tilt_rate": 0.005357699264244792,
+          "height_drop": 1.2642447052554606,
+          "aspect_ratio": 0.10323611661212287,
+          "ground_time": 0.0
         },
         "loso": {
           "n": 48,
-          "tp": 25,
-          "fp": 3,
-          "fn": 0,
-          "tn": 20,
-          "accuracy": 0.9375,
-          "precision": 0.8928571428571429,
-          "recall": 1.0,
-          "f1": 0.9433962264150945,
-          "specificity": 0.8695652173913043,
-          "delay_median_s": 0.8739444444444444,
-          "delay_p90_s": 1.6808599990885056
+          "tp": 23,
+          "fp": 7,
+          "fn": 2,
+          "tn": 16,
+          "accuracy": 0.8125,
+          "precision": 0.7666666666666667,
+          "recall": 0.92,
+          "f1": 0.8363636363636363,
+          "specificity": 0.6956521739130435,
+          "delay_median_s": 0.9444888888888894,
+          "delay_p90_s": 1.897046970017637
         },
-        "conformal_tau_logit": 1.1726992954508826,
+        "conformal_tau_logit": 1.0975791807096176,
         "conformal": {
           "n": 48,
-          "tp": 21,
-          "fp": 1,
-          "fn": 4,
-          "tn": 22,
-          "accuracy": 0.8958333333333334,
-          "precision": 0.9545454545454546,
-          "recall": 0.84,
-          "f1": 0.8936170212765958,
-          "specificity": 0.9565217391304348,
-          "delay_median_s": 0.8891985185185187,
-          "delay_p90_s": 1.6013473053892215
+          "tp": 19,
+          "fp": 3,
+          "fn": 6,
+          "tn": 20,
+          "accuracy": 0.8125,
+          "precision": 0.8636363636363636,
+          "recall": 0.76,
+          "f1": 0.8085106382978724,
+          "specificity": 0.8695652173913043,
+          "delay_median_s": 0.9890816901408455,
+          "delay_p90_s": 2.2074401006864983
         }
       },
       "test_subject_3": {
-        "bias": -3.012842039280462,
+        "bias": -2.322085297940303,
         "weights": {
-          "torso_angle": 0.03628460081896004,
-          "descent_speed": 3.560378746630859,
-          "height_drop": 2.1757284677236486,
-          "aspect_ratio": 0.8467277568655643,
-          "ground_time": -0.8472856791456266
+          "torso_angle": 0.02653811210950629,
+          "descent_speed": 1.6233876464290982,
+          "tilt_rate": 0.005974896648611049,
+          "height_drop": 0.3536620415252175,
+          "aspect_ratio": 0.6421333581751317,
+          "ground_time": 0.0
         },
         "loso": {
           "n": 43,
-          "tp": 16,
-          "fp": 3,
-          "fn": 5,
-          "tn": 19,
+          "tp": 17,
+          "fp": 4,
+          "fn": 4,
+          "tn": 18,
           "accuracy": 0.813953488372093,
-          "precision": 0.8421052631578947,
-          "recall": 0.7619047619047619,
-          "f1": 0.8,
-          "specificity": 0.8636363636363636,
-          "delay_median_s": 0.8969845646995972,
-          "delay_p90_s": 1.3179481654363872
+          "precision": 0.8095238095238095,
+          "recall": 0.8095238095238095,
+          "f1": 0.8095238095238095,
+          "specificity": 0.8181818181818182,
+          "delay_median_s": 1.0254364963503644,
+          "delay_p90_s": 1.401485472280528
         },
-        "conformal_tau_logit": 1.7807897762145393,
+        "conformal_tau_logit": 0.7244659637101607,
         "conformal": {
           "n": 43,
-          "tp": 14,
-          "fp": 0,
-          "fn": 7,
-          "tn": 22,
-          "accuracy": 0.8372093023255814,
-          "precision": 1.0,
-          "recall": 0.6666666666666666,
-          "f1": 0.8,
-          "specificity": 1.0,
-          "delay_median_s": 1.0473849148418488,
-          "delay_p90_s": 1.695826216443567
+          "tp": 17,
+          "fp": 1,
+          "fn": 4,
+          "tn": 21,
+          "accuracy": 0.8837209302325582,
+          "precision": 0.9444444444444444,
+          "recall": 0.8095238095238095,
+          "f1": 0.8717948717948718,
+          "specificity": 0.9545454545454546,
+          "delay_median_s": 1.1171978494623653,
+          "delay_p90_s": 1.548596340288925
         }
       },
       "test_subject_4": {
-        "bias": -2.4488047522097145,
+        "bias": -1.3130738927033159,
         "weights": {
-          "torso_angle": 0.02695632703085923,
-          "descent_speed": 4.1280209392317895,
-          "height_drop": 1.8521260444067118,
-          "aspect_ratio": 0.952053842612525,
-          "ground_time": -0.8168688051054617
+          "torso_angle": 0.012346780665248965,
+          "descent_speed": 1.4350506162858194,
+          "tilt_rate": 0.007490086570721756,
+          "height_drop": 0.1878890458338769,
+          "aspect_ratio": 0.6958514468382249,
+          "ground_time": 0.0
         },
         "loso": {
           "n": 37,
@@ -546,23 +425,23 @@
           "recall": 0.8823529411764706,
           "f1": 0.75,
           "specificity": 0.6,
-          "delay_median_s": 0.552605847718453,
-          "delay_p90_s": 1.005932169682654
+          "delay_median_s": 0.5698196277640228,
+          "delay_p90_s": 0.9322115147424813
         },
-        "conformal_tau_logit": 1.61790327573567,
+        "conformal_tau_logit": 1.0102122974349015,
         "conformal": {
           "n": 37,
-          "tp": 12,
-          "fp": 4,
-          "fn": 5,
-          "tn": 16,
+          "tp": 11,
+          "fp": 3,
+          "fn": 6,
+          "tn": 17,
           "accuracy": 0.7567567567567568,
-          "precision": 0.75,
-          "recall": 0.7058823529411765,
-          "f1": 0.7272727272727272,
-          "specificity": 0.8,
-          "delay_median_s": 0.6410277153558055,
-          "delay_p90_s": 2.2093057324840766
+          "precision": 0.7857142857142857,
+          "recall": 0.6470588235294118,
+          "f1": 0.7096774193548386,
+          "specificity": 0.85,
+          "delay_median_s": 0.8124117647058824,
+          "delay_p90_s": 1.6437266219239373
         }
       }
     },
@@ -573,13 +452,6 @@
         "pred": false,
         "delay": null,
         "desc": "Standing position to falling. Backward fall. Full body (head) is not visible"
-      },
-      {
-        "video": "S1/Fall/14.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Standing position to falling. Backward fall. Full body (both ankles) is not visible"
       },
       {
         "video": "S1/ADL/01.mp4",
@@ -610,18 +482,39 @@
         "desc": "From sleeping left side on the bed (Face towards the ceiling) to sitting on the bed"
       },
       {
-        "video": "S2/ADL/01.mp4",
-        "label": 0,
-        "pred": true,
+        "video": "S2/Fall/03.mp4",
+        "label": 1,
+        "pred": false,
         "delay": null,
-        "desc": "Talking on the mobile phone while sitting on the bed and walking"
+        "desc": "Forward fall on the bed"
       },
       {
-        "video": "S2/ADL/09.mp4",
+        "video": "S2/Fall/11.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling from bed to ground"
+      },
+      {
+        "video": "S2/ADL/04.mp4",
         "label": 0,
         "pred": true,
         "delay": null,
-        "desc": "Standing up from a sitting position on the bed and then sitting on the ground"
+        "desc": "Yoga: Standing forward bend (Uttanasana)"
+      },
+      {
+        "video": "S2/ADL/11.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Removing the shirt and hanging it on the hanger"
+      },
+      {
+        "video": "S2/ADL/12.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Going to bed and sleeping (belly facing downwards)"
       },
       {
         "video": "S2/ADL/13.mp4",
@@ -631,11 +524,25 @@
         "desc": "Sitting on the ground and reading a book"
       },
       {
-        "video": "S3/Fall/14.mp4",
-        "label": 1,
-        "pred": false,
+        "video": "S2/ADL/18.mp4",
+        "label": 0,
+        "pred": true,
         "delay": null,
-        "desc": "Falling backward on the floor while removing the shirt and trying to hang it on the hangar"
+        "desc": "Walking; opening the window; and looking outside"
+      },
+      {
+        "video": "S2/ADL/19.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sitting on the ground and writing in a notebook"
+      },
+      {
+        "video": "S2/ADL/22.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Exercising (Push-up) and sitting"
       },
       {
         "video": "S3/Fall/15.mp4",
@@ -645,13 +552,6 @@
         "desc": "Trying to drink water from the water bottle and then falling on the floor"
       },
       {
-        "video": "S3/Fall/16.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Walking and then falling left side on the floor"
-      },
-      {
         "video": "S3/Fall/17.mp4",
         "label": 1,
         "pred": false,
@@ -659,11 +559,25 @@
         "desc": "Reading newspaper then falling Backward on the bed"
       },
       {
+        "video": "S3/Fall/18.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Sitting on the bed; then falling on the floor"
+      },
+      {
         "video": "S3/Fall/19.mp4",
         "label": 1,
         "pred": false,
         "delay": null,
         "desc": "Falling on the floor from the standing position"
+      },
+      {
+        "video": "S3/ADL/02.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Exercise (Hand up & down)"
       },
       {
         "video": "S3/ADL/03.mp4",
@@ -758,22 +672,235 @@
       }
     ]
   },
+  "loso_bias_tuned": {
+    "overall": {
+      "n": 160,
+      "tp": 65,
+      "fp": 13,
+      "fn": 14,
+      "tn": 68,
+      "accuracy": 0.83125,
+      "precision": 0.8333333333333334,
+      "recall": 0.8227848101265823,
+      "f1": 0.8280254777070064,
+      "specificity": 0.8395061728395061,
+      "delay_median_s": 1.0171926605504584,
+      "delay_p90_s": 2.3500791478696743
+    },
+    "bias_shift_per_fold": {
+      "test_subject_1": 1.25,
+      "test_subject_2": 0.25,
+      "test_subject_3": 1.5,
+      "test_subject_4": 0.5
+    },
+    "errors": [
+      {
+        "video": "S1/Fall/09.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Standing position to falling. Forward Fall. Full body (head) not visible"
+      },
+      {
+        "video": "S1/Fall/13.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Standing position to falling. Backward fall. Full body (head) is not visible"
+      },
+      {
+        "video": "S1/Fall/14.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Standing position to falling. Backward fall. Full body (both ankles) is not visible"
+      },
+      {
+        "video": "S1/ADL/01.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sitting on the bed to sleeping right side on the bed. Face towards camera"
+      },
+      {
+        "video": "S1/ADL/02.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sitting on the bed to sleeping left side on the bed. Face towards the camera"
+      },
+      {
+        "video": "S1/ADL/03.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sitting on the bed to sleeping left side on the bed. Face towards the ceiling"
+      },
+      {
+        "video": "S1/ADL/04.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "From sleeping left side on the bed (Face towards the ceiling) to sitting on the bed"
+      },
+      {
+        "video": "S1/ADL/06.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sitting on the bed (front view) to reading the book while supporting towards the wall. Side view"
+      },
+      {
+        "video": "S2/Fall/03.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Forward fall on the bed"
+      },
+      {
+        "video": "S2/Fall/24.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Standing from the bed and then falling sideways on the ground"
+      },
+      {
+        "video": "S2/ADL/03.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Walking; removing dust from the bed using a pillow; and sleeping on the bed"
+      },
+      {
+        "video": "S3/Fall/15.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Trying to drink water from the water bottle and then falling on the floor"
+      },
+      {
+        "video": "S3/Fall/17.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Reading newspaper then falling Backward on the bed"
+      },
+      {
+        "video": "S3/Fall/19.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling on the floor from the standing position"
+      },
+      {
+        "video": "S3/ADL/03.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Getting up from the sleeping position from the bed; Putting a mask on the face; then walking"
+      },
+      {
+        "video": "S3/ADL/08.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sitting to sleeping on the floor"
+      },
+      {
+        "video": "S3/ADL/09.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sleeping on the floor to sitting and then standing"
+      },
+      {
+        "video": "S4/Fall/02.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling (LS) from the bed to the floor"
+      },
+      {
+        "video": "S4/Fall/06.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling (LS) on the bed from sitting on the bed then falling (RS) to the floor"
+      },
+      {
+        "video": "S4/Fall/08.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling backward on the bed from sitting on the bed"
+      },
+      {
+        "video": "S4/Fall/09.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling backward on the bed from sitting on the bed"
+      },
+      {
+        "video": "S4/Fall/12.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling (FW)to the floor from sitting on the bed"
+      },
+      {
+        "video": "S4/Fall/15.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling (FW) on the floor from sitting on the bed"
+      },
+      {
+        "video": "S4/ADL/07.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Doing exercise (push-up); view 3"
+      },
+      {
+        "video": "S4/ADL/10.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Walking then sleeping on the bed after removing the goggles"
+      },
+      {
+        "video": "S4/ADL/15.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sitting to sleeping on the bed"
+      },
+      {
+        "video": "S4/ADL/16.mp4",
+        "label": 0,
+        "pred": true,
+        "delay": null,
+        "desc": "Sitting on the bed; removing the goggles; then sleeping"
+      }
+    ]
+  },
   "conformal": {
     "alpha": 0.1,
     "overall": {
       "n": 160,
-      "tp": 58,
-      "fp": 6,
-      "fn": 21,
-      "tn": 75,
-      "accuracy": 0.83125,
-      "precision": 0.90625,
-      "recall": 0.7341772151898734,
-      "f1": 0.8111888111888113,
-      "specificity": 0.9259259259259259,
-      "delay_median_s": 0.9444888888888894,
-      "delay_p90_s": 1.7535506409017712
+      "tp": 59,
+      "fp": 8,
+      "fn": 20,
+      "tn": 73,
+      "accuracy": 0.825,
+      "precision": 0.8805970149253731,
+      "recall": 0.7468354430379747,
+      "f1": 0.8082191780821918,
+      "specificity": 0.9012345679012346,
+      "delay_median_s": 1.0693333333333332,
+      "delay_p90_s": 1.8944459000163643
     },
-    "empirical_far": 0.07407407407407407
+    "empirical_far": 0.09876543209876543
   }
 }

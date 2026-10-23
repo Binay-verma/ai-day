@@ -120,10 +120,10 @@ def refit(model, items, series_all, l2=3.0):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--cache", default="data/gmdcsa24_cues.pkl")
+    ap.add_argument("--cache", default="data/gmdcsa24_lowconf.pkl")
     ap.add_argument("--config", default="configs/campus.yaml")
     ap.add_argument("--alpha", type=float, default=0.1)
-    ap.add_argument("--min-score", type=float, default=None, help="person confidence (default: config pose conf)")
+    ap.add_argument("--min-score", type=float, default=None, help="person confidence floor (default: config pose conf; tracker high_thr starts tracks)")
     ap.add_argument("--out", default="benchmarks/results/fall_gmdcsa24.json")
     args = ap.parse_args()
     items = pickle.load(open(args.cache, "rb"))
@@ -155,6 +155,23 @@ def main():
                                       "loso": metrics(r_te), "conformal_tau_logit": tau, "conformal": metrics(r_c)}
     res["loso_fit"] = {"overall": metrics(loso_rows), "folds": folds,
                        "errors": [{k: r[k] for k in ("video", "label", "pred", "delay", "desc")} for r in loso_rows if r["label"] != r["pred"]]}
+    # leave-one-subject-out choice of the alert bias (expert weights kept): the bias
+    # shift that maximises F1 on the 3 training subjects is applied to the 4th
+    grid = np.arange(-2.0, 2.01, 0.25)
+    by_shift = {}
+    for b in grid:
+        mb = deepcopy(expert)
+        mb.bias = expert.bias + b
+        by_shift[b] = evaluate(items, series_all, mb, hyst)
+    subj = np.array([it["subject"] for it in items])
+    bt_rows, shifts = [], {}
+    for s in (1, 2, 3, 4):
+        tr = [i for i in range(len(items)) if subj[i] != s]
+        best = max(grid, key=lambda b: metrics([by_shift[b][i] for i in tr])["f1"])
+        shifts[f"test_subject_{s}"] = float(best)
+        bt_rows += [by_shift[best][i] for i in range(len(items)) if subj[i] == s]
+    res["loso_bias_tuned"] = {"overall": metrics(bt_rows), "bias_shift_per_fold": shifts,
+                              "errors": [{k: r[k] for k in ("video", "label", "pred", "delay", "desc")} for r in bt_rows if r["label"] != r["pred"]]}
     cm = metrics(conf_rows)
     adl = [r for r in conf_rows if not r["label"]]
     res["conformal"] = {"alpha": args.alpha, "overall": cm,
@@ -165,6 +182,7 @@ def main():
     print("expert  ", show(res["expert"]["overall"]))
     print("loso_fit", show(res["loso_fit"]["overall"]))
     print("conformal", show(cm), "FAR", res["conformal"]["empirical_far"], "alpha", args.alpha)
+    print("loso_bias", show(res["loso_bias_tuned"]["overall"]))
     print("expert errors:")
     for e in res["expert"]["errors"]:
         print("  ", e)
