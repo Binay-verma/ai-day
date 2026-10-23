@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY edgecopilot ./edgecopilot
-RUN pip install --no-cache-dir ".[mqtt]"
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=83" && pip install --no-cache-dir ".[mqtt]"
 COPY configs ./configs
 # models are mounted at runtime (./models:/app/models:ro) so images stay small and models can be updated without a rebuild
 RUN mkdir -p /app/models /app/data /app/calibration /app/logs && chown -R app:app /app/data /app/calibration /app/logs
