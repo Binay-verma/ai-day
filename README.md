@@ -81,6 +81,8 @@ analysis: [`docs/RESULTS.md`](docs/RESULTS.md).
 | Fire/smoke detector | mAP@0.5 **0.73** on Home-fire test and **0.73** on DBA-Fire hold-out (start checkpoint: 0.38 / 0.27) |
 | Fire, system level (FURG videos) | **13/17** fire videos detected, **1** false alarm in 4.7 min of non-fire video incl. moving cameras |
 | Falls (GMDCSA24, cross-subject) | F1 **0.83** on a hard set with lying-on-bed negatives; false-alarm budget α = 0.1 met (0.099) |
+| Edge speed (all 3 hazards at once) | **10.7 FPS** FP32-640 · **13.0** INT8 · **19.3** FP32-416; motion cascade +43 % FPS, −33 % CPU |
+| Saliency honesty check | Eigen-CAM beats random (deletion 0.12 vs 0.33) but adds little beyond the box — the ledger, not the heat-map, is the primary explanation |
 
 ## Quick start
 

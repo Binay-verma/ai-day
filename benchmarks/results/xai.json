@@ -1,12 +1,12 @@
 {
   "n_alerts": 73,
-  "attribution_max_abs_error": 1.7763568394002505e-15,
+  "attribution_max_abs_error": 1.5543122344752192e-15,
   "deletion_test_max_abs_error": 1.7763568394002505e-15,
   "counterfactuals": {
     "alerts_with_single_cue_cf": 71,
-    "total": 306,
+    "total": 305,
     "validity": 1.0,
-    "plausibility_in_normal_range": 0.7581699346405228,
+    "plausibility_in_normal_range": 0.7573770491803279,
     "sufficient_reason_mean_size": 3.5342465753424657
   },
   "template_grounding": {
@@ -21,8 +21,8 @@
       "rate": 0.958904109589041
     },
     "false_cause": {
-      "detected": 62,
-      "n": 62,
+      "detected": 60,
+      "n": 60,
       "rate": 1.0
     },
     "wrong_hazard": {
@@ -41,11 +41,11 @@
       "rate": 1.0
     }
   },
-  "verifier_detection_rate": 0.9915254237288136,
+  "verifier_detection_rate": 0.9914772727272727,
   "verifier_false_reject_rate_on_paraphrases": 0.011520737327188946,
   "n_paraphrases": 434,
   "explain_latency_ms": {
-    "p50": 0.5372480000005453,
-    "p95": 0.678206599991426
+    "p50": 0.5836510000563067,
+    "p95": 2.5890966000361
   }
 }

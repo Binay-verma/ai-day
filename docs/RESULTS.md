@@ -21,7 +21,9 @@ out of training/tuning; where something was tuned, the tuning data is named.
 | Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **13 / 17**, **1** in 4.7 min | — | ⚠️ |
 | Fall (GMDCSA24) | video F1, leave-one-subject-out | **0.828** (expert, no training: 0.814) | ≥ 0.90 | ❌ see §2 |
 | Calibration | empirical false-alarm rate vs budget α = 0.1 (fall, held-out subjects) | **0.099** | ≤ α + 1 % | ✅ |
-| Edge | INT8 model size / speed-up / mAP change | see §6 | ≤ 2 pt drop | see §6 |
+| Saliency | Eigen-CAM deletion AUC vs random / centre controls | **0.120** vs 0.325 / 0.122 (≈ box control inside the box) | better than controls | ⚠️ §7 |
+| Edge | full 3-hazard pipeline, 2 cores | **10.7 FPS** FP32-640, **13.0** INT8, **19.3** FP32-416; cascade +43 % FPS / −33 % CPU | ≥ 8 FPS | ✅ |
+| Edge | INT8: size / FPS / fire mAP change | 3.6× smaller / +21 % / −3.3 & −0.8 pt | ≤ 2 pt drop | ⚠️ Home-fire −3.3 |
 
 ## 2. Falls — GMDCSA24 (160 clips, 4 subjects, 79 falls)
 
@@ -118,13 +120,71 @@ text would be accepted only if it verifies, otherwise the template is shown.
 (No LLM could be downloaded on the build machine, so the "narrator" is a
 perturbation model of the error types reported for LLM narrators.)
 
-## 6. Edge performance
+## 6. Edge performance (full pipeline, all three hazards, demo reel, 2 cores)
 
-See §6 table (filled from `benchmarks/results/latency.json`).
+`benchmarks/bench_latency.py` on the 69 s demo reel (1,032 frames, 960×540, 15 fps;
+falls + fire + crowd + sensors all enabled). "CPU-s / video-min" is the CPU
+time spent per minute of video — an energy proxy.
 
-## 7. Saliency faithfulness
+| Configuration | Processed FPS | Latency p50 / p95 (ms) | Pose p50 (ms) | CPU-s / video-min | Alerts raised on the reel |
+|---|---|---|---|---|---|
+| FP32 640, cascade on (default) | 10.7 | 83 / 153 | 59 | 123 | same events in every row* |
+| **INT8 640**, cascade on | 13.0 | 69 / 116 | 46 | 90 | identical events, ±0.4 s |
+| FP32 416, cascade on | **19.3** | **48 / 76** | 26 | **64** | identical events |
+| FP32 640, cascade **off** | 7.5 | 130 / 153 | 58 | 184 | identical events |
 
-See §7 (filled from `benchmarks/results/saliency.json`).
+\*This table was measured just before the last fix (crowd cues now require
+people in view), when the reel still produced a spurious crowd alert during the
+fire clip (flame flicker read as "running"). The re-check after the fix
+(`benchmarks/results/latency_check.json`) gives 4 alerts: fall 18.8 s (VERIFY,
+false), fall 27.3 s (ALARM), smoke/fire 49.5 s (ALARM), crowd 66.4 s (VERIFY).
+
+* The **motion-gated cascade** (heavy models skipped on static frames, detector
+  every 2nd frame, keep-alive every 8) raises throughput **+43 %** and cuts CPU
+  time **−33 %** with the same alerts.
+* **INT8** (static QDQ, head in FP32): models 3.6× smaller (11.6 → 3.6 MB pose,
+  10.4 → 3.2 MB fire), **+21 %** FPS, **−27 %** CPU; fire mAP −3.3 / −0.8 points
+  (Home-fire / DBA). On this x86 sandbox 416-px FP32 is faster still; on ARM
+  boards with int8 dot-product units INT8 is the expected winner.
+* Decision time per alert (frame processing + saliency + explanation +
+  verification): 90–140 ms at 640 px, 30–78 ms at 416 px; the explanation
+  itself takes 0.6 ms (p50).
+* Cloud comparison (landscape report §4.5): a cloud round-trip alone is
+  ~15–80 ms and a cloud vision-language explanation 0.9–4.6 s per image; here
+  the whole decision is on-device and no video leaves the box.
+
+Demo reel timeline (`demo/demo_campus_timeline.json`): walkway (normal) → lying
+down on a bed (normal, hard negative) → real fall → small fire starting in a
+model house (+ MQ-2 trace) → crowd panic. After the fixes in §4.2 the system
+raises: fall at 27.3 s (onset 25.9 s), smoke/fire at 49.5 s (flames from
+38.7 s, MQ-2 above normal from 40.7 s), crowd at 66.4 s (UMN panic ~65 s), and
+one **false fall alert at 18.8 s** on the lying-down clip, routed as VERIFY
+(low margin) — the same failure mode reported for GMDCSA24 in §2.
+
+## 7. Saliency faithfulness (fire/smoke detector, Home-fire test, 10 images)
+
+Deletion (grey-out most salient pixels first; lower = more faithful) and
+insertion (reveal from a blurred image; higher = better), 10 steps, score = the
+target detection's confidence (D-RISE style).
+
+| Map | Deletion AUC ↓ | Insertion AUC ↑ | Time |
+|---|---|---|---|
+| random (control) | 0.325 | 0.389 | – |
+| centred Gaussian (control) | 0.122 | 0.408 | – |
+| **Eigen-CAM, whole frame (on-device, no gradients)** | **0.120** | 0.377 | **4.8 ms** |
+| Eigen-CAM re-normalised in the box (shown in console) | 0.038 | 0.509 | 5.5 ms |
+| uniform inside the box (control) | 0.030 | 0.519 | – |
+| occlusion 6×6 (model-agnostic reference) | 0.029 | 0.464 | 2,739 ms |
+
+**Honest reading.** Eigen-CAM is far better than random (deletion 0.12 vs
+0.33) at ~5 ms on the edge CPU, but once the map is restricted to the detection
+box it adds essentially nothing over a uniform box (it beat the box control on
+only 1 of 10 images), and even the 500× slower occlusion map does no better.
+For this detector the *box* is the faithful visual evidence; heat-maps are a
+visual aid. This is exactly why the copilot's primary explanation is the
+evidence ledger (exact, verifiable) and the heat-map is secondary — a point
+worth making, since many "explainable" systems present heat-maps as the
+explanation.
 
 ## 8. Reproduce
 
