@@ -69,20 +69,44 @@ Code map:
 
 ## Results
 
-All measured on a **2-core CPU, no GPU**. Full protocols, baselines and failure
-analysis: [`docs/RESULTS.md`](docs/RESULTS.md).
+All measured on a **2-core CPU, no GPU**, with 95 % intervals. Full protocols, caveats and
+failure analysis: [`docs/RESULTS.md`](docs/RESULTS.md). The fall, crowd and fire-video sets
+were also used during development, so those numbers are optimistic; the leakage-free fire
+image benchmark and the frozen-system external check are not.
 
 | Area | Result |
 |---|---|
-| Explanation exactness | per-cue contributions sum to the score with max error **1.8e-15** (73 real alerts) |
-| Grounded text | **0 %** unsupported claims in generated explanations; verifier catches **99.2 %** of injected narrator errors at **1.2 %** false rejects |
-| Counterfactuals | **100 %** valid; explanation + verification in **0.54 ms** |
-| Abnormal crowd movement (UMN sudden-dispersal scenes) | **10/11** dispersal events detected, **0** false alarms with per-camera conformal calibration (α = 0.01); median delay 0.8 s |
-| Fire/smoke detector | mAP@0.5 **0.73** on Home-fire test and **0.73** on DBA-Fire hold-out (start checkpoint: 0.38 / 0.27) |
-| Fire, system level (FURG videos) | **13/17** fire videos detected, **1** false alarm in 4.7 min of non-fire video incl. moving cameras |
-| Falls (GMDCSA24, cross-subject) | F1 **0.83** on a hard set with lying-on-bed negatives; false-alarm budget α = 0.1 met (0.099) |
-| Edge speed (all 3 hazards at once) | **10.7 FPS** FP32-640 · **13.0** INT8 · **19.3** FP32-416; motion cascade +43 % FPS, −33 % CPU |
-| Saliency honesty check | Eigen-CAM beats random (deletion 0.12 vs 0.33) but adds little beyond the box — the ledger, not the heat-map, is the primary explanation |
+| Explanation exactness | per-cue contributions sum to the score with max error **1.6e-15** (73 real alerts) |
+| Grounded text | **0 %** unsupported claims; verifier catches **99.8 %** of injected narrator errors (8 types) at **0.5 %** false rejects |
+| Counterfactuals | **100 %** valid (318); explanation + verification ≈ 1 ms |
+| Falls (GMDCSA24, leave-one-subject-out) | F1 **0.81–0.83** with the default YOLO11n-pose; **0.886** (CI 0.83–0.94) with the YOLO11s-pose profile. Target 0.90: not met |
+| Abnormal crowd movement (UMN) | **10/11** dispersal events, 0 false alarms in 200 s of normal video, with per-camera conformal calibration |
+| Fire/smoke detector (leakage-free split) | mAP@0.5 **0.57** Home-fire / **0.63** DBA-Fire scenes (start checkpoint 0.37 / 0.36); 16 % false positives on neutral images, so it is one cue among several, never the alarm on its own |
+| Fire, system level (FURG videos) | FURG_README |
+| External check (frozen system, unseen footage) | **7/11** falls; **2** false alarms in 7.2 min on uncalibrated cameras, both explained |
+| Edge speed (all 3 hazards at once) | EDGE_README |
+| Saliency honesty check | Eigen-CAM beats random but not a centre-bias control, so the ledger, not the heat map, is the explanation |
+
+## Production features
+
+| Area | What is in the box |
+|---|---|
+| Access control | FastAPI with RBAC (viewer < operator < admin), scrypt passwords, pinned HS256 JWT in HttpOnly cookie, revocation, lockout, rate and body limits, CSP, WebSocket origin check |
+| Devices | per-device API keys bound to zones; MQTT over TLS where the topic, not the payload, decides the zone |
+| Evidence and privacy | SQLite (WAL) incident store, HMAC-keyed hash-chained audit log, Fernet-encrypted media, retention purge, legal hold, erasure; faces blurred before anything is stored or streamed |
+| Who watches the watcher | trouble alerts for offline / frozen / blackout / defocus / view-changed / processing-error cameras through the same escalation chain; systemd watchdog; `/healthz` fails on a dead camera thread; audible console alarm with distinct alarm, verify and trouble tones (muting is audited) |
+| Human control | ALARM vs VERIFY triage, confirm / dismiss once per alert, operator pause / resume per camera (audited), calibrated alert lines clipped to `[min_threshold, max_threshold]` so dismissals can never silence a hazard |
+| Notifications | webhook, Slack, Teams, email, MQTT with retries and escalation; every fire message carries the decision-support disclaimer |
+| Operations | multi-camera workers with reconnect, frame dropping and clip buffer; Prometheus metrics, Alertmanager, SLO burn-rate and model-drift rules (dismissal rate, alert line at ceiling); Docker compose with Caddy TLS, Mosquitto, Prometheus, Grafana |
+| Supply chain | strict pydantic config schema with `extends:` overlays; SHA-256-pinned models (refused on mismatch); CycloneDX SBOM + ML-BOM; lockfile; CI with ruff, mypy, bandit, pip-audit, tests and SLSA provenance |
+
+The independent audits (20 code defects, 13 security findings, evaluation leakage) and what
+was fixed are summarised in [`docs/AUDIT.md`](docs/AUDIT.md), together with an honest
+production-readiness verdict.
+
+> **Decision support only.** This system supplements, and never replaces, the certified fire
+> alarm system, trained first responders and emergency services (112 / 108 / 101). It never
+> dispatches anyone automatically; every recommendation is for a human to act on.
 
 ## Quick start
 
@@ -95,9 +119,24 @@ python -m edgecopilot.cli --source 0          # headless, webcam
 pytest -q
 ```
 
-Docker (CPU-only edge image): `docker build -t edge-copilot . && docker run -p 8000:8000 edge-copilot`
+Production stack (TLS, MQTT, monitoring): copy `.env.example` to `.env`, then `docker compose up -d`; see `docs/OPERATIONS.md`.
+
+Fall-accurate profile (YOLO11s-pose, more CPU): `--config configs/profiles/fall_accurate.yaml`.
 
 RTSP camera: `--source rtsp://user:pass@camera/stream`. ESP32 node posts to `/api/sensors`.
+
+## Documentation
+
+| Doc | What |
+|---|---|
+| [docs/AUDIT.md](docs/AUDIT.md) | audit findings, fixes, standards position, verdict |
+| [docs/RESULTS.md](docs/RESULTS.md) | every benchmark, with intervals and caveats |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | components and data flow |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | install, commissioning, time sync, incident response, failure modes |
+| [docs/SECURITY.md](docs/SECURITY.md) · [docs/PRIVACY.md](docs/PRIVACY.md) | threat model, hardening, DPDP-oriented privacy notes |
+| [docs/RISK_REGISTER.md](docs/RISK_REGISTER.md) · [docs/AI_GOVERNANCE.md](docs/AI_GOVERNANCE.md) · [docs/SLO.md](docs/SLO.md) | FMEA, ISO 42001 / NIST AI RMF mapping, service levels |
+| [models/README.md](models/README.md) | model cards |
+| [docs/research/](docs/research/) | landscape survey, methods, standards gap analysis, audit reports |
 
 ## Licences and data
 

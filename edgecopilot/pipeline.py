@@ -16,7 +16,6 @@ from typing import Callable, Dict, List, Optional
 
 import cv2
 import numpy as np
-import yaml
 
 from .copilot.events import Alert, EventLog
 from .copilot.recommender import Recommender
@@ -40,8 +39,9 @@ HAZARD_COLORS = {"fall": (60, 60, 255), "fire_smoke": (0, 140, 255), "crowd": (2
 
 
 def load_config(path: str) -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
+    """Raw config dict, resolving ``extends:`` overlays (validation: config_schema.load_config_dict)."""
+    from .config_schema import load_raw
+    return load_raw(path)
 
 
 def _jpg_b64(img: np.ndarray, width: int = 480, quality: int = 70) -> str:

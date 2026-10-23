@@ -312,3 +312,15 @@ def test_calibration_json_written_atomically(tmp_path):
     cop.gates["fall"] = ConformalGate(0.1, scores=[0.0] * 30)
     cop.save_calibration()
     assert json.load(open(cop.calib_path))["fall"]["n"] == 30
+
+
+def test_overlay_configs_load_in_pipeline(tmp_path):
+    """configs/profiles/*.yaml use `extends:`; the pipeline loader must resolve it."""
+    import glob
+    for p in glob.glob("configs/profiles/*.yaml") + ["configs/production.example.yaml"]:
+        c = load_config(p)
+        assert "extends" not in c
+        for k in c["models"]:
+            c["models"][k]["path"] = "models/__missing__.onnx"
+            c["models"][k].pop("sha256", None)
+        Copilot(c, root=str(tmp_path), zone="Corridor B").process(np.zeros((120, 160, 3), np.uint8), 0.0)

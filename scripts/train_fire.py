@@ -16,9 +16,17 @@ ap.add_argument("--imgsz", type=int, default=416)
 ap.add_argument("--batch", type=int, default=16)
 ap.add_argument("--fraction", type=float, default=1.0)
 ap.add_argument("--name", default="ft2")
+ap.add_argument("--lr0", type=float, default=0.004)
+ap.add_argument("--resume", action="store_true", help="continue an interrupted run of --name from its last.pt")
 args = ap.parse_args()
+if args.resume:
+    import glob
+    last = glob.glob(f"runs/**/fire/{args.name}/weights/last.pt", recursive=True)
+    if last:
+        YOLO(last[0]).train(resume=True)
+        raise SystemExit(0)
 model = YOLO(args.weights)
 model.train(data=args.data, epochs=args.epochs, imgsz=args.imgsz, batch=args.batch, device="cpu", workers=2,
-            fraction=args.fraction, freeze=10, cos_lr=True, lr0=0.004, warmup_epochs=0.5, mosaic=1.0,
+            fraction=args.fraction, freeze=10, cos_lr=True, lr0=args.lr0, warmup_epochs=0.5, mosaic=1.0,
             close_mosaic=1, patience=10, project="runs/fire", name=args.name, exist_ok=True, plots=False, val=True,
             amp=False, verbose=False)
