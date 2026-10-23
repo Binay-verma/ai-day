@@ -95,7 +95,7 @@ def main():
         maps["eigencam_box"] = box_renormalize(maps["eigencam"], [d.box])
         res["eigencam_box"]["ms"].append((time.perf_counter() - t0) * 1e3 + res["eigencam"]["ms"][-1])
         t0 = time.perf_counter()
-        maps["occlusion"] = occlusion_saliency(img, lambda x: target_score(model, x, d.box, d.cls), grid=6)
+        maps["occlusion"] = occlusion_saliency(img, lambda x, b=d.box, c=d.cls: target_score(model, x, b, c), grid=6)
         res["occlusion"]["ms"].append((time.perf_counter() - t0) * 1e3)
         bu = np.zeros((h, w), np.float32)
         x1, y1, x2, y2 = d.box.astype(int)

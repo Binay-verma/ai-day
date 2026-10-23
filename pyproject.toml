@@ -55,8 +55,8 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.params.De
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "B", "SIM115"]
-"benchmarks/*" = ["S", "B007"]
-"scripts/*" = ["S"]
+"benchmarks/*" = ["S", "B007", "SIM115", "UP031"]
+"scripts/*" = ["S", "SIM115"]
 
 [tool.mypy]
 ignore_missing_imports = true

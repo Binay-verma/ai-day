@@ -104,7 +104,7 @@ def perturb(text, a, model, rng):
     # attacks added after the independent audit (docs/research/audit_core.md, C7)
     pos = [c for c in a.cues if c.contribution > 0]
     if len(pos) >= 2:  # value swapped between two cues, wording without the bound keyword
-        c1, c2 = pos[0], pos[1]
+        c2 = pos[1]
         outs.append(("value_swap", text + f" The key reading was {c2.value:.1f}."))
     unrel = {"fall": "Crowd stampede and panic in the area.", "crowd": "A person fell in the area.",
              "fire_smoke": "Someone has fallen near the fire."}[a.hazard]
