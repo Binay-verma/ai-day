@@ -1,0 +1,419 @@
+{
+  "summary": {
+    "fire_videos": 17,
+    "detected": 13,
+    "video_recall": 0.7647058823529411,
+    "time_to_alert_median_s": 1.4,
+    "nonfire_videos": 6,
+    "nonfire_minutes": 4.7,
+    "false_alarms_nonfire": 4,
+    "false_alarms_per_hour": 51.081943951755946,
+    "all_alerts_grounded": true
+  },
+  "videos": [
+    {
+      "video": "Car1",
+      "fire": true,
+      "seconds": 20.9,
+      "n_alerts": 4,
+      "detected": true,
+      "time_to_alert_s": 0.8,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 0.8,
+          "prob": 0.784,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (17.9 per mille), the detector seeing flames (76% confidence) and smoke spreading at 0.01/s."
+        },
+        {
+          "t": 8.51,
+          "prob": 0.869,
+          "triage": "ALARM",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (31.1 per mille) and the detector seeing flames (79% confidence)."
+        },
+        {
+          "t": 13.31,
+          "prob": 0.775,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (75.1 per mille) and the detector seeing flames (67% confidence)."
+        }
+      ],
+      "proc_s": 15.8
+    },
+    {
+      "video": "barbecue",
+      "fire": true,
+      "seconds": 30.0,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 0.9,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 0.9,
+          "prob": 0.759,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (28.4 per mille), the detector seeing flames (68% confidence) and smoke spreading at 0.00/s."
+        }
+      ],
+      "proc_s": 26.7
+    },
+    {
+      "video": "car2",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 0,
+      "detected": false,
+      "time_to_alert_s": null,
+      "false_alarms": 0,
+      "alerts": [],
+      "proc_s": 21.2
+    },
+    {
+      "video": "car3",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 1.4,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 1.4,
+          "prob": 0.684,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (15.4 per mille), the detector seeing flames (81% confidence) and smoke spreading at 0.00/s."
+        }
+      ],
+      "proc_s": 24.5
+    },
+    {
+      "video": "case2_car",
+      "fire": true,
+      "seconds": 30.8,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 0.73,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 2.7,
+          "prob": 0.642,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to the detector seeing flames (69% confidence), flickering flame-coloured pixels (9.4 per mille) and a smoke density increase of 0.14."
+        }
+      ],
+      "proc_s": 23.0
+    },
+    {
+      "video": "case2_house",
+      "fire": true,
+      "seconds": 30.1,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 6.61,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 6.61,
+          "prob": 0.63,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to the detector seeing flames (69% confidence), a smoke density increase of 0.33 and flickering flame-coloured pixels (4.7 per mille)."
+        }
+      ],
+      "proc_s": 31.6
+    },
+    {
+      "video": "case2_outside",
+      "fire": false,
+      "seconds": 30.6,
+      "n_alerts": 2,
+      "detected": null,
+      "time_to_alert_s": null,
+      "false_alarms": 2,
+      "alerts": [
+        {
+          "t": 5.71,
+          "prob": 0.779,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (31.0 per mille), the detector seeing flames (42% confidence) and a smoke density increase of 0.15."
+        },
+        {
+          "t": 29.33,
+          "prob": 0.879,
+          "triage": "ALARM",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (22.9 per mille), a smoke density increase of 0.35 and smoke spreading at 0.19/s."
+        }
+      ],
+      "proc_s": 24.5
+    },
+    {
+      "video": "cleaner",
+      "fire": false,
+      "seconds": 60.0,
+      "n_alerts": 0,
+      "detected": null,
+      "time_to_alert_s": null,
+      "false_alarms": 0,
+      "alerts": [],
+      "proc_s": 33.3
+    },
+    {
+      "video": "coolerbot",
+      "fire": false,
+      "seconds": 60.0,
+      "n_alerts": 0,
+      "detected": null,
+      "time_to_alert_s": null,
+      "false_alarms": 0,
+      "alerts": [],
+      "proc_s": 39.1
+    },
+    {
+      "video": "hand_held_batteries_night",
+      "fire": true,
+      "seconds": 20.4,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 0.3,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 0.3,
+          "prob": 0.902,
+          "triage": "ALARM",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (43.1 per mille) and the detector seeing flames (84% confidence)."
+        }
+      ],
+      "proc_s": 18.6
+    },
+    {
+      "video": "hand_held_camera_wildfire",
+      "fire": true,
+      "seconds": 25.7,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 0.9,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 2.2,
+          "prob": 0.784,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to the detector seeing flames (80% confidence), flickering flame-coloured pixels (11.7 per mille) and rapid exit movement (crowd flow index 0.83)."
+        }
+      ],
+      "proc_s": 20.7
+    },
+    {
+      "video": "hand_held_nasa_training",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 3.0,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 3.0,
+          "prob": 0.92,
+          "triage": "ALARM",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (13.7 per mille), the detector seeing flames (71% confidence) and a smoke density increase of 0.13."
+        }
+      ],
+      "proc_s": 39.7
+    },
+    {
+      "video": "hand_held_nasa_training2",
+      "fire": true,
+      "seconds": 60.0,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 0.17,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 8.61,
+          "prob": 0.995,
+          "triage": "ALARM",
+          "grounded": 1.0,
+          "because": "Alert raised due to a smoke density increase of 0.60, the detector seeing flames (58% confidence) and smoke spreading at 0.32/s."
+        }
+      ],
+      "proc_s": 89.9
+    },
+    {
+      "video": "hand_held_winnebago",
+      "fire": true,
+      "seconds": 38.7,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 4.6,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 4.6,
+          "prob": 0.981,
+          "triage": "ALARM",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (12.7 per mille), the detector seeing flames (63% confidence) and a smoke density increase of 0.29."
+        }
+      ],
+      "proc_s": 24.8
+    },
+    {
+      "video": "house1",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 11.48,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 15.22,
+          "prob": 0.629,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to the detector seeing flames (63% confidence), flickering flame-coloured pixels (6.0 per mille) and a smoke density increase of 0.12."
+        }
+      ],
+      "proc_s": 17.1
+    },
+    {
+      "video": "house2",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 13.51,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 13.51,
+          "prob": 0.851,
+          "triage": "ALARM",
+          "grounded": 1.0,
+          "because": "Alert raised due to the detector seeing flames (86% confidence), flickering flame-coloured pixels (4.3 per mille) and the detector seeing smoke (38% confidence)."
+        }
+      ],
+      "proc_s": 15.9
+    },
+    {
+      "video": "house3",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 0,
+      "detected": false,
+      "time_to_alert_s": null,
+      "false_alarms": 0,
+      "alerts": [],
+      "proc_s": 16.1
+    },
+    {
+      "video": "house4",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 0,
+      "detected": false,
+      "time_to_alert_s": null,
+      "false_alarms": 0,
+      "alerts": [],
+      "proc_s": 16.5
+    },
+    {
+      "video": "house5",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 1,
+      "detected": true,
+      "time_to_alert_s": 3.2,
+      "false_alarms": 0,
+      "alerts": [
+        {
+          "t": 3.2,
+          "prob": 0.82,
+          "triage": "ALARM",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (16.3 per mille), the detector seeing flames (82% confidence) and smoke spreading at 0.01/s."
+        }
+      ],
+      "proc_s": 16.6
+    },
+    {
+      "video": "house6",
+      "fire": true,
+      "seconds": 29.9,
+      "n_alerts": 0,
+      "detected": false,
+      "time_to_alert_s": null,
+      "false_alarms": 0,
+      "alerts": [],
+      "proc_s": 14.2
+    },
+    {
+      "video": "icra",
+      "fire": false,
+      "seconds": 60.0,
+      "n_alerts": 1,
+      "detected": null,
+      "time_to_alert_s": null,
+      "false_alarms": 1,
+      "alerts": [
+        {
+          "t": 39.84,
+          "prob": 0.752,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to flickering flame-coloured pixels (11.6 per mille), the detector seeing flames (48% confidence) and rapid exit movement (crowd flow index 0.83)."
+        }
+      ],
+      "proc_s": 37.9
+    },
+    {
+      "video": "non_fire_patrolbot_onboard",
+      "fire": false,
+      "seconds": 11.3,
+      "n_alerts": 0,
+      "detected": null,
+      "time_to_alert_s": null,
+      "false_alarms": 0,
+      "alerts": [],
+      "proc_s": 7.1
+    },
+    {
+      "video": "rover",
+      "fire": false,
+      "seconds": 60.0,
+      "n_alerts": 1,
+      "detected": null,
+      "time_to_alert_s": null,
+      "false_alarms": 1,
+      "alerts": [
+        {
+          "t": 46.95,
+          "prob": 0.711,
+          "triage": "VERIFY",
+          "grounded": 1.0,
+          "because": "Alert raised due to a smoke density increase of 0.67, smoke spreading at 0.35/s and the detector seeing flames (39% confidence)."
+        }
+      ],
+      "proc_s": 33.6
+    }
+  ],
+  "stride": 3,
+  "max_seconds": 60.0
+}

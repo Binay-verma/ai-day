@@ -11,6 +11,8 @@ width 320) and summarised into interpretable numbers:
                        moving the same way (rapid exit), 0 = random
 * ``divergence``     - radial outward flow relative to the motion centroid
                        (sudden dispersal, as in the UMN panic scenes)
+* ``ego_motion``     - median flow of the whole frame: > 0 when the camera itself
+                       moves; scene-baseline cues are then down-weighted
 * ``acceleration``   - rise of speed over the last second, normalised
 * ``surge``          - peak speed ratio over the last 2 s (a run is still
                        explainable after people have stopped or left)
@@ -87,6 +89,9 @@ class CrowdFeatureExtractor:
             moving[int(y1 * H):int(y2 * H), int(x1 * W):int(x2 * W)] = False
             mag[int(y1 * H):int(y2 * H), int(x1 * W):int(x2 * W)] = 0
         frac = float(moving.mean())
+        # camera ego-motion: in a static camera most pixels do not move, so the
+        # median flow is ~0; a panning / hand-held / robot camera moves everything
+        ego = float(np.median(mag)) / dt / mag.shape[0]  # frame-heights per second
         # normalise speed by a *stable* person scale (EMA of median person height, in the
         # small image) so units are body-heights / s and do not jump when detections drop out
         if person_height_px:
@@ -141,6 +146,7 @@ class CrowdFeatureExtractor:
         self.heatmap = heat / (heat.max() + 1e-6)
         values.update({
             "speed": speed,
+            "ego_motion": ego,
             "fast_speed": fast,
             "energy": energy,
             "speed_ratio": clipped,

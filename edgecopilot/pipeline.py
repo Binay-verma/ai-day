@@ -250,11 +250,16 @@ class Copilot:
             ph = float(np.median(heights)) if heights else None
             crowd_vals = self.crowd_fx(frame, t, len(people), self.capacity, ph,
                                        alert_active=any(k.startswith("crowd") for k in self.active))
+        # a moving camera invalidates every "compared with this scene's normal" cue
+        ego = crowd_vals.get("ego_motion", 0.0)
+        cam_rel = float(np.clip(1.0 - (ego - 0.02) / 0.08, 0.2, 1.0))
         if self.enable["crowd"]:
             cv_ = dict(crowd_vals)
             if "sound_db" in sens_vals:
                 cv_["sound_db"] = sens_vals["sound_db"]
-            a = self.models["crowd"].assess(self.zone, t, cv_, sens_rel, zone_key=self.zone)
+            rel_c = dict(sens_rel)
+            rel_c.update({k: cam_rel for k in ("surge", "divergence", "coherence", "exodus")})
+            a = self.models["crowd"].assess(self.zone, t, cv_, rel_c, zone_key=self.zone)
             assessments.append(self.hyst.update("crowd", a))
             values_all["crowd"] = cv_
         timings["crowd"] = (time.perf_counter() - t0) * 1e3
@@ -271,7 +276,8 @@ class Copilot:
             fv = self.smoke_fx(frame, t, alert_active=fire_active)
             fv["smoke_conf"] = max([d.score for d in hazards if d.label == "smoke"], default=0.0)
             fv["fire_conf"] = max([d.score for d in hazards if d.label == "fire"], default=0.0)
-            if crowd_vals and "coherence" in crowd_vals:
+            if crowd_vals and "coherence" in crowd_vals and self.crowd_fx.count_hist and \
+                    max(c for _, c in self.crowd_fx.count_hist) >= 2:
                 # people running (surge) AND either all one way (coherence) or leaving the view (exodus)
                 fv["rapid_exit"] = float(np.clip((crowd_vals["surge"] - 1.0) / 3.0, 0, 1)
                                          * max(crowd_vals["coherence"], crowd_vals["exodus"]))
@@ -279,6 +285,7 @@ class Copilot:
                 if k in sens_vals:
                     fv[k] = sens_vals[k]
             rel = dict(sens_rel)
+            rel.update({k: cam_rel for k in ("smoke_density", "smoke_growth", "fire_flicker", "rapid_exit")})
             if self.fire is None:
                 rel.update({"smoke_conf": 0.0, "fire_conf": 0.0})
             a = self.models["fire_smoke"].assess(self.zone, t, fv, rel, zone_key=self.zone)

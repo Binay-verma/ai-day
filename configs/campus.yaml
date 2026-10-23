@@ -49,7 +49,7 @@ hazards:
       fire_conf:     {weight: 7.0, ref: 0.2, lo: 0.0, hi: 1.0, unit: "", phrase: "the detector seeing flames ({v:.0%} confidence)", keywords: [seeing flames]}
       smoke_density: {weight: 10.0, ref: 0.03, lo: 0.0, hi: 0.5, unit: "", phrase: "a smoke density increase of {v:.2f}", keywords: [density, haze]}
       smoke_growth:  {weight: 8.0, ref: 0.0, lo: -0.2, hi: 0.3, unit: "/s", phrase: "smoke spreading at {v:.2f}/s", keywords: [spreading, growth]}
-      fire_flicker:  {weight: 0.3, ref: 0.5, lo: 0.0, hi: 20.0, unit: "per mille", phrase: "flickering flame-coloured pixels ({v:.1f} per mille)", keywords: [flicker, flickering]}
+      fire_flicker:  {weight: 0.12, ref: 0.5, lo: 0.0, hi: 20.0, unit: "per mille", phrase: "flickering flame-coloured pixels ({v:.1f} per mille)", keywords: [flicker, flickering]}
       smoke_ppm:     {weight: 0.006, ref: 300.0, lo: 0.0, hi: 1500.0, unit: ppm, phrase: "the MQ-2 sensor reading {v:.0f} ppm", source: sensor, keywords: [mq-2, sensor reading, ppm]}
       temp_rise:     {weight: 0.5, ref: 1.0, lo: 0.0, hi: 20.0, unit: "C/min", phrase: "temperature rising {v:.1f} C/min", source: sensor, keywords: [temperature]}
       rapid_exit:    {weight: 2.0, ref: 0.3, lo: 0.0, hi: 1.0, unit: "", phrase: "rapid exit movement (crowd flow index {v:.2f})", source: context, keywords: [exit, crowd]}
@@ -60,7 +60,7 @@ hazards:
       occupancy:     {weight: 4.0, ref: 0.8, lo: 0.8, hi: 3.0, unit: "x capacity", phrase: "occupancy at {v:.0%} of zone capacity", keywords: [occupancy, capacity]}
       surge:         {weight: 0.8, ref: 2.0, lo: 0.0, hi: 15.0, unit: "x normal", phrase: "people moving {v:.1f}x faster than normal", keywords: [faster]}
       exodus:        {weight: 4.0, ref: 0.2, lo: 0.0, hi: 1.0, unit: "", phrase: "{v:.0%} of the people in view leaving within seconds", keywords: [leaving, left]}
-      divergence:    {weight: 2.0, ref: 0.3, lo: -2.0, hi: 4.0, unit: "body-heights/s", phrase: "people scattering outwards ({v:.1f} body-heights/s)", keywords: [scattering, outwards]}
+      divergence:    {weight: 2.0, ref: 0.3, lo: 0.3, hi: 4.0, unit: "body-heights/s", phrase: "people scattering outwards ({v:.1f} body-heights/s)", keywords: [scattering, outwards]}
       coherence:     {weight: 1.0, ref: 0.5, lo: 0.5, hi: 1.0, unit: "", phrase: "people moving in one direction (coherence {v:.2f})", keywords: [direction, coherence]}
       sound_db:      {weight: 0.08, ref: 75.0, lo: 75.0, hi: 120.0, unit: dB, phrase: "sound level {v:.0f} dB", source: sensor, keywords: [sound]}
 

@@ -95,8 +95,9 @@ class Assessment:
         """|bias + sum(contributions) - logit| (must be ~0: exactness check)."""
         return abs(self.bias + sum(c.contribution for c in self.cues) - self.logit)
 
-    def top_cues(self, k: int = 3, positive_only: bool = True) -> List[Cue]:
-        cs = [c for c in self.cues if (c.contribution > 0 or not positive_only)]
+    def top_cues(self, k: int = 3, positive_only: bool = True, min_abs: float = 0.1) -> List[Cue]:
+        """Largest contributions; cues that moved the log-odds by < ``min_abs`` are not worth citing."""
+        cs = [c for c in self.cues if (c.contribution > 0 or not positive_only) and abs(c.contribution) >= min_abs]
         return sorted(cs, key=lambda c: -abs(c.contribution))[:k]
 
     def to_dict(self) -> dict:
