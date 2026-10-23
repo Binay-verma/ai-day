@@ -300,3 +300,14 @@ def test_incident_correlation_and_handover(env):
     page = c.get("/api/handover.html?hours=2", headers=h)
     assert page.status_code == 200 and "Open incidents" in page.text and "<script" not in page.text
     assert any(r["action"] == "handover_exported" for r in svc.store.audit_log(5))
+
+
+def test_per_camera_pose_override_keeps_other_settings(env, tmp_path):
+    c, svc = env
+    w = svc.add_camera({"id": "camP", "source": "missing.mp4", "zone": "Corridor B", "realtime": False,
+                        "pose": {"path": "models/__other__.onnx", "imgsz": None, "conf": None, "sha256": None}})
+    pc = w.copilot.cfg["models"]["pose"]
+    assert pc["path"] == "models/__other__.onnx" and pc["conf"] == svc.cfg["models"]["pose"]["conf"]
+    assert svc.cfg["models"]["pose"]["path"] != "models/__other__.onnx"   # global config untouched
+    svc.cameras.pop("camP", None)
+    svc.copilots.pop("camP", None)

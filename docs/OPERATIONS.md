@@ -26,6 +26,10 @@ Docker alternative: `docker compose up -d` (copilot + MQTT broker + Prometheus +
 5. Run a supervised test: walk-through, simulated fall onto a mat, smoke pen / theatrical smoke
    **with the fire officer's permission**; check that alerts arrive within seconds and notifications reach the right people.
 6. Record the commissioning result in the safety log (date, tester, alerts observed).
+7. Restricted areas (optional): add `restricted:` regions to the camera (polygon in 0..1 image
+   coordinates, optional `hours: "20:00-07:00"` when presence is not allowed; see
+   `configs/production.example.yaml`). Walk into each region once and check that an intrusion
+   alert arrives after about 14 s of presence out of hours or 26 s otherwise (sooner with several people).
 
 ## Time discipline (do this on every edge box)
 
@@ -48,6 +52,24 @@ sudo systemctl restart chrony && chronyc tracking   # "System time" offset shoul
 If the campus firewall blocks NTP, use the campus NTP server instead. Check
 `chronyc tracking` in the weekly checks.
 
+## Supervision built into the service
+
+* **Self-test** every `runtime.self_test_minutes` (default 60): for each camera it checks that
+  frames are fresh, runs both models on the latest frame, and pushes a synthetic hazard through
+  fusion -> explanation -> verifier -> playbook. A failure raises a `self_test_failed` trouble
+  alert and the header pill turns red. An admin can run it on demand and send a clearly marked
+  **TEST** message through every notification channel: `POST /api/selftest {"notify": true}`.
+  Do this weekly so the people on the escalation list see that messages still arrive.
+* **Long lie**: a fall alert whose person is still on the ground after `runtime.long_lie_s`
+  (default 60 s) is escalated to CRITICAL / ALARM once and re-notified ("STILL DOWN").
+* **Incidents**: alerts in the same zone within 2 minutes (across cameras, hazards and sensors)
+  are grouped into one incident (`GET /api/incidents`), so one event is not three pages.
+* **Shift handover**: the "Handover" button (operator) prints the last 12 h: open incidents
+  first, outcomes, dismissals with notes, camera troubles, paused cameras, self-test state and
+  the current alert lines. The export is audited.
+* **What if?**: every alert card can re-score the alert with changed readings (exact, read-only),
+  which is the quickest way to answer "would it still have alarmed if the sensor was wrong?".
+
 ## Daily / weekly
 
 | When | Check | How |
@@ -57,6 +79,8 @@ If the campus firewall blocks NTP, use the campus NTP server instead. Check
 | Weekly | operator precision per hazard | `GET /api/stats?hours=168` — dismissed alerts feed recalibration automatically |
 | Weekly | audit log intact | `GET /api/audit/verify` (admin) must return `ok: true` |
 | Weekly | clock synchronised | `chronyc tracking` offset < 1 s |
+| Weekly | notification chain end to end | admin: `POST /api/selftest {"notify": true}`; every recipient confirms the TEST message |
+| Each shift | handover | "Handover" button; read open incidents and degraded cameras first |
 | Monthly | retention purge ran | audit entries `retention_purge` |
 | Monthly | console mutes | audit entries `console_muted`; the audible alarm should normally be on at the security desk |
 | Per model update | regression benchmarks | `python benchmarks/eval_*.py`; compare with docs/RESULTS.md before deploying |

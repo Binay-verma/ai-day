@@ -49,6 +49,14 @@ class ModelCfg(_Strict):
     sha256: Optional[str] = Field(None, pattern=r"^[0-9a-f]{64}$", description="pin: refuse to load any other file")
 
 
+class PoseOverrideCfg(_Strict):
+    """Per-camera pose model; unset fields keep the global models.pose values."""
+    path: str
+    imgsz: Optional[int] = Field(None, ge=160, le=1920)
+    conf: Optional[float] = Field(None, gt=0, lt=1)
+    sha256: Optional[str] = Field(None, pattern=r"^[0-9a-f]{64}$")
+
+
 class ModelsCfg(_Strict):
     pose: ModelCfg
     fire_smoke: ModelCfg
@@ -162,6 +170,7 @@ class CameraCfg(_Strict):
     realtime: bool = True
     loop: bool = False
     restricted: List[RegionCfg] = Field(default_factory=list, description="restricted-area rules (intrusion hazard)")
+    pose: Optional[PoseOverrideCfg] = Field(None, description="per-camera pose model, e.g. YOLO11s-pose on fall-critical cameras")
 
 
 class UserCfg(_Strict):

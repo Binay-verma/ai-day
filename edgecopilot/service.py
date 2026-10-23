@@ -129,6 +129,8 @@ class EdgeService:
     # ----------------------------------------------------------- cameras
     def add_camera(self, cam: dict, sensors_csv: Optional[str] = None) -> CameraWorker:
         cfg = dict(self.cfg)
+        if cam.get("pose"):  # per-camera pose model (accuracy where falls matter most, speed elsewhere)
+            cfg = {**cfg, "models": {**cfg["models"], "pose": {**cfg["models"]["pose"], **{k: v for k, v in cam["pose"].items() if v is not None}}}}
         if cam.get("privacy"):
             cfg = {**cfg, "runtime": {**cfg["runtime"], "privacy": cam["privacy"]}}
         # a recorded video with its own sensor CSV replays into a private hub (never mixes with live sensors)

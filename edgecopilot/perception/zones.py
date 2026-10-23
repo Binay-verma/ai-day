@@ -10,7 +10,7 @@ any time. For every region the extractor reports, per frame:
 
 The additive "intrusion" model in configs/campus.yaml fuses them like every other hazard,
 so the alert comes with the same exact ledger, counterfactual ("would not have fired if
-the stay had been under 12 s") and verified explanation.
+the stay had been under 14 s") and verified explanation.
 """
 from __future__ import annotations
 

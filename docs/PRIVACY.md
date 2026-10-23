@@ -50,3 +50,24 @@ reuse the data for discipline, attendance or other unrelated purposes.
 4. Storage limitation: automatic hourly retention purge (audited).
 5. Human oversight: alerts are recommendations; VERIFY routing for weak or
    conflicting evidence; operator decisions recorded with names.
+
+## Verified, not assumed: does the face filter actually work?
+
+`benchmarks/eval_privacy.py` checks the filter with an **independent** face detector (YuNet,
+OpenCV Zoo; the copilot itself never runs face detection). Faces YuNet finds on the raw frame
+are the ground truth; YuNet then runs again on exactly what would leave the box.
+
+| Filter | Faces still detectable afterwards (184 faces, 70 frames, 6 videos) |
+|---|---|
+| none (control) | 184 / 184 |
+| **blur** (default, coarse head pixelation, 4 cells across the head) | **0 / 184** |
+| skeleton | 0 / 184 |
+| *earlier Gaussian head blur (replaced)* | *26 / 184 (14 %)* |
+
+The first version used a Gaussian blur over the head. It covered every head (the pose model
+found all 184 people), but it left a face-shaped blob that a face detector still found 14 % of
+the time. It was replaced by coarse pixelation, which keeps the head visible as a head but
+removes the eye/nose/mouth layout. This is a test with one detector on six videos, not a
+guarantee: when the pose model misses a person entirely, their face is not filtered. That is
+why the box fails closed (whole-frame blur) when no person model is loaded, and why the
+skeleton mode exists for the most sensitive areas.

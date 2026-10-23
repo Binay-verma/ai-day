@@ -65,8 +65,8 @@ def poisson_ci(k, z=1.96):
     return lo, hi
 
 
-def run(path, target_fps, hold_s):
-    cfg = load_config("configs/campus.yaml")
+def run(path, target_fps, hold_s, config="configs/campus.yaml"):
+    cfg = load_config(config)
     cop = Copilot(cfg, root=".", zone="External test")
     src = VideoSource(path)
     stride = max(1, round(src.fps / target_fps))
@@ -94,15 +94,16 @@ def main():
     ap.add_argument("--fps", type=float, default=15.0)
     ap.add_argument("--hold", type=float, default=4.0, help="seconds the last frame of a fall clip is held")
     ap.add_argument("--out", default="benchmarks/results/external_sanity.json")
+    ap.add_argument("--config", default="configs/campus.yaml")
     a = ap.parse_args()
     falls, normals = [], []
     for p in FALLS:
-        dur, al = run(p, a.fps, a.hold)
+        dur, al = run(p, a.fps, a.hold, a.config)
         hit = any(x["hazard"] == "fall" for x in al)
         falls.append({"clip": os.path.relpath(p, DS), "seconds": round(dur, 1), "detected": hit, "alerts": al})
         print(f"FALL   {'HIT ' if hit else 'MISS'} {os.path.basename(p):28s} {[(x['hazard'], x['t'], x['mode']) for x in al]}")
     for p in NORMAL:
-        dur, al = run(p, a.fps, 0)
+        dur, al = run(p, a.fps, 0, a.config)
         normals.append({"clip": os.path.relpath(p, DS), "seconds": round(dur, 1), "false_alarms": len(al), "alerts": al})
         print(f"NORMAL FA={len(al)} {os.path.basename(p):34s} {dur:6.1f}s {[(x['hazard'], x['t'], x['mode']) for x in al]}")
     k = sum(f["detected"] for f in falls)
@@ -111,7 +112,7 @@ def main():
     lo, hi = poisson_ci(fa)
     all_alerts = [x for f in falls for x in f["alerts"]] + [x for n in normals for x in n["alerts"]]
     summary = {
-        "protocol": "frozen system (configs/campus.yaml as shipped), sources never used in development; "
+        "protocol": f"frozen system ({a.config} as shipped), sources never used in development; "
                     f"fall clips followed by the last frame held {a.hold} s; {a.fps} fps",
         "fall_recall": f"{k}/{len(falls)}", "fall_recall_wilson95": wilson(k, len(falls)),
         "normal_minutes": round(hours * 60, 1), "false_alarms_all_hazards": fa,
