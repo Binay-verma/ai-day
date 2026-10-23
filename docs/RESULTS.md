@@ -27,8 +27,8 @@ development (§8). An independent audit of every claim is in
 | Calibration | fall false-alarm rate vs budget α = 0.1, held-out subjects | 0.11 (9 / 81, CI 0.06–0.20) with 11n; 0.086 (7 / 81, CI 0.04–0.17) with 11s | ≤ α + 1 % | ⚠️ point estimate only |
 | Crowd (UMN) | dispersal events detected, per-camera conformal α = 0.01 | **10 / 11** (CI 0.62–0.98), 0 false alarms in 200 s of normal video (≤ 66 / h upper bound) | all, ≤ 1 FA / clip | ⚠️ development set |
 | Crowd (UMN) | frame AUC, standard / label-artefact-tolerant | 0.81 (CI 0.72–0.96) / 0.91 (CI 0.85–0.97) | ≥ 0.90 | ⚠️ tolerant labels post hoc |
-| Fire (images, leakage-free) | mAP@0.5, Home-fire test / DBA-Fire scene hold-out | **0.573 / 0.630** (start checkpoint 0.371 / 0.356) | ≥ 0.60 | ⚠️ DBA met, Home-fire not |
-| Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.69 (Home-fire) at **16.0 %** FPR (CI 12.7–19.9) | ≥ 0.85 at ≤ 10 % | ❌ |
+| Fire (images, leakage-free) | mAP@0.5, Home-fire test / DBA-Fire scene hold-out | **0.564 / 0.651** (start checkpoint 0.371 / 0.356) | ≥ 0.60 | ⚠️ DBA met, Home-fire not |
+| Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.76 (Home-fire) at **15.5 %** FPR (CI 12.3–19.4) | ≥ 0.85 at ≤ 10 % | ❌ |
 | Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **14 / 17** (CI 0.59–0.94), median time-to-alert 2.8 s; **1** false alarm in 4.7 min | — | ⚠️ development set |
 | External check (§8) | frozen system, unseen sources: fall recall / all-hazard false alarms | **7 / 11** falls (CI 0.35–0.85); **2** false alarms in 7.2 min (CI 1.9–60 / h) | — | ⚠️ honest gap |
 | Saliency | Eigen-CAM deletion AUC vs random / centre controls | SAL_ROW | better than both | ❌ |
@@ -123,23 +123,33 @@ An audit found the first protocol leaked: 58 % of Home-fire test images were wit
 the same video fell on both sides. `scripts/prepare_fire_data.py` (v2) now groups DBA images
 into scenes (union-find over pHash distance ≤ 10), splits whole scenes, and removes from
 training **every image within 10 bits of any evaluation image** (2,211 training and 723
-validation images removed). The model was then retrained on CPU (5 epochs, frozen backbone;
-checkpoint chosen on validation only). Manifest: `data/fire_splits.json`.
+validation images removed). The model was then retrained on CPU with a frozen backbone: 5 epochs,
+then 10 more from that checkpoint at half the learning rate (`scripts/train_fire_ft3.sh`). Each
+checkpoint was chosen on validation only, and the 15-epoch model was evaluated on test exactly once.
+Manifest: `data/fire_splits.json`.
 
 | Model | Home-fire test (1,300) mAP@0.5 | DBA-Fire scene hold-out (665) mAP@0.5 | Neutral FPR @0.25 (400) | ms / image |
 |---|---|---|---|---|
 | Start checkpoint: YOLO11n trained on D-Fire | 0.371 (fire 0.46 / smoke 0.28) | 0.356 | 5.8 % | 93 |
-| **Ours v2, FP32 ONNX** | **0.573** (fire 0.67 / smoke 0.47) | **0.630** (fire 0.56 / smoke 0.70) | 16.0 % (CI 12.7–19.9) | 108 |
-| Ours v2, INT8 ONNX | 0.563 | 0.615 | 17.8 % | 87 |
+| Ours, 5 epochs, FP32 ONNX | **0.573** (fire 0.67 / smoke 0.47) | 0.630 (fire 0.56 / smoke 0.70) | 16.0 % | 108 |
+| Ours, 5 epochs, INT8 ONNX | 0.563 | 0.615 | 17.8 % | 87 |
+| **Ours, 15 epochs, FP32 ONNX (shipped)** | 0.564 (fire 0.68 / smoke 0.45) | **0.651** (fire 0.57 / smoke 0.73) | **15.5 %** (CI 12.3–19.4) | 97 |
+| Ours, 15 epochs, INT8 ONNX (shipped) | 0.570 | 0.613 | 18.8 % | 80 |
 | *Old v1 model (trained on near-duplicates of these test images)* | *0.725* | *0.663* | *18.5 %* | — |
 
 The v1 row shows how much the leak inflated the earlier headline (0.73): the honest
-number for the same recipe is 0.57–0.63. Fine-tuning still adds +0.20 to +0.27 mAP over the
+number for the same recipe is 0.56–0.65. Fine-tuning still adds +0.19 to +0.30 mAP over the
 start checkpoint. The detector over-fires on some neutral images (orange light, steam, haze)
 and its recall at a 10 % false-positive rate is well below the plan's 0.85, which is why it
 is only **one cue** of the evidence ledger: on its own it would not be acceptable as a fire
 detector, and the system-level results below show what the fusion makes of it.
-FT3_NOTE
+
+*Longer training.* Validation mAP rose from 0.763 (5 epochs) to 0.806 (15 epochs), but on the test
+sets the gain was mixed: DBA +0.021, Home-fire −0.009, Home-fire image recall 0.69 → 0.76 at a
+slightly lower neutral false-positive rate. The 15-epoch model is shipped because it is better on
+three of the four measures; the two are within noise of each other on Home-fire. Most of the
+validation gain did not transfer, which is a reminder that validation-set improvements need a
+held-out check.
 
 ### 4.2 System level: FURG fire videos (full copilot fire branch, 10 fps, first 60 s)
 

@@ -91,6 +91,8 @@ def main():
             variants["int8_640"] = with_models("models/yolo11n-pose.int8.onnx", "models/fire_smoke.int8.onnx")
         if os.path.exists("models/yolo11n-pose_416.onnx") and os.path.exists("models/fire_smoke_416.onnx"):
             variants["fp32_416"] = with_models("models/yolo11n-pose_416.onnx", "models/fire_smoke_416.onnx")
+        if os.path.exists("models/yolo11s-pose.onnx"):  # configs/profiles/fall_accurate.yaml
+            variants["fall_accurate_11s_pose"] = with_models("models/yolo11s-pose.onnx", base["models"]["fire_smoke"]["path"])
         variants["fp32_640_no_cascade"] = with_models(base["models"]["pose"]["path"], base["models"]["fire_smoke"]["path"],
                                                       motion_gate=False, fire_every=1)
     res = {"cpu_count": os.cpu_count(), "threads": base["runtime"]["threads"], "video": args.video, "variants": {}}

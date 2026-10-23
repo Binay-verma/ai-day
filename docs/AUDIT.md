@@ -102,8 +102,8 @@ commercial video-analytics products expose.
 
 **Accuracy: honest, not yet field-proven.** On public data the fall detector reaches F1 0.81–0.83
 with the default pose model and 0.886 (CI 0.83–0.94) with the YOLO11s-pose profile, against a
-0.90 target that is not met. The leakage-free fire detector scores mAP 0.57–0.63 and its
-false-positive rate on neutral images (16 %) is above the plan's 10 % budget; the fused fire
+0.90 target that is not met. The leakage-free fire detector scores mAP 0.56–0.65 and its
+false-positive rate on neutral images (15.5 %) is above the plan's 10 % budget; the fused fire
 branch still caught 14/17 FURG fire videos. Crowd and fire-video results come from development
 sets with wide intervals. On footage never used in development the frozen system caught 7/11
 falls and raised 2 false alarms in 7 minutes on uncalibrated cameras. That is why the system
