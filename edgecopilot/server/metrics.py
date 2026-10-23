@@ -24,6 +24,8 @@ LAT_S = Histogram("edgecopilot_frame_latency_seconds", "Per-frame processing lat
 FRAME_AGE = Gauge("edgecopilot_last_frame_age_seconds", "Seconds since the camera's last processed frame", ["camera"], registry=REG)
 THRESH = Gauge("edgecopilot_alert_threshold", "Current (possibly calibrated) alert line", ["camera", "hazard"], registry=REG)
 CALIB_N = Gauge("edgecopilot_calibration_samples", "Normal-score samples in the conformal gate", ["camera", "hazard"], registry=REG)
+SELFTEST = Gauge("edgecopilot_self_test_ok", "1 if the last end-to-end self-test passed", ["camera"], registry=REG)
+SELFTEST_AGE = Gauge("edgecopilot_self_test_age_seconds", "Seconds since the last self-test", registry=REG)
 PAUSED = Gauge("edgecopilot_camera_paused", "1 while AI analysis is paused by an operator", ["camera"], registry=REG)
 NOTIFY = Counter("edgecopilot_notifications_total", "Notification deliveries", ["ok"], registry=REG)
 SENSOR_AGE = Gauge("edgecopilot_sensor_age_seconds", "Age of the latest sensor reading", ["zone", "sensor"], registry=REG)
@@ -70,6 +72,11 @@ def refresh(service) -> None:
         PEOPLE.labels(w.cam_id).set(state.get("people", 0))
         for hz, g in (state.get("gauges") or {}).items():
             RISK.labels(w.cam_id, hz).set(g["prob"])
+    st = getattr(service, "last_self_test", None)
+    if st:
+        for cid, r in st.get("cameras", {}).items():
+            SELFTEST.labels(cid).set(1.0 if r.get("ok") else 0.0)
+        SELFTEST_AGE.set(max(0.0, time.time() - st.get("_t", time.time())))
     n = service.notifier
     if n.ok_count > _state["ok"]:
         NOTIFY.labels("true").inc(n.ok_count - _state["ok"])

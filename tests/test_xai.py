@@ -183,3 +183,26 @@ def test_calibrated_alert_line_respects_floor(tmp_path):
     assert cop.models["crowd"].threshold == pytest.approx(0.2)
     assert 0.5 < cop.models["fall"].threshold < 0.9
     assert cop.models["fire_smoke"].threshold == pytest.approx(0.6)  # uncalibrated hazard keeps its default
+
+
+def test_shape_function_cues_stay_exact_and_counterfactuals_flip():
+    """Monotone GAM cues (fit_gam) keep the ledger exact and counterfactuals valid."""
+    import numpy as np
+
+    from edgecopilot.xai.counterfactual import counterfactuals
+    from edgecopilot.xai.fusion import CueSpec, HazardModel, ShapeCueSpec, fit_gam
+    rng = np.random.default_rng(0)
+    specs = [CueSpec("a", 0.5, 0.0, 0.0, 10.0), CueSpec("b", -0.3, 5.0, 0.0, 10.0)]
+    X = rng.uniform(0, 10, (400, 2))
+    y = (1 / (1 + np.exp(-(0.8 * np.minimum(X[:, 0], 6) - 0.3 * X[:, 1] - 1))) > rng.uniform(size=400)).astype(float)
+    b, gs = fit_gam(X, y, specs, -2.0)
+    assert all(isinstance(s, ShapeCueSpec) for s in gs)
+    assert all(v >= 0 for s in gs for v in s.slopes)
+    m = HazardModel("t", b, gs, 0.5)
+    for row in X[:50]:
+        a = m.assess("s", 0, {"a": row[0], "b": row[1]})
+        assert a.attribution_error() < 1e-9
+        for cf in counterfactuals(a, m):
+            vals = {"a": row[0], "b": row[1]}
+            vals[cf.cue] = cf.needed
+            assert m.assess("s", 0, vals).prob < m.threshold

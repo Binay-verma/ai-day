@@ -22,7 +22,7 @@ import threading
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from . import __version__
 from .cameras import CameraWorker, ClipBuffer, redact
@@ -42,6 +42,7 @@ FAULT_TEXT = {
     "defocus": "image lost its detail (lens obstructed, sprayed or moved)",
     "view_changed": "field of view changed (camera moved) - calibration no longer valid",
     "processing_error": "analysis software error on this camera's frames",
+    "self_test_failed": "periodic self-test failed (models, frames or alert chain)",
 }
 
 
@@ -118,6 +119,8 @@ class EdgeService:
         self._retention = threading.Thread(target=self._retention_loop, daemon=True, name="retention")
         self._watchdog = threading.Thread(target=self._watchdog_loop, daemon=True, name="watchdog")
         self._fault_last: Dict[str, float] = {}
+        self.last_self_test: Optional[dict] = None
+        self.self_test_period_s = float(cfg.get("runtime", {}).get("self_test_minutes", 60)) * 60
         self.fault_cooldown_s = 900.0
 
     def _abs(self, p: str) -> str:
@@ -186,9 +189,99 @@ class EdgeService:
                 return False, f"camera {cid} stalled ({now - w.health.last_frame_wall:.0f} s without a processed frame)"
         return True, ""
 
+    # ---------------------------------------------------------- self-test
+    def self_test(self, notify: bool = False, actor: str = "system") -> dict:
+        """End-to-end supervision (FM 3232 / NFPA 72 style "prove it still works").
+
+        Per camera: frames are fresh (or the camera is deliberately paused); the person
+        and fire models run on the latest frame within 5 s; a synthetic hazard goes
+        through the real fusion -> explanation -> verifier -> playbook chain and must
+        come out grounded with at least one action. Also checks the audit store. Any
+        failing camera raises a ``self_test_failed`` trouble alert. With ``notify`` a
+        clearly marked TEST message is sent through every notification channel.
+        """
+        import cv2
+        import numpy as np
+
+        from .xai.nlg import explain, numbers_in, verify
+        t0 = time.time()
+        res: Dict[str, Any] = {"time_utc": utc_iso(t0), "_t": t0, "cameras": {}, "ok": True}
+        for cid, w in self.cameras.items():
+            checks: Dict[str, Any] = {}
+            cop = w.copilot
+            age = t0 - w.health.last_frame_wall if w.health.last_frame_wall else None
+            checks["frames"] = {"ok": bool(w.paused or (age is not None and age < 30)), "age_s": None if age is None else round(age, 1),
+                                "paused": bool(w.paused)}
+            frame = None
+            if w.latest_jpg:
+                frame = cv2.imdecode(np.frombuffer(w.latest_jpg, np.uint8), cv2.IMREAD_COLOR)
+            if frame is None:
+                frame = np.full((360, 640, 3), 128, np.uint8)
+            for name, m in (("pose_model", cop.pose), ("fire_model", cop.fire)):
+                if m is None:  # degraded: that hazard runs on weaker cues only
+                    checks[name] = {"ok": False, "detail": "model not loaded"}
+                    continue
+                try:
+                    s = time.perf_counter()
+                    m(frame)
+                    ms = (time.perf_counter() - s) * 1e3
+                    checks[name] = {"ok": ms < 5000, "ms": round(ms, 1)}
+                except Exception as e:  # noqa: BLE001
+                    checks[name] = {"ok": False, "detail": f"{type(e).__name__}: {e}"[:200]}
+            try:
+                chain_ok, detail = True, []
+                for hz, model in cop.models.items():
+                    vals = {n: (sp.hi if sp.weight > 0 else sp.lo) for n, sp in model.specs.items()}
+                    a = model.assess(cop.zone, 0.0, vals)
+                    rec = cop.recommender.recommend(a, cop.zone)
+                    texts = [r["text"] for r in rec["actions"]]
+                    expl = explain(a, model, cop.zone, texts)
+                    v = verify(expl.text, a, model, cop.zone, extra_numbers=numbers_in(texts), recommendations=texts)
+                    good = a.prob >= model.threshold and v.ok and bool(texts) and a.attribution_error() < 1e-9
+                    chain_ok &= good
+                    detail.append(f"{hz}:{'ok' if good else 'FAIL'}")
+                checks["alert_chain"] = {"ok": chain_ok, "detail": " ".join(detail)}
+            except Exception as e:  # noqa: BLE001
+                checks["alert_chain"] = {"ok": False, "detail": f"{type(e).__name__}: {e}"[:200]}
+            cam_ok = all(c["ok"] for c in checks.values())
+            res["cameras"][cid] = {"ok": cam_ok, "checks": checks}
+            if not cam_ok:
+                res["ok"] = False
+                bad = ", ".join(f"{k} ({v.get('detail', v)})" for k, v in checks.items() if not v["ok"])
+                self._on_fault(cid, "self_test_failed", f"camera {cid}: self-test failed: {bad}")
+        try:
+            self.store.audit(actor, "system" if actor == "system" else "admin", "self_test", "", {"ok": res["ok"], "notify": notify})
+            res["store"] = {"ok": True}
+        except Exception as e:  # noqa: BLE001
+            res["store"] = {"ok": False, "detail": str(e)[:200]}
+            res["ok"] = False
+        res["notification_channels"] = len(getattr(self.notifier, "channels", {}) or {})
+        if notify:
+            rec = {"id": "test-" + uuid.uuid4().hex[:8], "camera_id": "-", "zone": "-", "hazard": "self_test", "subject": "test",
+                   "t_video": 0.0, "wall_time": t0, "prob": 0.0, "peak_prob": 0.0, "severity": "INFO", "triage": "TEST",
+                   "status": "resolved",
+                   "explanation": {"headline": "TEST message from the edge copilot - no action required",
+                                   "because": f"self-test requested by {actor}",
+                                   "text": "TEST - this is a scheduled/manual test of the alert notification chain. No action required.",
+                                   "confidence_text": "", "counterfactual": ""},
+                   "decision": {}, "verification": {"groundedness": 1.0, "n_claims": 0}, "recommendations": [], "cues": []}
+            self.notifier.alert(rec)
+            res["test_notification"] = rec["id"]
+        res["duration_ms"] = round((time.time() - t0) * 1e3, 1)
+        self.last_self_test = res
+        return res
+
     def _watchdog_loop(self) -> None:
-        """Kick the systemd watchdog only while healthy: a hung pipeline gets restarted automatically."""
+        """Kick the systemd watchdog only while healthy: a hung pipeline gets restarted automatically.
+        Also runs the periodic end-to-end self-test."""
+        next_test = time.time() + min(120.0, self.self_test_period_s or 120.0)
         while not self._retention_stop.wait(5.0):
+            if self.self_test_period_s > 0 and time.time() >= next_test:
+                next_test = time.time() + self.self_test_period_s
+                try:
+                    self.self_test()
+                except Exception:  # noqa: BLE001
+                    log.exception("self-test crashed")
             if self.healthy() and self.liveness()[0]:
                 sd_notify("WATCHDOG=1")
             else:
@@ -294,6 +387,48 @@ class EdgeService:
     def is_open(self, alert_id: str) -> bool:
         a = self.store.get_alert(alert_id)
         return a is not None and a["status"] == "open"
+
+    def what_if(self, alert_id: str, changes: Optional[Dict[str, float]] = None) -> Optional[dict]:
+        """Re-score a stored alert with some cue values changed (operator "what if?" tool).
+
+        Exact, because the hazard model is additive: the new log-odds is the alert's own
+        log-odds plus, for each changed cue, reliability x (f(new) - f(old)) with the
+        camera's current cue function f. Read-only: nothing about the alert changes.
+        """
+        import math
+        a = self.store.get_alert(alert_id)
+        if a is None:
+            return None
+        cop = self.copilots.get(a.get("camera_id") or "")
+        model = cop.models.get(a.get("hazard", "")) if cop else None
+        if model is None:
+            raise ValueError("no hazard model for this alert (trouble alerts have no ledger)")
+        p = min(max(float(a.get("prob", 0.5)), 1e-9), 1 - 1e-9)
+        logit0 = math.log(p / (1 - p))
+        margin = float((a.get("decision") or {}).get("margin_logit", 0.0))
+        tau = logit0 - margin
+        changes = changes or {}
+        cues, logit = [], logit0
+        for c in a.get("cues") or []:
+            spec = model.specs.get(c["name"])
+            if spec is None:
+                continue
+            r = float(c.get("reliability", 1.0))
+            old = float(c["value"])
+            new = float(changes.get(c["name"], old))
+            if not math.isfinite(new):
+                raise ValueError(f"{c['name']}: value must be finite")
+            new = min(max(new, min(spec.lo, spec.hi)), max(spec.lo, spec.hi))
+            contrib_old = float(c["contribution"])
+            contrib_new = contrib_old + r * spec.weight * (spec.transform(new) - spec.transform(old))
+            logit += contrib_new - contrib_old
+            cues.append({"name": c["name"], "unit": c.get("unit", ""), "value": old, "new_value": new,
+                         "lo": min(spec.lo, spec.hi), "hi": max(spec.lo, spec.hi), "ref": spec.ref,
+                         "reliability": r, "contribution": contrib_old, "new_contribution": contrib_new})
+        prob = 1 / (1 + math.exp(-logit))
+        thr = 1 / (1 + math.exp(-tau))
+        return {"alert_id": alert_id, "hazard": a.get("hazard"), "threshold": thr, "prob_before": p,
+                "prob": prob, "would_alert": prob >= thr, "cues": cues}
 
     def feedback(self, alert_id: str, confirmed: bool, actor: str, role: str, note: str = "") -> Optional[dict]:
         a = self.store.get_alert(alert_id)

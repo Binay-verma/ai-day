@@ -46,6 +46,14 @@ groups:
         for: 2h
         labels: {severity: warning}
         annotations: {summary: "AI analysis on {{ $labels.camera }} has been paused for over 2 h"}
+      - alert: SelfTestFailing
+        expr: edgecopilot_self_test_ok == 0
+        labels: {severity: high}
+        annotations: {summary: "End-to-end self-test failing on {{ $labels.camera }} (models, frames or alert chain)"}
+      - alert: SelfTestNotRunning
+        expr: edgecopilot_self_test_age_seconds > 3 * 3600
+        labels: {severity: warning}
+        annotations: {summary: "No self-test for over 3 h - the supervision loop may be stuck"}
   - name: edgecopilot-model-drift
     rules:
       - alert: HighDismissalRate

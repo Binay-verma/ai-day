@@ -104,3 +104,11 @@ aside{min-width:0}
 .camhealth span.paused{background:#4a3a14;color:#ffe2a8}
 .disclaimer{max-width:1600px;margin:0 auto;padding:6px 20px 20px;color:var(--muted);font-size:12px}
 .btn.on{background:var(--warn,#b45309);color:#fff;border-color:transparent}
+
+.whatif{margin:8px 0;border:1px solid var(--line,#2c3a4d);border-radius:8px;padding:6px 10px}
+.whatif summary{cursor:pointer;font-weight:600}
+.wi-row{display:grid;grid-template-columns:9em 1fr 7em;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+.wi-row input[type=range]{width:100%}
+.wi-val{text-align:right;font-variant-numeric:tabular-nums}
+.wi-out{margin:8px 0;font-weight:600}
+.wi-out.yes{color:var(--warn,#f0a030)} .wi-out.no{color:var(--ok,#3ccf7a)}

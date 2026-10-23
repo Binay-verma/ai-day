@@ -60,6 +60,94 @@ class CueSpec:
 
 
 @dataclass
+class ShapeCueSpec(CueSpec):
+    """Cue with a learned monotone piecewise-linear shape instead of a straight line.
+
+    contribution = r * weight * (g(clip(x)) - g(ref)), with g non-decreasing and
+    piecewise linear through ``knots`` (``slopes[j]`` >= 0 on segment j) and
+    ``weight`` = +1 / -1 giving the direction. The model stays additive, so every
+    explanation is still exact (Shapley = the per-cue term), counterfactuals stay
+    closed-form (g is invertible piecewise), and the sign constraint keeps "more
+    evidence never lowers the risk". This is a monotone generalised additive model.
+    """
+    knots: List[float] = field(default_factory=list)
+    slopes: List[float] = field(default_factory=list)
+
+    def _g(self, x: float) -> float:
+        k, sl = self.knots, self.slopes
+        x = float(np.clip(x, k[0], k[-1]))
+        out = 0.0
+        for j in range(len(sl)):
+            out += sl[j] * (min(max(x, k[j]), k[j + 1]) - k[j])
+        return out
+
+    def transform(self, x: float) -> float:
+        return self._g(float(np.clip(x, self.lo, self.hi))) - self._g(self.ref)
+
+    def inverse(self, delta: float) -> float:
+        target = delta + self._g(self.ref)
+        k, sl = self.knots, self.slopes
+        acc = 0.0
+        if target <= 0:
+            return k[0] - 1e-6 if target < 0 else k[0]
+        for j in range(len(sl)):
+            seg = sl[j] * (k[j + 1] - k[j])
+            if sl[j] > 0 and acc + seg >= target:
+                return k[j] + (target - acc) / sl[j]
+            acc += seg
+        return k[-1] + 1e-6  # unreachable inside the cue's range
+
+
+def fit_gam(X: np.ndarray, y: np.ndarray, specs: List[CueSpec], prior_bias: float, n_seg: int = 4,
+            l2: float = 3.0, iters: int = 3000, lr: float = 0.05, sample_weight: Optional[np.ndarray] = None):
+    """Fit monotone shape functions (``ShapeCueSpec``) for every cue.
+
+    Knots are training-data quantiles inside [lo, hi]; the prior for every segment
+    slope is the expert's linear slope, so with strong L2 the result is the linear
+    model and the data can only bend it where it has evidence. Returns (bias, specs).
+    """
+    X = np.asarray(X, float)
+    seg_specs, owner = [], []
+    for i, s in enumerate(specs):
+        col = np.clip(X[:, i], s.lo, s.hi)
+        qs = np.unique(np.concatenate([[s.lo, s.hi], np.quantile(col, np.linspace(0, 1, n_seg + 1)[1:-1])]))
+        qs = qs[(qs >= s.lo) & (qs <= s.hi)]
+        if len(qs) < 2:
+            qs = np.array([s.lo, s.hi])
+        for j in range(len(qs) - 1):
+            seg_specs.append((s, qs[j], qs[j + 1]))
+            owner.append(i)
+    owner_a = np.array(owner)
+
+    def seg_feat(s, a, b, v):
+        f = lambda z: min(max(float(np.clip(z, s.lo, s.hi)), a), b) - a  # noqa: E731
+        return f(v) - f(s.ref)
+    Z = np.array([[seg_feat(s, a, b, row[o]) for (s, a, b), o in zip(seg_specs, owner)] for row in X])
+    w0 = np.array([s.weight for (s, _, _) in seg_specs], float)
+    sign = np.sign(w0)
+    w, b0 = w0.copy(), float(prior_bias)
+    n = len(y)
+    sw = np.ones(n) if sample_weight is None else np.asarray(sample_weight, float)
+    sw = sw * n / sw.sum()
+    scale = Z.std(0) + 1e-6
+    for _ in range(iters):
+        p = 1 / (1 + np.exp(-(Z @ w + b0)))
+        g = (p - y) * sw
+        w -= lr * (Z.T @ g / n + l2 * (w - w0) / n) / scale**2
+        b0 -= lr * g.mean()
+        w = np.where(sign > 0, np.maximum(w, 0), np.where(sign < 0, np.minimum(w, 0), w))
+    out = []
+    for i, s in enumerate(specs):
+        idx = np.where(owner_a == i)[0]
+        knots = [seg_specs[idx[0]][1]] + [seg_specs[j][2] for j in idx]
+        direction = 1.0 if s.weight >= 0 else -1.0
+        slopes = [float(abs(w[j])) for j in idx]
+        d = {k: v for k, v in s.__dict__.items() if k not in ("weight", "knots", "slopes")}
+        out.append(ShapeCueSpec(weight=direction, knots=[float(k) for k in knots], slopes=slopes, **d))
+    return b0, out
+
+
+@dataclass
 class Cue:
     name: str
     value: float
@@ -120,7 +208,8 @@ class HazardModel:
 
     @classmethod
     def from_config(cls, hazard: str, cfg: dict) -> HazardModel:
-        specs = [CueSpec(name=k, **v) for k, v in cfg["cues"].items()]
+        specs = [ShapeCueSpec(name=k, **v) if v.get("knots") else CueSpec(name=k, **{x: y for x, y in v.items() if x not in ("knots", "slopes")})
+                 for k, v in cfg["cues"].items()]
         return cls(hazard, cfg.get("bias", 0.0), specs, cfg.get("threshold", 0.5))
 
     def assess(self, subject: str, t: float, values: Dict[str, float],

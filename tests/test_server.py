@@ -214,3 +214,50 @@ def test_metrics_refresh_with_a_camera(env, tmp_path):
     assert 'edgecopilot_alert_threshold{camera="camX",hazard="fall"} 0.6' in body
     assert 'edgecopilot_last_frame_age_seconds{camera="camX"}' in body
     del svc.cameras["camX"]
+
+
+def test_what_if_rescoring_is_exact(env, tmp_path):
+    import math
+
+    from edgecopilot.pipeline import Copilot
+    c, svc = env
+    cfg = load_config_dict("configs/campus.yaml")
+    for k in cfg["models"]:
+        cfg["models"][k]["path"] = "models/__missing__.onnx"
+    cop = Copilot(cfg, root=str(tmp_path), zone="Corridor B")
+    svc.copilots["cam1"] = cop
+    seed_alert(svc)
+    h = {"Authorization": f"Bearer {login(c, 'vik', 'viewer pass 12')}"}
+    r = c.post("/api/alerts/a1/whatif", json={"values": {}}, headers=h).json()
+    assert abs(r["prob"] - 0.9) < 1e-9 and r["would_alert"]
+    spec = cop.models["fall"].specs["torso_angle"]
+    r = c.post("/api/alerts/a1/whatif", json={"values": {"torso_angle": spec.ref}}, headers=h).json()
+    expect = math.log(0.9 / 0.1) - spec.weight * (80 - spec.ref)
+    assert abs(math.log(r["prob"] / (1 - r["prob"])) - expect) < 1e-9
+    assert r["would_alert"] == (expect >= math.log(0.9 / 0.1) - 1.8)
+    assert c.post("/api/alerts/a1/whatif", json={"values": {"x": 1}}).status_code in (200, 401)
+
+
+def test_self_test_flags_degraded_camera_and_sends_test(env, tmp_path):
+    from edgecopilot.cameras import CameraWorker
+    from edgecopilot.pipeline import Copilot
+    c, svc = env
+    cfg = load_config_dict("configs/campus.yaml")
+    for k in cfg["models"]:
+        cfg["models"][k]["path"] = "models/__missing__.onnx"
+    w = CameraWorker("camT", "missing.mp4", Copilot(cfg, root=str(tmp_path), zone="Corridor B"), realtime=False)
+    svc.cameras["camT"] = w
+    adm = {"Authorization": f"Bearer {login(c, 'root', 'admin pass 123')}"}
+    vw = {"Authorization": f"Bearer {login(c, 'vik', 'viewer pass 12')}"}
+    assert c.post("/api/selftest", json={}, headers=vw).status_code == 403
+    sent = []
+    svc.notifier.alert = lambda rec: sent.append(rec)
+    r = c.post("/api/selftest", json={"notify": True}, headers=adm).json()
+    cam = r["cameras"]["camT"]
+    assert cam["checks"]["alert_chain"]["ok"], cam          # fusion -> explanation -> verifier -> playbook works
+    assert not cam["checks"]["pose_model"]["ok"]           # no model loaded = degraded = flagged
+    assert not r["ok"]
+    assert any(x["hazard"] == "camera_fault" and x["subject"] == "self_test_failed" for x in sent)
+    assert any(x["hazard"] == "self_test" and "TEST" in x["explanation"]["text"] for x in sent)
+    assert c.get("/api/selftest", headers=vw).json()["ok"] is False
+    del svc.cameras["camT"]

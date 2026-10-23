@@ -36,6 +36,7 @@ class RuntimeCfg(_Strict):
     exposure_jump: float = Field(0.45, gt=0, le=1)
     realert_cooldown_s: float = Field(30, ge=0, le=3600)
     track_high_conf: float = Field(0.35, gt=0, lt=1)
+    self_test_minutes: float = Field(60, ge=0, le=1440, description="end-to-end self-test period (0 = off)")
 
 
 class ModelCfg(_Strict):
@@ -61,9 +62,17 @@ class CueCfg(_Strict):
     phrase: str
     source: Literal["vision", "sensor", "context"] = "vision"
     keywords: List[str] = Field(default_factory=list)
+    # optional monotone shape function (see xai.fusion.ShapeCueSpec); weight is then the direction +1/-1
+    knots: Optional[List[float]] = None
+    slopes: Optional[List[float]] = None
 
     @model_validator(mode="after")
     def _range(self):
+        if self.knots is not None or self.slopes is not None:
+            if self.knots is None or self.slopes is None or len(self.knots) != len(self.slopes) + 1:
+                raise ValueError("knots needs exactly one more entry than slopes")
+            if any(b <= a for a, b in zip(self.knots, self.knots[1:])) or any(v < 0 for v in self.slopes):
+                raise ValueError("knots must increase and slopes must be >= 0 (direction goes in weight)")
         if not self.lo < self.hi:
             raise ValueError(f"lo ({self.lo}) must be < hi ({self.hi})")
         if not self.lo <= self.ref <= self.hi:

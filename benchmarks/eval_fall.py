@@ -35,9 +35,9 @@ from edgecopilot.xai.calibration import conformal_threshold  # noqa: E402
 from edgecopilot.xai.fusion import CueSpec, HazardModel, Hysteresis, fit_weights, sigmoid  # noqa: E402
 
 
-def cue_series(item, fx_kwargs=None, min_score=0.35):
+def cue_series(item, fx_kwargs=None, min_score=0.35, tracker_kwargs=None):
     """Replay tracker + fall cue extraction -> list of (t, track, values, rel)."""
-    tracker, fx = Tracker(), FallFeatureExtractor(**(fx_kwargs or {}))
+    tracker, fx = Tracker(**(tracker_kwargs or {})), FallFeatureExtractor(**(fx_kwargs or {}))
     out = []
     for fr in item["frames"]:
         dets = [Detection(np.array(b, float), s, 0, "person", np.array(k, float)) for b, s, k in fr["dets"] if s >= min_score]

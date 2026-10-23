@@ -27,7 +27,7 @@ import math
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Dict, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
@@ -70,6 +70,14 @@ class Question(BaseModel):
 class Pause(BaseModel):
     minutes: float = Field(30, gt=0, le=12 * 60, description="bounded: analysis always resumes automatically")
     reason: str = Field("", max_length=200)
+
+
+class WhatIf(BaseModel):
+    values: Dict[str, float] = Field(default_factory=dict, max_length=32)
+
+
+class SelfTest(BaseModel):
+    notify: bool = False
 
 
 class Sound(BaseModel):
@@ -284,6 +292,14 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
         response.delete_cookie(COOKIE, path="/")
         return {"ok": True}
 
+    @app.get("/api/selftest")
+    def self_test_last(p: Principal = Depends(viewer)):
+        return service.last_self_test or {"ok": None, "detail": "no self-test has run yet"}
+
+    @app.post("/api/selftest")
+    def self_test_run(body: SelfTest, p: Principal = Depends(admin)):
+        return service.self_test(notify=body.notify, actor=p.username)
+
     @app.post("/api/console/sound")
     def console_sound(body: Sound, p: Principal = Depends(viewer)):
         """The console's audible alarm was switched on/off - muting is an auditable act."""
@@ -379,6 +395,17 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
             raise HTTPException(404, "unknown alert")
         prom.FEEDBACK.labels(camera=a.get("camera_id", "?"), hazard=a.get("hazard", "?"),
                              outcome="confirmed" if fb.confirmed else "dismissed").inc()
+        return r
+
+    @app.post("/api/alerts/{alert_id}/whatif")
+    def what_if(alert_id: str, body: WhatIf, p: Principal = Depends(viewer)):
+        _alert_or_404(alert_id)
+        try:
+            r = service.what_if(alert_id, body.values)
+        except ValueError as e:
+            raise HTTPException(409, str(e)) from e
+        if r is None:
+            raise HTTPException(404, "unknown alert")
         return r
 
     @app.post("/api/alerts/{alert_id}/ask")

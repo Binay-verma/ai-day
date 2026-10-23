@@ -7,7 +7,7 @@ const el = (tag, props = {}, ...kids) => {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
     if (k === "class") e.className = v; else if (k === "style") e.style.cssText = v;
-    else if (k.startsWith("data-")) e.setAttribute(k, v); else e[k] = v;
+    else if (k.startsWith("data-") || k.startsWith("aria-")) e.setAttribute(k, v); else e[k] = v;
   }
   for (const k of kids) if (k != null) e.append(k);
   return e;
@@ -106,6 +106,50 @@ function ledger(a) {
   return wrap;
 }
 
+// "What if?": the server re-scores the alert exactly (additive ledger) with the slider values.
+function setupWhatIf(det, a) {
+  if (!det || a.hazard === "camera_fault") { if (det) det.hidden = true; return; }
+  const body = det.querySelector(".wi-body");
+  let loaded = false, timer = null;
+  const values = {};
+  const out = el("div", {class: "wi-out", "aria-live": "polite"});
+  const fmt = v => Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2);
+  const render = r => {
+    const pct = x => Math.round(x * 100) + "%";
+    out.textContent = `Score ${pct(r.prob)} (was ${pct(r.prob_before)}) against an alert line of ${pct(r.threshold)}: ` +
+      (r.would_alert ? "this would still raise an alert." : "this would NOT raise an alert.");
+    out.className = "wi-out " + (r.would_alert ? "yes" : "no");
+  };
+  const query = async () => {
+    try { render(await api(`/api/alerts/${encodeURIComponent(a.id)}/whatif`, {method: "POST", body: JSON.stringify({values})})); }
+    catch (e) { out.textContent = e.message; }
+  };
+  det.addEventListener("toggle", async () => {
+    if (!det.open || loaded) return;
+    loaded = true;
+    try {
+      const r = await api(`/api/alerts/${encodeURIComponent(a.id)}/whatif`, {method: "POST", body: JSON.stringify({values: {}})});
+      for (const c of r.cues) {
+        const lab = el("span", {class: "wi-val", textContent: `${fmt(c.value)} ${c.unit || ""}`});
+        const step = (c.hi - c.lo) / 200;
+        const sl = el("input", {type: "range", min: c.lo, max: c.hi, step, value: c.value, "aria-label": c.name.replace(/_/g, " ")});
+        sl.addEventListener("input", () => {
+          values[c.name] = parseFloat(sl.value);
+          lab.textContent = `${fmt(values[c.name])} ${c.unit || ""}`;
+          clearTimeout(timer); timer = setTimeout(query, 120);
+        });
+        body.append(el("label", {class: "wi-row"}, el("span", {class: "wi-name", textContent: c.name.replace(/_/g, " ")}), sl, lab));
+      }
+      const reset = el("button", {class: "btn small", textContent: "Reset", onclick: () => {
+        for (const k of Object.keys(values)) delete values[k];
+        body.querySelectorAll("input[type=range]").forEach((s, i) => { s.value = r.cues[i].value; s.dispatchEvent(new Event("input")); });
+      }});
+      body.append(out, reset);
+      render(r);
+    } catch (e) { body.append(el("div", {textContent: e.message})); }
+  });
+}
+
 function card(a) {
   const node = $("#alerttpl").content.firstElementChild.cloneNode(true);
   node.id = "a-" + a.id;
@@ -120,6 +164,7 @@ function card(a) {
   tr.classList.add(tri === "VERIFY" ? "verify" : "alarm");
   node.querySelector(".ledger").append(ledger(a));
   node.querySelector(".cf").textContent = ex.counterfactual || "";
+  setupWhatIf(node.querySelector(".whatif"), a);
   const acts = node.querySelector(".acts");
   for (const r of a.recommendations || []) acts.append(el("li", {}, el("label", {}, el("input", {type: "checkbox"}), el("span", {class: r.priority === 1 ? "p1" : "", textContent: r.text}))));
   const ver = node.querySelector(".verified");
