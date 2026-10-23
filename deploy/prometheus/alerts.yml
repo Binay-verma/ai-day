@@ -1,0 +1,28 @@
+# Alerts about the SAFETY SYSTEM itself (who watches the watcher)
+groups:
+  - name: edgecopilot-health
+    rules:
+      - alert: CopilotDown
+        expr: up{job="edgecopilot"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: "Edge copilot is not responding - campus cameras are unmonitored"}
+      - alert: CameraNotLive
+        expr: edgecopilot_camera_up == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "Camera {{ $labels.camera }} is offline/stale"}
+      - alert: CameraTamper
+        expr: edgecopilot_camera_fault == 1
+        for: 30s
+        labels: {severity: high}
+        annotations: {summary: "Camera {{ $labels.camera }}: {{ $labels.kind }}"}
+      - alert: CopilotSlow
+        expr: edgecopilot_frame_latency_ms{quantile="0.95"} > 400
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "Processing latency p95 above 400 ms on {{ $labels.camera }}"}
+      - alert: NotificationFailures
+        expr: increase(edgecopilot_notifications_total{ok="false"}[15m]) > 3
+        labels: {severity: high}
+        annotations: {summary: "Alert notifications are failing"}

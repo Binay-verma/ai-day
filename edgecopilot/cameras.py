@@ -157,6 +157,7 @@ class CameraWorker:
         self.stop_ev = threading.Event()
         self.thread = threading.Thread(target=self._run, daemon=True, name=f"cam-{cam_id}")
         self.latest_jpg: bytes = b""
+        self.latency_ms: Deque[float] = collections.deque(maxlen=300)
         self.state: dict = {}
         self._lock = threading.Lock()
 
@@ -254,6 +255,7 @@ class CameraWorker:
         cop = self.copilot
         cop.sensors.advance(t)
         res = cop.process(frame, t)
+        self.latency_ms.append(res.timings.get("total", 0.0))
         view = cop._last_frame if cop._last_frame is not None else frame
         img = cop.render(view, res.people, res.hazards, res.assessments)
         if self.clip is not None:

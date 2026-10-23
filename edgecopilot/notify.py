@@ -119,6 +119,8 @@ class Notifier:
         self._cv = threading.Condition()
         self._stop = False
         self.sent: List[dict] = []  # bounded record for status/tests
+        self.ok_count = 0
+        self.fail_count = 0
         self._t = threading.Thread(target=self._run, daemon=True, name="notifier")
         self._t.start()
 
@@ -177,9 +179,11 @@ class Notifier:
         ch = self.channels[ch_name]
         try:
             ch.send(a, format_text(a, self.base_url))
+            self.ok_count += 1
             rec = {"alert": a["id"], "channel": ch_name, "level": job["level"], "ok": True, "t": time.time()}
             self.audit("notifier", "admin", "notify", a["id"], rec)
         except Exception as e:  # noqa: BLE001 - any channel failure is retried
+            self.fail_count += 1
             rec = {"alert": a["id"], "channel": ch_name, "level": job["level"], "ok": False,
                    "error": str(e)[:200], "attempt": job["attempt"], "t": time.time()}
             log.warning("notification via %s failed (attempt %d): %s", ch_name, job["attempt"] + 1, e)

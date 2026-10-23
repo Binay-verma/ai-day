@@ -1,0 +1,48 @@
+# Campus pilot stack: copilot + MQTT broker + Prometheus + Grafana.
+#   cp .env.example .env   # set secrets
+#   docker compose up -d
+services:
+  copilot:
+    build: .
+    image: edge-copilot:1.1.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - EDGECOPILOT_PUBLIC_URL=${EDGECOPILOT_PUBLIC_URL:-}
+    volumes:
+      - ./models:/app/models:ro
+      - ./configs:/app/configs:ro
+      - copilot-data:/app/data
+      - ./calibration:/app/calibration
+    ports: ["8000:8000"]
+    depends_on: [mosquitto]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits: {cpus: "2.0", memory: 2g}
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    restart: unless-stopped
+    volumes:
+      - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports: ["1883:1883"]
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports: ["9090:9090"]
+  grafana:
+    image: grafana/grafana:11.3.0
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports: ["3000:3000"]
+volumes:
+  copilot-data:
