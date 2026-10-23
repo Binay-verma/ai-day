@@ -1,0 +1,211 @@
+{
+ "summary": {
+  "protocol": "frozen system (configs/campus.yaml as shipped), sources never used in development; fall clips followed by the last frame held 4.0 s; 15.0 fps",
+  "fall_recall": "7/11",
+  "fall_recall_wilson95": [
+   0.354,
+   0.848
+  ],
+  "normal_minutes": 7.2,
+  "false_alarms_all_hazards": 2,
+  "false_alarms_per_hour": 16.6,
+  "false_alarms_per_hour_95ci": [
+   1.9,
+   60.0
+  ],
+  "alerts_grounded": "9/9"
+ },
+ "falls": [
+  {
+   "clip": "fall_extras/cauca_sample/FallBackwardsS1.avi",
+   "seconds": 6.2,
+   "detected": true,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 8.1,
+     "prob": 0.614,
+     "mode": "VERIFY",
+     "grounded": true,
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 69 deg from vertical, no movement on the ground for 4.4 s and a horizontal body shape (width/height 1.7). It would not have fired if tilt rate had been below 115.21 deg/s (observed 118.18 deg/s). Confidence 61% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+    }
+   ]
+  },
+  {
+   "clip": "fall_extras/cauca_sample/FallForwardS1.avi",
+   "seconds": 9.4,
+   "detected": false,
+   "alerts": []
+  },
+  {
+   "clip": "fall_extras/cauca_sample/FallLeftS1.avi",
+   "seconds": 4.2,
+   "detected": false,
+   "alerts": []
+  },
+  {
+   "clip": "fall_extras/cauca_sample/FallRightS1.avi",
+   "seconds": 5.7,
+   "detected": true,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 3.85,
+     "prob": 0.674,
+     "mode": "VERIFY",
+     "grounded": true,
+     "text": "Fall detected (person#1) in External test. Alert raised due to a horizontal body shape (width/height 2.9), torso tilted 78 deg from vertical and body height dropped by 73%. It would not have fired if tilt rate had been below 78.50 deg/s (observed 96.37 deg/s). Confidence 67% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+    }
+   ]
+  },
+  {
+   "clip": "fall_extras/cauca_sample/FallSittingS1.avi",
+   "seconds": 9.1,
+   "detected": true,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 7.75,
+     "prob": 0.636,
+     "mode": "VERIFY",
+     "grounded": true,
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 92 deg from vertical, a rapid descent of 1.0 body-heights/s and a horizontal body shape (width/height 1.5). It would not have fired if tilt rate had been below 115.30 deg/s (observed 124.66 deg/s). Confidence 64% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+    }
+   ]
+  },
+  {
+   "clip": "fall_extras/punpayut_examples/fall_example_1.mp4",
+   "seconds": 11.3,
+   "detected": true,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 5.25,
+     "prob": 0.847,
+     "mode": "ALARM",
+     "grounded": true,
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 83 deg from vertical, the torso rotating 195 deg/s and a horizontal body shape (width/height 2.3). It would not have fired if tilt rate had been below 127.91 deg/s (observed 194.73 deg/s). Confidence 85% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+    }
+   ]
+  },
+  {
+   "clip": "fall_extras/punpayut_examples/fall_example_2.mp4",
+   "seconds": 4.0,
+   "detected": true,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 2.6,
+     "prob": 0.74,
+     "mode": "VERIFY",
+     "grounded": true,
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 80 deg from vertical, a horizontal body shape (width/height 2.5) and the torso rotating 147 deg/s. It would not have fired if tilt rate had been below 114.68 deg/s (observed 147.17 deg/s). Confidence 74% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+    }
+   ]
+  },
+  {
+   "clip": "fall_extras/punpayut_examples/fall_example_3.mp4",
+   "seconds": 2.9,
+   "detected": true,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 3.47,
+     "prob": 0.62,
+     "mode": "VERIFY",
+     "grounded": true,
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 164 deg from vertical, a rapid descent of 1.6 body-heights/s and the torso rotating 166 deg/s. It would not have fired if tilt rate had been below 161.34 deg/s (observed 166.28 deg/s). Confidence 62% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+    }
+   ]
+  },
+  {
+   "clip": "fall_extras/punpayut_examples/fall_example_4.mp4",
+   "seconds": 3.9,
+   "detected": false,
+   "alerts": []
+  },
+  {
+   "clip": "fall_extras/urfd_samples/fall-23-cam0.mp4",
+   "seconds": 2.5,
+   "detected": true,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 3.13,
+     "prob": 0.619,
+     "mode": "VERIFY",
+     "grounded": true,
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 141 deg from vertical, a rapid descent of 1.6 body-heights/s and the torso rotating 172 deg/s. It would not have fired if tilt rate had been below 166.34 deg/s (observed 171.70 deg/s). Confidence 62% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+    }
+   ]
+  },
+  {
+   "clip": "fall_extras/urfd_samples/fall-24-cam0.mp4",
+   "seconds": 1.9,
+   "detected": false,
+   "alerts": []
+  }
+ ],
+ "normal": [
+  {
+   "clip": "fall_extras/urfd_samples/adl-10-cam0.mp4",
+   "seconds": 9.9,
+   "false_alarms": 1,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 5.4,
+     "prob": 0.633,
+     "mode": "VERIFY",
+     "grounded": true,
+     "text": "Fall detected (person#6) in External test. Alert raised due to the torso rotating 500 deg/s, a rapid descent of 1.6 body-heights/s and body height dropped by 65%. It would not have fired if descent speed had been below 1.53 body-heights/s (observed 1.61 body-heights/s). Confidence 63% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#6; Do not move the person until trained help arrives."
+    }
+   ]
+  },
+  {
+   "clip": "test_videos/classroom.mp4",
+   "seconds": 32.7,
+   "false_alarms": 0,
+   "alerts": []
+  },
+  {
+   "clip": "test_videos/face-demographics-walking.mp4",
+   "seconds": 60.9,
+   "false_alarms": 1,
+   "alerts": [
+    {
+     "hazard": "crowd",
+     "t": 43.42,
+     "prob": 0.841,
+     "mode": "ALARM",
+     "grounded": true,
+     "text": "Abnormal crowd behaviour in External test. Alert raised due to 100% of the people in view leaving within seconds, people moving 5.7x faster than normal and people moving in one direction (coherence 1.00). It would not have fired if surge had been below 4.13 x normal (observed 5.71 x normal). Confidence 84% (threshold 60%). Recommended: Notify Campus security desk (ext. 2222) and the the zone warden; Make a calm PA announcement directing people to the nearest exit; Check for a triggering incident (fire/fall) near External test."
+    }
+   ]
+  },
+  {
+   "clip": "test_videos/one-by-one-person-detection.mp4",
+   "seconds": 139.3,
+   "false_alarms": 0,
+   "alerts": []
+  },
+  {
+   "clip": "test_videos/people-detection.mp4",
+   "seconds": 49.6,
+   "false_alarms": 0,
+   "alerts": []
+  },
+  {
+   "clip": "test_videos/store-aisle-detection.mp4",
+   "seconds": 65.4,
+   "false_alarms": 0,
+   "alerts": []
+  },
+  {
+   "clip": "test_videos/worker-zone-detection.mp4",
+   "seconds": 75.8,
+   "false_alarms": 0,
+   "alerts": []
+  }
+ ]
+}
