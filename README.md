@@ -82,7 +82,7 @@ image benchmark and the frozen-system external check are not.
 | Falls (GMDCSA24, leave-one-subject-out) | F1 **0.81–0.83** with the default YOLO11n-pose; **0.886** (CI 0.83–0.94) with the YOLO11s-pose profile. Target 0.90: not met |
 | Abnormal crowd movement (UMN) | **10/11** dispersal events, 0 false alarms in 200 s of normal video, with per-camera conformal calibration |
 | Fire/smoke detector (leakage-free split) | mAP@0.5 **0.57** Home-fire / **0.63** DBA-Fire scenes (start checkpoint 0.37 / 0.36); 16 % false positives on neutral images, so it is one cue among several, never the alarm on its own |
-| Fire, system level (FURG videos) | FURG_README |
+| Fire, system level (FURG videos) | **14/17** fire videos detected (median 2.8 s), **1** false alarm in 4.7 min of non-fire video incl. moving cameras |
 | External check (frozen system, unseen footage) | **7/11** falls; **2** false alarms in 7.2 min on uncalibrated cameras, both explained |
 | Edge speed (all 3 hazards at once) | EDGE_README |
 | Saliency honesty check | Eigen-CAM beats random but not a centre-bias control, so the ledger, not the heat map, is the explanation |

@@ -29,7 +29,7 @@ development (§8). An independent audit of every claim is in
 | Crowd (UMN) | frame AUC, standard / label-artefact-tolerant | 0.81 (CI 0.72–0.96) / 0.91 (CI 0.85–0.97) | ≥ 0.90 | ⚠️ tolerant labels post hoc |
 | Fire (images, leakage-free) | mAP@0.5, Home-fire test / DBA-Fire scene hold-out | **0.573 / 0.630** (start checkpoint 0.371 / 0.356) | ≥ 0.60 | ⚠️ DBA met, Home-fire not |
 | Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.69 (Home-fire) at **16.0 %** FPR (CI 12.7–19.9) | ≥ 0.85 at ≤ 10 % | ❌ |
-| Fire (video, FURG) | fire videos detected / false alarms on non-fire video | FURG_ROW | — | ⚠️ development set |
+| Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **14 / 17** (CI 0.59–0.94), median time-to-alert 2.8 s; **1** false alarm in 4.7 min | — | ⚠️ development set |
 | External check (§8) | frozen system, unseen sources: fall recall / all-hazard false alarms | **7 / 11** falls (CI 0.35–0.85); **2** false alarms in 7.2 min (CI 1.9–60 / h) | — | ⚠️ honest gap |
 | Saliency | Eigen-CAM deletion AUC vs random / centre controls | SAL_ROW | better than both | ❌ |
 | Edge | full 3-hazard pipeline, 2 cores | EDGE_ROW | ≥ 8 FPS | ✅ |
@@ -143,7 +143,20 @@ FT3_NOTE
 
 ### 4.2 System level: FURG fire videos (full copilot fire branch, 10 fps, first 60 s)
 
-FURG_SECTION
+| | Result |
+|---|---|
+| Fire videos detected | **14 / 17** (CI 0.59–0.94); median time-to-alert **2.8 s** after the first annotated flame (v1 model: 13 / 17, 5.0 s) |
+| False alarms on 6 non-fire videos (4.7 min, incl. hand-held and robot cameras) | **1** (≈ 13 / h, CI 0.3–71 / h), on the `icra` robot video |
+| Explanations grounded | 100 % of alerts |
+| Misses | the very small flames of the model-house videos `house3/4/6` |
+
+The fused system does much better than the detector alone would suggest: the detector's
+false positives on neutral images rarely reach the alert line, because the alarm needs
+corroboration (dark-channel smoke density, flicker, persistence, sensors). **Caveat:** these
+23 videos were also used to find and fix failure modes (camera ego-motion damping, flicker
+weight, citation cut-off, people-in-view gating for rapid exit), so these are
+development-set numbers. With 4.7 minutes of non-fire video the false-alarm interval is very
+wide.
 
 ## 5. Explanation quality (73 real alerts from the fall and crowd benchmarks)
 
