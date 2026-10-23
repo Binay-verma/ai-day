@@ -36,30 +36,30 @@ hazards:
     bias: -7.0
     threshold: 0.6
     cues:
-      torso_angle:   {weight: 0.06, ref: 30.0, lo: 0.0, hi: 90.0, unit: deg, phrase: "torso tilted {v:.0f} deg from vertical", keywords: [tilted]}
-      descent_speed: {weight: 2.0, ref: 0.4, lo: 0.0, hi: 3.0, unit: "body-heights/s", phrase: "a rapid descent of {v:.1f} body-heights/s", keywords: [descent]}
-      tilt_rate:     {weight: 0.02, ref: 60.0, lo: 0.0, hi: 400.0, unit: "deg/s", phrase: "the torso rotating {v:.0f} deg/s", keywords: [rotating, rotation]}
-      height_drop:   {weight: 3.0, ref: 0.3, lo: 0.0, hi: 1.0, unit: "", phrase: "body height dropped by {v:.0%}", keywords: [height dropped]}
-      aspect_ratio:  {weight: 1.5, ref: 0.8, lo: 0.2, hi: 3.0, unit: "", phrase: "a horizontal body shape (width/height {v:.1f})", keywords: [horizontal, shape]}
-      ground_time:   {weight: 0.5, ref: 1.0, lo: 0.0, hi: 10.0, unit: s, phrase: "no movement on the ground for {v:.1f} s", keywords: [ground, movement]}
+      torso_angle:   {weight: 0.06, ref: 30.0, lo: 0.0, hi: 90.0, unit: deg, phrase: "torso tilted {v:.0f} deg from vertical", keywords: [tilted, torso angle]}
+      descent_speed: {weight: 2.0, ref: 0.4, lo: 0.0, hi: 3.0, unit: "body-heights/s", phrase: "a rapid descent of {v:.1f} body-heights/s", keywords: [descent, dropped quickly, went down]}
+      tilt_rate:     {weight: 0.02, ref: 60.0, lo: 0.0, hi: 400.0, unit: "deg/s", phrase: "the torso rotating {v:.0f} deg/s", keywords: [rotating, rotation, rotated]}
+      height_drop:   {weight: 3.0, ref: 0.3, lo: 0.0, hi: 1.0, unit: "", phrase: "body height dropped by {v:.0%}", keywords: [height dropped, height drop, body height]}
+      aspect_ratio:  {weight: 1.5, ref: 0.8, lo: 0.2, hi: 3.0, unit: "", phrase: "a horizontal body shape (width/height {v:.1f})", keywords: [horizontal, shape, width/height]}
+      ground_time:   {weight: 0.5, ref: 1.0, lo: 0.0, hi: 10.0, unit: s, phrase: "no movement on the ground for {v:.1f} s", keywords: [ground, movement, motionless, immobile, not moving, lying still]}
   fire_smoke:
     bias: -6.0
     threshold: 0.6
     cues:
       smoke_conf:    {weight: 8.0, ref: 0.15, lo: 0.0, hi: 1.0, unit: "", phrase: "the detector seeing smoke ({v:.0%} confidence)", keywords: [seeing smoke]}
       fire_conf:     {weight: 10.0, ref: 0.15, lo: 0.0, hi: 1.0, unit: "", phrase: "the detector seeing flames ({v:.0%} confidence)", keywords: [seeing flames]}
-      smoke_density: {weight: 10.0, ref: 0.03, lo: 0.0, hi: 0.5, unit: "", phrase: "a smoke density increase of {v:.2f}", keywords: [density, haze]}
+      smoke_density: {weight: 10.0, ref: 0.03, lo: 0.0, hi: 0.5, unit: "", phrase: "a smoke density increase of {v:.2f}", keywords: [density, haze, hazy]}
       smoke_growth:  {weight: 8.0, ref: 0.0, lo: -0.2, hi: 0.3, unit: "/s", phrase: "smoke spreading at {v:.2f}/s", keywords: [spreading, growth]}
       fire_flicker:  {weight: 0.12, ref: 0.5, lo: 0.0, hi: 20.0, unit: "per mille", phrase: "flickering flame-coloured pixels ({v:.1f} per mille)", keywords: [flicker, flickering]}
-      smoke_ppm:     {weight: 0.006, ref: 300.0, lo: 0.0, hi: 1500.0, unit: ppm, phrase: "the MQ-2 sensor reading {v:.0f} ppm", source: sensor, keywords: [mq-2, sensor reading, ppm]}
-      temp_rise:     {weight: 0.5, ref: 1.0, lo: 0.0, hi: 20.0, unit: "C/min", phrase: "temperature rising {v:.1f} C/min", source: sensor, keywords: [temperature]}
+      smoke_ppm:     {weight: 0.006, ref: 300.0, lo: 0.0, hi: 1500.0, unit: ppm, phrase: "the MQ-2 sensor reading {v:.0f} ppm", source: sensor, keywords: [mq-2, sensor reading, ppm, gas sensor]}
+      temp_rise:     {weight: 0.5, ref: 1.0, lo: 0.0, hi: 20.0, unit: "C/min", phrase: "temperature rising {v:.1f} C/min", source: sensor, keywords: [temperature, heat, hotter]}
       rapid_exit:    {weight: 2.0, ref: 0.3, lo: 0.0, hi: 1.0, unit: "", phrase: "rapid exit movement (crowd flow index {v:.2f})", source: context, keywords: [exit, crowd]}
   crowd:
     bias: -5.0
     threshold: 0.6
     cues:
       occupancy:     {weight: 4.0, ref: 0.8, lo: 0.8, hi: 3.0, unit: "x capacity", phrase: "occupancy at {v:.0%} of zone capacity", keywords: [occupancy, capacity]}
-      surge:         {weight: 0.8, ref: 2.0, lo: 0.0, hi: 15.0, unit: "x normal", phrase: "people moving {v:.1f}x faster than normal", keywords: [faster]}
+      surge:         {weight: 0.8, ref: 2.0, lo: 0.0, hi: 15.0, unit: "x normal", phrase: "people moving {v:.1f}x faster than normal", keywords: [faster, running, speed]}
       exodus:        {weight: 4.0, ref: 0.2, lo: 0.0, hi: 1.0, unit: "", phrase: "{v:.0%} of the people in view leaving within seconds", keywords: [leaving, left]}
       divergence:    {weight: 2.0, ref: 0.3, lo: 0.3, hi: 4.0, unit: "body-heights/s", phrase: "people scattering outwards ({v:.1f} body-heights/s)", keywords: [scattering, outwards]}
       coherence:     {weight: 1.0, ref: 0.5, lo: 0.5, hi: 1.0, unit: "", phrase: "people moving in one direction (coherence {v:.2f})", keywords: [direction, coherence]}

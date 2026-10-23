@@ -129,9 +129,10 @@ class EdgeService:
         if cam.get("privacy"):
             cfg = {**cfg, "runtime": {**cfg["runtime"], "privacy": cam["privacy"]}}
         # a recorded video with its own sensor CSV replays into a private hub (never mixes with live sensors)
-        hub = SensorHub() if sensors_csv else self.sensors
-        cop = Copilot(cfg, root=self.root, zone=cam["zone"], sensors=hub, event_log=EventLog(),
+        hub = SensorHub(fallback_zone="default") if sensors_csv else self.sensors
+        cop = Copilot(cfg, root=self.root, zone=cam["zone"], sensors=hub, event_log=EventLog(max_items=200),
                       enable=cam.get("hazards") or None)
+        cop.status_listeners.append(self._on_status)
         st = self.cfg.get("storage", {})
         # ${VAR} in camera URLs is filled from the environment so credentials never sit in the config file
         source = os.path.expandvars(str(cam["source"]))
@@ -232,8 +233,23 @@ class EdgeService:
             log.exception("failed to persist alert %s", al.id)
         log.warning("ALERT %s %s %s p=%.2f", cam_id, al.hazard, al.severity, al.prob,
                     extra={"camera": cam_id, "alert_id": al.id, "hazard": al.hazard, "event": "alert"})
+        # the images now live encrypted in the store; drop the in-memory copies (bounded memory on long runs)
+        al.snapshot_jpg_b64 = ""
+        al.evidence_jpg_b64 = ""
         self.notifier.alert(rec)
         self._broadcast({"type": "alert", "alert": rec})
+
+    def _on_status(self, al, change: str) -> None:
+        """Alarms latch: an alert that clears by itself stays 'open' (and keeps escalating) until a person
+        acknowledges it, but the clearing time and the peak score are recorded."""
+        try:
+            if change == "cleared":
+                self.store.update_alert(al.id, cleared_at=time.time(), peak_prob=float(al.peak_prob))
+            elif change == "reopened":
+                self.store.update_alert(al.id, cleared_at=None, peak_prob=float(al.peak_prob))
+            self._broadcast({"type": "alert_update", "id": al.id, "change": change})
+        except Exception:  # noqa: BLE001
+            log.exception("failed to persist status change of %s", al.id)
 
     def _on_fault(self, cam_id: str, kind: str, detail: str) -> None:
         """Trouble signal: a failing camera is itself an incident (FM 3232-style), routed like an alert."""

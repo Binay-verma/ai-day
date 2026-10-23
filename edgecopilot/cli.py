@@ -33,7 +33,7 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true", help="print alerts as JSON lines")
     args = ap.parse_args(argv)
     cfg = load_config(args.config)
-    cop = Copilot(cfg, root=ROOT, zone=args.zone, sensors=SensorHub(), event_log=EventLog(args.events))
+    cop = Copilot(cfg, root=ROOT, zone=args.zone, sensors=SensorHub(fallback_zone="default"), event_log=EventLog(args.events))
     csv_path = args.sensors or (os.path.splitext(str(args.source))[0] + "_sensors.csv")
     if os.path.exists(csv_path):
         cop.sensors.load_csv(csv_path)

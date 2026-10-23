@@ -253,6 +253,9 @@ class Config(_Strict):
                     clash = [k for k in okws if re.search(rf"\b{re.escape(k.lower())}", phrase)]
                     if clash:
                         errors.append(f"hazards.{hz}.cues.{name}: phrase matches keyword(s) {clash} of cue '{other}'")
+                    oname = other.replace("_", " ")
+                    if any(re.search(rf"\b{re.escape(k.lower())}\b", oname) for k in kws):
+                        errors.append(f"hazards.{hz}.cues.{name}: a keyword also matches the name of cue '{other}'")
         # 2) playbook conditions are well-formed and only use known names
         from .copilot.recommender import safe_eval
         for hz, steps in self.playbooks.items():

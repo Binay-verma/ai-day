@@ -25,11 +25,17 @@ import numpy as np
 
 
 class SmokeCueExtractor:
-    def __init__(self, width: int = 160, grid: int = 4, patch: int = 7, baseline_alpha: float = 0.02):
+    def __init__(self, width: int = 160, grid: int = 4, patch: int = 7, tau_up_s: float = 900.0,
+                 tau_down_s: float = 20.0, warmup_s: float = 1.0):
         self.width = width
         self.grid = grid
         self.patch = patch
-        self.alpha = baseline_alpha
+        # asymmetric, time-based background: the haze baseline may *rise* only very slowly
+        # (tau 15 min) so slowly building smoke is not absorbed into "normal", but it falls
+        # back quickly (tau 20 s) when the scene clears or gets darker
+        self.tau_up_s, self.tau_down_s, self.warmup_s = tau_up_s, tau_down_s, warmup_s
+        self.t0: Optional[float] = None
+        self.prev_t: Optional[float] = None
         self.base_dark: Optional[np.ndarray] = None
         self.base_contrast: Optional[np.ndarray] = None
         self.prev_fire: Optional[np.ndarray] = None
@@ -39,7 +45,7 @@ class SmokeCueExtractor:
         self.cell_delta: Optional[np.ndarray] = None
 
     def reset(self) -> None:
-        self.__init__(self.width, self.grid, self.patch, self.alpha)  # type: ignore[misc]
+        self.__init__(self.width, self.grid, self.patch, self.tau_up_s, self.tau_down_s, self.warmup_s)  # type: ignore[misc]
 
     def _cells(self, img: np.ndarray, fn) -> np.ndarray:
         h, w = img.shape[:2]
@@ -62,7 +68,11 @@ class SmokeCueExtractor:
         self.dark_map = dark
         if self.base_dark is None:
             self.base_dark, self.base_contrast = d_cells.copy(), c_cells.copy()
-        warm = min(1.0, self.n / 25.0)  # the first second of video is the reference
+            self.t0 = t
+        dt = 0.0 if self.prev_t is None else max(0.0, min(t - self.prev_t, 5.0))
+        self.prev_t = t
+        in_warmup = (t - (self.t0 if self.t0 is not None else t)) < self.warmup_s
+        warm = 0.0 if in_warmup else 1.0  # the first second of video is the reference
         delta = (d_cells - self.base_dark) * warm
         closs = np.clip(1 - c_cells / self.base_contrast, -1, 1) * warm
         # combined per-cell haze score: brighter dark channel AND fewer edges
@@ -71,10 +81,16 @@ class SmokeCueExtractor:
         self.cell_delta = score
         density = float(np.clip(delta[k], 0, 1))
         contrast_loss = float(np.clip(closs[k], 0, 1))
-        if not alert_active:
-            a = self.alpha if self.n > 25 else 0.3
-            self.base_dark = (1 - a) * self.base_dark + a * d_cells  # type: ignore[operator]
-            self.base_contrast = (1 - a) * self.base_contrast + a * c_cells  # type: ignore[operator]
+        if in_warmup:
+            self.base_dark = 0.7 * self.base_dark + 0.3 * d_cells  # type: ignore[operator]
+            self.base_contrast = 0.7 * self.base_contrast + 0.3 * c_cells  # type: ignore[operator]
+        elif not alert_active and dt > 0:
+            up = d_cells > self.base_dark  # haze rising -> follow very slowly
+            a_dark = np.where(up, 1 - np.exp(-dt / self.tau_up_s), 1 - np.exp(-dt / self.tau_down_s))
+            self.base_dark = (1 - a_dark) * self.base_dark + a_dark * d_cells  # type: ignore[operator]
+            loss = c_cells < self.base_contrast  # edges disappearing -> follow very slowly
+            a_c = np.where(loss, 1 - np.exp(-dt / self.tau_up_s), 1 - np.exp(-dt / self.tau_down_s))
+            self.base_contrast = (1 - a_c) * self.base_contrast + a_c * c_cells  # type: ignore[operator]
         self.n += 1
         # growth: density change per second over ~1 s
         self.hist.append((t, density))

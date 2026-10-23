@@ -22,7 +22,10 @@ _OPS = {ast.Gt: operator.gt, ast.GtE: operator.ge, ast.Lt: operator.lt, ast.LtE:
         ast.Eq: operator.eq, ast.NotEq: operator.ne}
 
 
-def safe_eval(expr: str, env: Dict[str, float]) -> bool:
+_MISSING = object()
+
+
+def safe_eval(expr: str, env: Dict[str, float], strict: bool = False) -> bool:
     """Evaluate a playbook condition like ``ground_time > 10 and prob >= 0.8``.
 
     Only names, numbers, comparisons, and/or/not are allowed - no calls,
@@ -37,18 +40,25 @@ def safe_eval(expr: str, env: Dict[str, float]) -> bool:
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
             return not ev(node.operand)
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-            return -ev(node.operand)
+            v = ev(node.operand)
+            return _MISSING if v is _MISSING else -v
         if isinstance(node, ast.Compare):
             left = ev(node.left)
             for op, comp in zip(node.ops, node.comparators):
                 right = ev(comp)
-                if type(op) not in _OPS or not _OPS[type(op)](left, right):
+                if type(op) not in _OPS:
+                    raise ValueError(f"disallowed comparison: {type(op).__name__}")
+                # a comparison involving an unmeasured cue is simply false, so that
+                # "prob > 0.85 or smoke_ppm > 600" still fires on prob when there is no sensor
+                if left is _MISSING or right is _MISSING or not _OPS[type(op)](left, right):
                     return False
                 left = right
             return True
         if isinstance(node, ast.Name):
             if node.id not in env:
-                raise NameError(node.id)
+                if strict:
+                    raise NameError(node.id)
+                return _MISSING
             return env[node.id]
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return node.value
@@ -103,14 +113,12 @@ class Recommender:
             return True
         env = dict(vals)
         env.update({"prob": a.prob})
-        try:
-            return safe_eval(cond, env)
-        except NameError:
-            return False  # condition refers to a cue that was not measured
+        return safe_eval(cond, env)
 
     def recommend(self, a: Assessment, zone_name: str) -> Dict:
         z = self.zones.get(zone_name) or Zone(name=zone_name)
-        vals = {c.name: c.value for c in a.cues}
+        # an offline sensor (reliability 0) contributes nothing to the score, and must not trigger actions either
+        vals = {c.name: c.value for c in a.cues if c.reliability > 0}
         fmt = {
             "zone": z.name, "exits": " / ".join(z.exits) or "the nearest exit",
             "exit": z.exits[0] if z.exits else "the nearest exit",

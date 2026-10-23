@@ -36,7 +36,7 @@ def cpu_seconds():
 
 
 def run(cfg, video, frames, zone, sensor_csv=None, stride=1):
-    cop = Copilot(cfg, root=".", zone=zone, sensors=SensorHub())
+    cop = Copilot(cfg, root=".", zone=zone, sensors=SensorHub(fallback_zone="default"))
     if sensor_csv and os.path.exists(sensor_csv):
         cop.sensors.load_csv(sensor_csv)
     stages, gated, alerts = {}, 0, []

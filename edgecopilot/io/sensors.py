@@ -32,7 +32,7 @@ class SensorHub:
     FIELDS = ("smoke_ppm", "temp_c", "sound_db")
 
     def __init__(self, stale_s: float = 10.0, zones: Optional[Iterable[str]] = None, max_zones: int = 64,
-                 fallback_zone: Optional[str] = "default"):
+                 fallback_zone: Optional[str] = None):
         self.stale_s = stale_s
         self.allowed = set(zones) if zones is not None else None
         self.max_zones = max_zones

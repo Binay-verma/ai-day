@@ -58,7 +58,18 @@ def read_labels(lbl_path: str, w: int, h: int, names=("fire", "smoke")):
     return out
 
 
-def eval_sets(limit: int, seed: int = 0):
+def eval_sets(limit: int, seed: int = 0, manifest: str = "data/fire_splits.json"):
+    """Evaluation sets. Uses the leakage-free v2 manifest from scripts/prepare_fire_data.py when present."""
+    if manifest and os.path.exists(manifest):
+        m = json.load(open(manifest))
+        rng = random.Random(seed)
+        out = {}
+        for k, items in m["eval"].items():
+            items = [tuple(x) for x in items]
+            if limit and len(items) > limit:
+                items = rng.sample(items, limit)
+            out[k] = items
+        return out
     rng = random.Random(seed)
     sets = {}
     hf = sorted(glob.glob(f"{DS}/home_fire/test/images/*.jpg"))
@@ -172,7 +183,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--weights", nargs="*", default=[])
     ap.add_argument("--onnx", nargs="*", default=[])
-    ap.add_argument("--limit", type=int, default=400)
+    ap.add_argument("--limit", type=int, default=0, help="0 = all evaluation images")
     ap.add_argument("--onnx-names", default="smoke,fire", help="class order of the ONNX model(s)")
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--out", default="benchmarks/results/fire_eval.json")

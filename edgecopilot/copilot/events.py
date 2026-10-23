@@ -33,6 +33,7 @@ class Alert:
     status: str = "open"  # open | confirmed | dismissed | resolved
     operator_note: str = ""
     peak_prob: float = 0.0
+    peak_ema: float = -1e9  # peak smoothed logit while active (calibration units)
 
     def summary(self) -> dict:
         d = asdict(self)

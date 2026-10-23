@@ -63,6 +63,7 @@ class FrameResult:
     ran_detector: bool
     motion: float
     scene_change: bool = False
+    privacy_people: List[Detection] = field(default_factory=list)  # every person detection, for anonymisation
     values: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
 
@@ -80,6 +81,10 @@ class Copilot:
         self.motion_gate = rt.get("motion_gate", True)
         self.keepalive = rt.get("gate_keepalive", 8)
         self.fire_every = max(1, rt.get("fire_every", 2))
+        self.fire_keepalive_s = rt.get("fire_keepalive_s", 1.0)
+        self._since_fire = 10 ** 9
+        self._last_fire_t = -1e9
+        self._privacy_people: List[Detection] = []
         self.max_width = rt.get("max_width", 960)
         self.scene_cut = rt.get("scene_cut", 0.75)
         self.cooldown_s = rt.get("realert_cooldown_s", 30.0)
@@ -110,6 +115,7 @@ class Copilot:
         self.crowd_fx = CrowdFeatureExtractor()
         self.smoke_fx = SmokeCueExtractor()
         self.listeners: List[Callable[[Alert], None]] = []
+        self.status_listeners: List[Callable[[Alert, str], None]] = []
         self.active: Dict[str, Alert] = {}
         self._prev_small: Optional[np.ndarray] = None
         self._since_heavy = 10 ** 9
@@ -191,6 +197,8 @@ class Copilot:
         self._frame_idx = 0
         self._last_people = []
         self._last_fire = None
+        self._last_fire_t = -1e9
+        self._since_fire = 10 ** 9
 
     def _reset_scene(self) -> None:
         self.tracker.reset()
@@ -205,6 +213,8 @@ class Copilot:
         self._closed.clear()
         self._last_people = []
         self._last_fire = None
+        self._last_fire_t = -1e9
+        self._since_fire = 10 ** 9
 
     @property
     def capacity(self) -> float:
@@ -212,12 +222,35 @@ class Copilot:
         return float(z.capacity) if z else 50.0
 
     # ------------------------------------------------------------- main loop
-    def process(self, frame: np.ndarray, t: float, render: bool = False) -> FrameResult:
+    @staticmethod
+    def normalise_frame(frame: np.ndarray, max_side: int) -> np.ndarray:
+        """Any camera frame -> 3-channel uint8 BGR, longest side <= max_side, shortest side >= 64."""
+        if frame is None or frame.size == 0:
+            raise ValueError("empty frame")
+        if frame.dtype != np.uint8:
+            frame = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        if frame.ndim == 2:
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+        elif frame.shape[2] == 4:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+        elif frame.shape[2] == 1:
+            frame = cv2.cvtColor(frame[:, :, 0], cv2.COLOR_GRAY2BGR)
+        h, w = frame.shape[:2]
+        if max(h, w) > max_side:
+            s = max_side / max(h, w)
+            frame = cv2.resize(frame, (max(1, int(w * s)), max(1, int(h * s))), interpolation=cv2.INTER_AREA)
+            h, w = frame.shape[:2]
+        if min(h, w) < 64:
+            frame = cv2.copyMakeBorder(frame, 0, max(0, 64 - h), 0, max(0, 64 - w), cv2.BORDER_CONSTANT, value=(114, 114, 114))
+        return np.ascontiguousarray(frame)
+
+    def process(self, frame: np.ndarray, t: float, render: bool = False, wall_t: Optional[float] = None) -> FrameResult:
+        """Process one frame. ``t`` must be monotonic (kinematics); ``wall_t`` (default ``t``) is the clock
+        that sensor readings are stamped with."""
         timings: Dict[str, float] = {}
         t_all = time.perf_counter()
-        if frame.shape[1] > self.max_width:
-            s = self.max_width / frame.shape[1]
-            frame = cv2.resize(frame, (self.max_width, int(frame.shape[0] * s)), interpolation=cv2.INTER_AREA)
+        frame = self.normalise_frame(frame, self.max_width)
+        wall_t = t if wall_t is None else wall_t
         self._frame_idx += 1
 
         # 1) motion gate (cascade): cheap frame difference decides if the
@@ -237,7 +270,8 @@ class Copilot:
 
         # 2) people + pose
         t0 = time.perf_counter()
-        if run_heavy and self.pose is not None and (self.enable["fall"] or self.enable["crowd"]):
+        need_pose = self.enable["fall"] or self.enable["crowd"] or self.privacy != "raw"
+        if run_heavy and self.pose is not None and need_pose:
             out = self.pose(frame)
             people = [d for d in out.detections]
             self._last_people = people
@@ -247,15 +281,17 @@ class Copilot:
                       for d in self._last_people]
             self._since_heavy += 1
         timings["pose"] = (time.perf_counter() - t0) * 1e3
+        # privacy: EVERY person detection (tracked or not, any confidence) is anonymised
+        self._privacy_people = list(people)
         t0 = time.perf_counter()
         tracks = self.tracker.update(people, t)
-        # low-confidence detections only survive if they continued an existing track (ByteTrack)
+        # analytics: low-confidence detections only count if they continued an existing track (ByteTrack)
         people = [d for d in people if d.track_id >= 0]
         timings["track"] = (time.perf_counter() - t0) * 1e3
 
         assessments: List[Assessment] = []
         values_all: Dict[str, Dict[str, float]] = {}
-        sens_vals, sens_rel = self.sensors.cues(self.zone, t)
+        sens_vals, sens_rel = self.sensors.cues(self.zone, wall_t)
 
         # 3) fall cues per tracked person
         t0 = time.perf_counter()
@@ -270,16 +306,21 @@ class Copilot:
                 assessments.append(self.hyst.update(f"fall:{tr.track_id}", a))
                 values_all[a.subject] = vals
             self.fall_fx.prune(set(self.tracker.tracks))
+            self.hyst.prune("fall:", {f"fall:{i}" for i in self.tracker.tracks}, t)
         timings["fall"] = (time.perf_counter() - t0) * 1e3
 
         # 4) crowd cues for the zone
         t0 = time.perf_counter()
         crowd_vals: Dict[str, float] = {}
         if self.enable["crowd"] or self.enable["fire_smoke"]:
-            heights = [d.wh[1] for d in people if d.wh[1] > 10]
-            ph = float(np.median(heights)) if heights else None
-            crowd_vals = self.crowd_fx(frame, t, len(people), self.capacity, ph,
-                                       alert_active=any(k.startswith("crowd") for k in self.active))
+            recent_n = max([c for ts, c in self.crowd_fx.count_hist if t - ts <= 3.0] + [len(people)])
+            if recent_n >= 1 or self.pose is None:
+                heights = [d.wh[1] for d in people if d.wh[1] > 10]
+                ph = float(np.median(heights)) if heights else None
+                crowd_vals = self.crowd_fx(frame, t, len(people), self.capacity, ph,
+                                           alert_active=any(k.startswith("crowd") for k in self.active))
+            else:  # empty scene: crowd cues are meaningless, skip the optical flow (largest CPU saving)
+                crowd_vals = self.crowd_fx.idle(t, len(people))
         # a moving camera invalidates every "compared with this scene's normal" cue
         ego = crowd_vals.get("ego_motion", 0.0)
         cam_rel = float(np.clip(1.0 - (ego - 0.02) / 0.08, 0.2, 1.0))
@@ -308,11 +349,18 @@ class Copilot:
         hazards: List[Detection] = []
         if self.enable["fire_smoke"]:
             fire_active = any(k.startswith("fire") for k in self.active)
-            if self.fire is not None and (run_heavy or fire_active) and (self._frame_idx % self.fire_every == 0 or self._last_fire is None):
+            self._since_fire += 1
+            due = self._since_fire >= self.fire_every and (run_heavy or fire_active)
+            stale = t - self._last_fire_t >= self.fire_keepalive_s  # slow smoke barely moves: never rely on the gate alone
+            if self.fire is not None and (due or stale or self._last_fire is None):
                 self._last_fire = self.fire(frame)
+                self._since_fire = 0
+                self._last_fire_t = t
             if self._last_fire is not None:
                 hazards = self._last_fire.detections
             fv = self.smoke_fx(frame, t, alert_active=fire_active)
+            if self._last_fire is not None and t - self._last_fire_t > 3 * self.fire_keepalive_s:
+                hazards = []  # never explain with a detection older than a few seconds
             fv["smoke_conf"] = max([d.score for d in hazards if d.label == "smoke"], default=0.0)
             fv["fire_conf"] = max([d.score for d in hazards if d.label == "fire"], default=0.0)
             if crowd_vals and "coherence" in crowd_vals and self.crowd_fx.count_hist and \
@@ -343,6 +391,8 @@ class Copilot:
                 al = recent[0]
                 al.status = "open"
                 al.peak_prob = max(al.peak_prob, a.prob)
+                al.peak_ema = max(al.peak_ema, a.ema_logit if a.ema_logit is not None else a.logit)
+                self._notify_status(al, "reopened")
                 self.active[key] = al
             elif a.onset:
                 alert = self._make_alert(a, frame, people, hazards, timings)
@@ -353,11 +403,13 @@ class Copilot:
                     cb(alert)
             elif a.active and key in self.active:
                 self.active[key].peak_prob = max(self.active[key].peak_prob, a.prob)
+                self.active[key].peak_ema = max(self.active[key].peak_ema, a.ema_logit if a.ema_logit is not None else a.logit)
             elif not a.active and key in self.active:
                 al = self.active.pop(key)
                 if al.status == "open":
                     al.status = "resolved"
                 self._closed[key] = (al, t)
+                self._notify_status(al, "cleared")
         # tracks that disappeared close their fall alerts
         for key in [k for k in self.active if k.startswith("fall:")]:
             tid = int(key.split("#")[-1])
@@ -365,10 +417,15 @@ class Copilot:
                 al = self.active.pop(key)
                 if al.status == "open":
                     al.status = "resolved"
+                self._notify_status(al, "cleared")
+        # bounded memory: forget closed incidents once their re-open window has passed
+        for k in [k for k, (_, tc) in self._closed.items() if t - tc > self.cooldown_s]:
+            del self._closed[k]
         timings["explain"] = (time.perf_counter() - t0) * 1e3
         timings["total"] = (time.perf_counter() - t_all) * 1e3
         self._last_frame = frame
-        res = FrameResult(t, people, hazards, assessments, new_alerts, timings, run_heavy, motion, scene_change, values_all)
+        res = FrameResult(t, people, hazards, assessments, new_alerts, timings, run_heavy, motion, scene_change,
+                          values=values_all, privacy_people=self._privacy_people)
         self.last_result = res
         return res
 
@@ -405,7 +462,7 @@ class Copilot:
         ver = verify(exp.text, a, model, self.zone, extra_numbers=numbers_in(rec_texts))
         dec = explain_decision(a, model)
         sal = self._evidence_map(a, frame, people, hazards)
-        safe = anonymize(frame, people, self.privacy)
+        safe = anonymize(frame, self._privacy_people, self.privacy, pose_available=self.pose is not None)
         ev = overlay(safe, sal)
         for d in hazards:
             x1, y1, x2, y2 = d.box.astype(int)
@@ -419,9 +476,18 @@ class Copilot:
             snapshot_jpg_b64=_jpg_b64(self.render(frame, people, hazards, [a])),
             evidence_jpg_b64=_jpg_b64(ev), processing_ms=sum(v for k, v in timings.items() if k != "total"),
             explain_ms=explain_ms, peak_prob=a.prob, triage=tri,
+            peak_ema=a.ema_logit if a.ema_logit is not None else a.logit,
         )
 
     # ---------------------------------------------------------- feedback loop
+    def _notify_status(self, al: Alert, change: str) -> None:
+        for cb in self.status_listeners:
+            try:
+                cb(al, change)
+            except Exception:  # noqa: BLE001 - persistence problems must not break the frame loop
+                import logging
+                logging.getLogger("edgecopilot.pipeline").exception("status listener failed")
+
     def feedback(self, alert_id: str, confirmed: bool, note: str = "") -> Optional[dict]:
         prev = self.events.alerts.get(alert_id)
         if prev is None or prev.status in ("confirmed", "dismissed"):
@@ -429,21 +495,23 @@ class Copilot:
         al = self.events.update_status(alert_id, "confirmed" if confirmed else "dismissed", note)
         if al is None:
             return None
-        shift = self.models[al.hazard].feedback(al.zone, int(confirmed), al.prob, self.fb_lr, self.fb_max)
-        out = {"id": alert_id, "hazard": al.hazard, "zone": al.zone, "bias_offset": shift}
-        if not confirmed and al.hazard in self.gates:
-            # a dismissed alert is a labelled normal sample: tighten the conformal budget
-            p = min(max(al.peak_prob, 1e-9), 1 - 1e-9)
-            self.gates[al.hazard].add_normal(float(np.log(p / (1 - p))))
-            self._apply_gates()
-            self.save_calibration()
+        out: dict = {"id": alert_id, "hazard": al.hazard, "zone": al.zone}
+        if al.hazard in self.gates:
+            # calibrated camera: a dismissal is one more labelled *normal window*, in the same units as the
+            # calibration data (peak smoothed logit); the intercept is NOT also shifted (no double counting)
+            if not confirmed:
+                self.gates[al.hazard].add_normal(float(al.peak_ema))
+                self._apply_gates()
+                self.save_calibration()
             out["threshold"] = self.models[al.hazard].threshold
+        else:
+            out["bias_offset"] = self.models[al.hazard].feedback(al.zone, int(confirmed), al.prob, self.fb_lr, self.fb_max)
         return out
 
     # -------------------------------------------------------------- rendering
     def render(self, frame: np.ndarray, people: List[Detection], hazards: List[Detection],
                assessments: List[Assessment]) -> np.ndarray:
-        img = anonymize(frame, people, self.privacy)
+        img = anonymize(frame, self._privacy_people, self.privacy, pose_available=self.pose is not None)
         active_people = {a.subject for a in assessments if a.hazard == "fall" and (a.active or a.prob > 0.5)}
         for d in people:
             col = (60, 60, 255) if f"person#{d.track_id}" in active_people else (90, 200, 90)

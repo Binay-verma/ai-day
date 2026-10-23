@@ -68,10 +68,12 @@ class Track:
 
 
 class Tracker:
-    def __init__(self, iou_thr: float = 0.3, max_misses: int = 15, dist_frac: float = 0.6, high_thr: float = 0.35):
+    def __init__(self, iou_thr: float = 0.3, max_misses: int = 15, dist_frac: float = 0.6, high_thr: float = 0.35,
+                 max_age_s: float = 1.5):
         self.iou_thr = iou_thr
         self.high_thr = high_thr
-        self.max_misses = max_misses
+        self.max_misses = max_misses  # frames ...
+        self.max_age_s = max_age_s    # ... and seconds: a track dies when BOTH are exceeded (fps/stride independent)
         self.dist_frac = dist_frac
         self.tracks: Dict[int, Track] = {}
         self._next_id = 1
@@ -128,7 +130,8 @@ class Tracker:
         for i in ids:
             if i not in matched_tracks:
                 self.tracks[i].misses += 1
-                if self.tracks[i].misses > self.max_misses:
+                tr = self.tracks[i]
+                if tr.misses > self.max_misses and t - tr.last.t > self.max_age_s or t - tr.last.t > 4 * self.max_age_s:
                     del self.tracks[i]
         for ci, d in enumerate(high):
             if ci in md1:

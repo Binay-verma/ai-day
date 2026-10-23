@@ -30,9 +30,9 @@ HAZARD_TITLES = {
     "crowd": "Abnormal crowd behaviour",
 }
 HAZARD_WORDS = {
-    "fall": ["fall", "fallen", "collapsed", "collapse"],
-    "fire_smoke": ["smoke", "fire", "flame", "flames", "burning"],
-    "crowd": ["crowd", "crowding", "stampede", "panic", "overcrowding"],
+    "fall": ["fall", "falls", "fell", "fallen", "falling", "collapsed", "collapse", "collapsing", "tripped", "slipped"],
+    "fire_smoke": ["smoke", "smoky", "fire", "fires", "flame", "flames", "burning", "blaze", "ablaze"],
+    "crowd": ["crowd", "crowds", "crowding", "stampede", "panic", "panicking", "overcrowding", "overcrowded", "crush"],
 }
 CAUSAL_MARKERS = ("due to", "because", "caused by", "driven by", "triggered by")
 
@@ -163,61 +163,88 @@ def numbers_in(texts: Iterable[str]) -> List[float]:
 
 def verify(text: str, a: Assessment, model: HazardModel, location: str = "",
            extra_numbers: Iterable[float] = ()) -> Verification:
+    """Check every hazard word, number and causal claim in ``text`` against the evidence.
+
+    Rules (deliberately strict - a false accept is worse than a false reject,
+    because a rejected narrator text simply falls back to the template):
+
+    * hazard words: every hazard word in the narrative must belong to the
+      assessed hazard, or be a keyword of a cue that actually raised the risk
+      (e.g. "crowd" in "rapid exit movement (crowd flow index ...)" on a fire alert);
+    * numbers in the narrative must be bound: next to a cue keyword -> equal to
+      that cue's measured value (or its counterfactual); after "confidence /
+      probability" -> the probability; after "threshold" -> the threshold.
+      A number with no binding is accepted only if it equals the probability or
+      the threshold - never "some cue's value" (that would allow swapping values
+      between cues) and never a track id;
+    * "N percent" is read as a percentage;
+    * numbers in the trusted "Recommended:" section must equal numbers of the
+      playbook text (``extra_numbers``) or a measured cue value;
+    * in a sentence with a causal marker, every cue mentioned must have raised
+      the risk.
+    """
     v = Verification()
-    low = text.lower()
-    keywords: Dict[str, List[str]] = {name: [k.lower() for k in spec.keywords]
+    # a cue is referred to by its phrase keywords or by its own name ("tilt rate" in counterfactuals)
+    keywords: Dict[str, List[str]] = {name: [k.lower() for k in spec.keywords] + [name.replace("_", " ")]
                                       for name, spec in model.specs.items()}
     cue_by_name = {c.name: c for c in a.cues}
-    # numbers that are legitimately printable besides cue values
     cfs = counterfactuals(a, model)
-    globals_ok: List[float] = [a.prob * 100, a.threshold * 100, a.prob, a.threshold]
-    globals_ok += [cf.needed for cf in cfs] + list(extra_numbers)
-    sid = re.findall(r"\d+", a.subject or "")
-    globals_ok += [float(s) for s in sid] + [float(s) for s in re.findall(r"\d+", location)]
+    probs_ok: List[float] = [a.prob, a.threshold]
+    # the location may contain digits (Room B-104): mask it so they are never read as claims
+    masked = text
+    if location:
+        masked = re.sub(re.escape(location), "the zone", masked, flags=re.IGNORECASE)
+    masked = re.sub(r"(\d+(?:\.\d+)?)\s*percent\b", r"\1%", masked, flags=re.IGNORECASE)
+    parts = re.split(r"(?i)\brecommended:", masked, maxsplit=1)
+    narrative, recs = parts[0], (parts[1] if len(parts) > 1 else "")
 
-    # 1) hazard claims: any hazard word mentioned must be the assessed hazard
-    #    (the "Recommended:" part is instantiated from the trusted playbook and may
-    #    legitimately say e.g. "check for a triggering incident (fire/fall)")
-    narrative = low.split("recommended:")[0]
+    # 1) hazard claims (narrative only; the playbook may mention other hazards on purpose)
+    positive_kw = {k for c in a.cues if c.contribution > 0 for k in keywords.get(c.name, [])}
+    low = narrative.lower()
     for hz, words in HAZARD_WORDS.items():
         for w in words:
-            if re.search(rf"\b{re.escape(w)}\b", narrative):
-                ok = hz == a.hazard or any(
-                    w in keywords.get(c.name, []) for c in a.cues)
+            if re.search(rf"\b{re.escape(w)}\b", low):
+                ok = hz == a.hazard or w in positive_kw
                 v.claims.append(Claim("hazard", w, ok, "" if ok else f"assessed hazard is {a.hazard}"))
-                break
 
-    # 2) number + cause claims, clause by clause; causality is scoped to a sentence
-    for sentence in _sentences(text):
+    # 2) number + cause claims in the narrative, clause by clause; causality scoped to a sentence
+    for sentence in _sentences(narrative):
         in_causal = False
         for clause in _clauses(sentence):
             if any(m in clause.lower() for m in CAUSAL_MARKERS):
                 in_causal = True
-            _check_clause(clause, in_causal, keywords, cue_by_name, cfs, globals_ok, a, v)
+            _check_clause(clause, in_causal, keywords, cue_by_name, cfs, probs_ok, a, v)
+
+    # 3) numbers in the playbook section
+    trusted = list(extra_numbers) + [c.value for c in a.cues]
+    for mt in NUM_RE.finditer(recs):
+        num = mt.group(0)
+        ok = any(_matches(num, x) for x in trusted)
+        v.claims.append(Claim("number", f"{num} [recommended]", ok, "" if ok else f"{num} not in the playbook or evidence"))
     return v
 
 
 def _check_clause(clause: str, in_causal: bool, keywords: Dict[str, List[str]], cue_by_name: dict,
-                  cfs: list, globals_ok: List[float], a: Assessment, v: Verification) -> None:
+                  cfs: list, probs_ok: List[float], a: Assessment, v: Verification) -> None:
     cl = clause.lower()
     bound = [n for n, kws in keywords.items() if any(re.search(rf"\b{re.escape(k)}", cl) for k in kws)]
     for mt in NUM_RE.finditer(clause):
         num = mt.group(0)
         before = cl[max(0, mt.start() - 18):mt.start()]
         if re.search(r"threshold|alert line", before):
-            ok = _matches(num, a.threshold) or _matches(num, a.threshold * 100)
+            ok = _matches(num, a.threshold)
             detail = "" if ok else f"{num} is not the alert threshold"
-        elif re.search(r"confidence|probability|risk|likelihood", before):
-            ok = _matches(num, a.prob) or _matches(num, a.prob * 100)
+        elif re.search(r"confidence|probability|risk|likelihood|chance", before):
+            ok = _matches(num, a.prob)
             detail = "" if ok else f"{num} is not the assessed probability"
         elif bound:
             cand = [cue_by_name[n].value for n in bound if n in cue_by_name]
             cand += [cf.needed for cf in cfs if cf.cue in bound]
-            ok = any(_matches(num, x) for x in cand) if cand else any(_matches(num, g) for g in globals_ok)
+            ok = any(_matches(num, x) for x in cand)
             detail = "" if ok else f"{num} does not match measured {bound}"
         else:
-            ok = any(_matches(num, g) for g in globals_ok) or any(_matches(num, c.value) for c in a.cues)
-            detail = "" if ok else f"{num} not found in evidence"
+            ok = any(_matches(num, g) for g in probs_ok) and num.endswith("%")
+            detail = "" if ok else f"{num} is not bound to any measured cue"
         v.claims.append(Claim("number", f"{num} [{clause[:60]}]", ok, detail))
     if in_causal:
         for n in bound:

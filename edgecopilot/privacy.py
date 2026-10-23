@@ -32,9 +32,19 @@ def _head_box(kp: np.ndarray, box: np.ndarray, conf: float = 0.3):
     return int(cx - 1.4 * r), int(cy - 1.6 * r), int(cx + 1.4 * r), int(cy + 1.4 * r)
 
 
-def anonymize(frame: np.ndarray, people: Iterable, mode: str = "blur") -> np.ndarray:
+def anonymize(frame: np.ndarray, people: Iterable, mode: str = "blur", pose_available: bool = True) -> np.ndarray:
+    """Privacy filter applied before any image is shown, stored or sent.
+
+    ``pose_available=False`` means people cannot be located (no person model
+    loaded): the filter then fails safe and blurs the whole frame instead of
+    letting unblurred faces through.
+    """
     if mode == "raw":
         return frame
+    if not pose_available:
+        h, w = frame.shape[:2]
+        small = cv2.resize(frame, (max(1, w // 12), max(1, h // 12)), interpolation=cv2.INTER_AREA)
+        return cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
     out = frame.copy()
     h, w = out.shape[:2]
     people = list(people)

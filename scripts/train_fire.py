@@ -15,9 +15,10 @@ ap.add_argument("--epochs", type=int, default=6)
 ap.add_argument("--imgsz", type=int, default=416)
 ap.add_argument("--batch", type=int, default=16)
 ap.add_argument("--fraction", type=float, default=1.0)
+ap.add_argument("--name", default="ft2")
 args = ap.parse_args()
 model = YOLO(args.weights)
 model.train(data=args.data, epochs=args.epochs, imgsz=args.imgsz, batch=args.batch, device="cpu", workers=2,
             fraction=args.fraction, freeze=10, cos_lr=True, lr0=0.004, warmup_epochs=0.5, mosaic=1.0,
-            close_mosaic=1, patience=10, project="runs/fire", name="ft", exist_ok=True, plots=False, val=True,
+            close_mosaic=1, patience=10, project="runs/fire", name=args.name, exist_ok=True, plots=False, val=True,
             amp=False, verbose=False)

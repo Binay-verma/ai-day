@@ -85,6 +85,7 @@ class Assessment:
     cues: List[Cue] = field(default_factory=list)
     active: bool = False  # after temporal hysteresis
     onset: bool = False   # became active on this update
+    ema_logit: Optional[float] = None  # smoothed logit used by the alert line
 
     @property
     def logit_threshold(self) -> float:
@@ -171,24 +172,47 @@ class Hysteresis:
     def reset(self) -> None:
         self.state.clear()
 
-    def update(self, key: str, a: Assessment) -> Assessment:
-        st = self.state.setdefault(key, {"ema": a.logit, "above": 0, "below": 0, "active": False})
+    def update(self, key: str, a: Assessment, t: Optional[float] = None) -> Assessment:
+        """Smooth, debounce and latch.
+
+        * ``above`` / ``below`` count *consecutive* frames (any frame on the
+          other side resets them), so isolated spikes far apart never add up.
+        * Onset requires the smoothed score to have been over the line for
+          ``on_frames`` frames AND the current frame's own score to be over the
+          line, so the explanation shown (built from this frame's exact ledger)
+          always agrees with the decision: confidence >= threshold, a positive
+          margin, valid counterfactuals.
+        """
+        st = self.state.setdefault(key, {"ema": a.logit, "above": 0, "below": 0, "active": False, "peak_ema": -1e9})
         st["ema"] = self.alpha * a.logit + (1 - self.alpha) * st["ema"]
+        st["t"] = t if t is not None else a.t
         p = sigmoid(st["ema"])
         if p >= a.threshold:
             st["above"] += 1
-            st["below"] = 0
-        elif p < max(0.0, a.threshold - self.off_margin):
-            st["below"] += 1
+        else:
             st["above"] = 0
+        if p < max(0.0, a.threshold - self.off_margin):
+            st["below"] += 1
+        else:
+            st["below"] = 0
         was = st["active"]
-        if not was and st["above"] >= self.on_frames:
+        if not was and st["above"] >= self.on_frames and a.prob >= a.threshold:
             st["active"] = True
+            st["peak_ema"] = st["ema"]
         elif was and st["below"] >= self.off_frames:
             st["active"] = False
+        if st["active"]:
+            st["peak_ema"] = max(st["peak_ema"], st["ema"])
         a.active = st["active"]
         a.onset = a.active and not was
+        a.ema_logit = st["ema"]
         return a
+
+    def prune(self, keep_prefix: str, live_keys: set, now: float, max_idle_s: float = 30.0) -> None:
+        """Forget per-subject state of subjects that no longer exist (bounded memory on long runs)."""
+        for k in [k for k in self.state if k.startswith(keep_prefix) and k not in live_keys]:
+            if now - self.state[k].get("t", now) > max_idle_s or not self.state[k]["active"]:
+                del self.state[k]
 
 
 def fit_weights(X: np.ndarray, y: np.ndarray, specs: List[CueSpec], prior_bias: float,

@@ -181,8 +181,8 @@ class OnnxYolo:
             kp = None
             if kpts is not None:
                 kp = kpts[i].copy()
-                kp[:, 0] = (kp[:, 0] - px) / scale
-                kp[:, 1] = (kp[:, 1] - py) / scale
+                kp[:, 0] = ((kp[:, 0] - px) / scale).clip(0, w0 - 1)
+                kp[:, 1] = ((kp[:, 1] - py) / scale).clip(0, h0 - 1)
             c = int(cls[i])
             label = self.class_names[c] if c < len(self.class_names) else str(c)
             dets.append(Detection(box=b, score=float(scores[i]), cls=c, label=label, keypoints=kp))

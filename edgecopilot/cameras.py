@@ -236,6 +236,7 @@ class CameraWorker:
                 if self.sensors_csv and os.path.exists(self.sensors_csv):
                     self.copilot.sensors.load_csv(self.sensors_csv)
             idx, t0, last = 0, time.perf_counter(), time.perf_counter()
+            mono0 = time.monotonic()
             while not self.stop_ev.is_set():
                 if self.is_file and self.realtime:
                     # behave like a live camera under load: skip frames we are too slow for
@@ -257,13 +258,14 @@ class CameraWorker:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
                 # files: stream time (reproducible); live: wall clock, the same clock that
                 # stamps MQTT/HTTP sensor readings, so camera and sensor evidence line up
-                t = (idx - 1) / fps if self.is_file else time.time()
+                t = (idx - 1) / fps if self.is_file else time.monotonic() - mono0
+                wall = t if self.is_file else time.time()
                 if self.is_file and self.realtime:
                     lag = t - (time.perf_counter() - t0)
                     if lag > 0:
                         self.stop_ev.wait(lag)
                 try:
-                    self._step(frame, t)
+                    self._step(frame, t, wall)
                 except Exception as e:  # noqa: BLE001 - one bad frame must never kill a camera thread
                     self.health.last_error = redact(f"{type(e).__name__}: {e}")[:300]
                     self.health.errors = getattr(self.health, "errors", 0) + 1
@@ -284,7 +286,8 @@ class CameraWorker:
             log.warning("camera %s: stream ended, reconnecting in %.0fs", self.cam_id, backoff)
             self.stop_ev.wait(backoff)
 
-    def _step(self, frame: np.ndarray, t: float) -> None:
+    def _step(self, frame: np.ndarray, t: float, wall: Optional[float] = None) -> None:
+        wall = t if wall is None else wall
         h = self.health
         h.frames += 1
         h.last_frame_wall = time.time()
@@ -296,7 +299,7 @@ class CameraWorker:
                 self.on_fault(self.cam_id, k, f"camera {self.cam_id}: {k} detected")
             h.faults[k] = v
         cop = self.copilot
-        cop.sensors.advance(t)
+        cop.sensors.advance(wall)
         if self.paused:
             img = frame.copy()
             cv2.putText(img, f"AI ANALYSIS PAUSED by {self.paused_by}", (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 4, cv2.LINE_AA)
@@ -310,7 +313,7 @@ class CameraWorker:
             if self.on_frame:
                 self.on_frame(self.cam_id, self.latest_jpg, self.state)
             return
-        res = cop.process(frame, t)
+        res = cop.process(frame, t, wall_t=wall)
         if res.scene_change and not self.is_file and self.on_fault:
             # a live camera's field of view changed (moved, knocked, re-aimed): calibration no longer applies
             self.on_fault(self.cam_id, "view_changed", f"camera {self.cam_id}: field of view changed - re-calibrate")
@@ -318,7 +321,8 @@ class CameraWorker:
         view = cop._last_frame if cop._last_frame is not None else frame
         img = cop.render(view, res.people, res.hazards, res.assessments)
         if self.clip is not None:
-            for alert_id, frames in self.clip.add(anonymize(view, res.people, cop.privacy), t):
+            for alert_id, frames in self.clip.add(anonymize(view, res.privacy_people, cop.privacy,
+                                                            pose_available=cop.pose is not None), t):
                 if self.on_clip:
                     self.on_clip(self.cam_id, alert_id, frames)
         for al in res.new_alerts:
@@ -340,7 +344,7 @@ class CameraWorker:
                 self.latest_jpg = buf.tobytes()
             self.state = {"t": round(t, 2), "people": len(res.people), "motion": round(res.motion, 4),
                           "ran_detector": res.ran_detector, "timings": {k: round(v, 1) for k, v in res.timings.items()},
-                          "fps": round(h.fps, 1), "gauges": gauges, "sensors": {z: v for z, v in cop.sensors.status(time.time() if not self.is_file else t).items() if z == cop.zone or (self.is_file and z == "default")},
+                          "fps": round(h.fps, 1), "gauges": gauges, "sensors": {z: v for z, v in cop.sensors.status(wall).items() if z == cop.zone or (self.is_file and z == "default")},
                           "scene_change": res.scene_change}
         if self.on_frame:
             self.on_frame(self.cam_id, self.latest_jpg, self.state)

@@ -51,6 +51,16 @@ class CrowdFeatureExtractor:
         self.ratio_hist: Deque[Tuple[float, float]] = deque()
         self.count_hist: Deque[Tuple[float, float]] = deque()
 
+    def idle(self, t: float, n_people: int) -> Dict[str, float]:
+        """Cheap path when nobody is in view: keep the head-count history, skip optical flow."""
+        self.count_hist.append((t, n_people))
+        while self.count_hist and t - self.count_hist[0][0] > self.exodus_s:
+            self.count_hist.popleft()
+        self.prev, self.prev_t = None, None  # next flow pair starts fresh (no bogus dt)
+        self.heatmap = None
+        self.last_values = {"occupancy": 0.0, "people": float(n_people)}
+        return self.last_values
+
     def reset(self) -> None:
         self.prev = None
         self.prev_t = None
@@ -78,7 +88,9 @@ class CrowdFeatureExtractor:
             self.prev, self.prev_t = gray, t
             self.last_values = values
             return values
-        dt = max(t - (self.prev_t or t), 1e-3)
+        dt = t - self.prev_t if self.prev_t is not None else 0.0
+        if not 1e-3 < dt < 2.0:
+            dt = 1 / 25.0  # first frame after a gap / clock jump: assume one nominal frame interval
         flow = cv2.calcOpticalFlowFarneback(self.prev, gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
         self.prev, self.prev_t = gray, t
         fx, fy = flow[..., 0], flow[..., 1]

@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS alerts (
   status TEXT, operator TEXT, operator_note TEXT, ack_time REAL,
   explanation TEXT, decision TEXT, verification TEXT, recommendations TEXT, cues TEXT,
   provenance TEXT, snapshot_path TEXT, evidence_path TEXT, clip_path TEXT, purged INTEGER DEFAULT 0,
-  legal_hold INTEGER DEFAULT 0
+  legal_hold INTEGER DEFAULT 0, cleared_at REAL
 );
 CREATE INDEX IF NOT EXISTS ix_alerts_time ON alerts(wall_time);
 CREATE INDEX IF NOT EXISTS ix_alerts_status ON alerts(status);
@@ -94,7 +94,9 @@ class Store:
         cols = {r[1] for r in self.conn.execute("PRAGMA table_info(alerts)")}
         if "legal_hold" not in cols:
             self.conn.execute("ALTER TABLE alerts ADD COLUMN legal_hold INTEGER DEFAULT 0")
-        self.conn.execute("INSERT OR REPLACE INTO meta (k, v) VALUES ('schema_version', '2')")
+        if "cleared_at" not in cols:
+            self.conn.execute("ALTER TABLE alerts ADD COLUMN cleared_at REAL")
+        self.conn.execute("INSERT OR REPLACE INTO meta (k, v) VALUES ('schema_version', '3')")
 
     def close(self) -> None:
         with self.lock:
@@ -143,7 +145,7 @@ class Store:
     def update_alert(self, alert_id: str, **fields) -> bool:
         if not fields:
             return False
-        allowed = {"status", "operator", "operator_note", "ack_time", "peak_prob", "clip_path", "legal_hold"}
+        allowed = {"status", "operator", "operator_note", "ack_time", "peak_prob", "clip_path", "legal_hold", "cleared_at"}
         bad = set(fields) - allowed
         if bad:
             raise ValueError(f"cannot update {bad}")

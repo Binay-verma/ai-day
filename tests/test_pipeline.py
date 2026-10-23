@@ -91,7 +91,7 @@ def test_pipeline_runs_without_models(tmp_path):
     cfg = load_config("configs/campus.yaml")
     for k in cfg["models"]:
         cfg["models"][k]["path"] = "models/__missing__.onnx"
-    hub = SensorHub()
+    hub = SensorHub(fallback_zone="default")
     for r in synthetic_fire_trace("default", 0, 20, fire_at=3):
         hub.push(r)
     cop = Copilot(cfg, root=str(tmp_path), zone="Lab Block A", sensors=hub, event_log=EventLog(str(tmp_path / "ev.jsonl")))
