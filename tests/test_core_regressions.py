@@ -185,6 +185,23 @@ def test_c7_location_digits_and_paraphrase_ok(fall_alert):
     assert verify(e.text, a, m, "Room B-104", extra_numbers=[104]).ok
 
 
+def test_c7_nothing_hides_after_recommended(fall_alert):
+    """Claims appended after the playbook section are still checked as narrative."""
+    m, a = fall_alert
+    recs = ["Call security on ext. 2311", "Bring the AED"]
+    e = explain(a, m, "Corridor B", recs)
+    assert verify(e.text, a, m, "Corridor B", recommendations=recs).ok
+    for tail in [" Smoke is spreading fast.", " The person has been lying still for 82 s.",
+                 " A stampede broke out."]:
+        assert not verify(e.text + tail, a, m, "Corridor B", recommendations=recs).ok, tail
+        assert not verify(e.text + tail, a, m, "Corridor B", extra_numbers=[2311]).ok, tail
+    # playbook text moved to the front is still recognised as playbook text
+    import re as _re
+    mm = _re.search(r"Recommended:.*$", e.text)
+    moved = mm.group(0) + " " + e.text[:mm.start()]
+    assert verify(moved, a, m, "Corridor B", recommendations=recs).ok
+
+
 # C12 - any frame shape/format is accepted
 @pytest.mark.parametrize("frame", [
     np.zeros((240, 320), np.uint8), np.zeros((240, 320, 4), np.uint8), np.zeros((240, 320, 1), np.uint8),

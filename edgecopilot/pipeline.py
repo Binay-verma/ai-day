@@ -459,7 +459,7 @@ class Copilot:
         rec_texts = [x["text"] for x in rec["actions"][:3]]
         tri = triage(a, **self.cfg.get("triage", {}))
         exp = explain(a, model, self.zone, rec_texts, triage=tri)
-        ver = verify(exp.text, a, model, self.zone, extra_numbers=numbers_in(rec_texts))
+        ver = verify(exp.text, a, model, self.zone, extra_numbers=numbers_in(rec_texts), recommendations=rec_texts)
         dec = explain_decision(a, model)
         sal = self._evidence_map(a, frame, people, hazards)
         safe = anonymize(frame, self._privacy_people, self.privacy, pose_available=self.pose is not None)

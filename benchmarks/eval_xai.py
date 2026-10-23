@@ -101,6 +101,21 @@ def perturb(text, a, model, rng):
     pct_m = re.search(r"Confidence (\d+)%", text)
     if pct_m:
         outs.append(("confidence_inflation", text.replace(pct_m.group(0), f"Confidence {min(99, int(pct_m.group(1)) + 25) if int(pct_m.group(1)) < 74 else int(pct_m.group(1)) - 30}%")))
+    # attacks added after the independent audit (docs/research/audit_core.md, C7)
+    pos = [c for c in a.cues if c.contribution > 0]
+    if len(pos) >= 2:  # value swapped between two cues, wording without the bound keyword
+        c1, c2 = pos[0], pos[1]
+        outs.append(("value_swap", text + f" The key reading was {c2.value:.1f}."))
+    unrel = {"fall": "Crowd stampede and panic in the area.", "crowd": "A person fell in the area.",
+             "fire_smoke": "Someone has fallen near the fire."}[a.hazard]
+    outs.append(("hazard_drift", text + " " + unrel))
+    if neg:
+        c = rng.choice(neg)
+        syn = {"ground_time": "the person stayed motionless", "torso_angle": "the torso angle", "aspect_ratio": "the body shape",
+               "height_drop": "the body height", "descent_speed": "the descent", "tilt_rate": "the torso rotation",
+               "smoke_ppm": "the gas sensor", "temp_rise": "the temperature", "surge": "people running",
+               "exodus": "people leaving", "occupancy": "the occupancy"}.get(c.name, c.name.replace("_", " "))
+        outs.append(("synonym_false_cause", text + f" This happened because {syn} changed."))
     return outs
 
 
@@ -114,10 +129,10 @@ def paraphrase(text, rng):
     if m:
         v = float(m.group(0))
         outs.append(text[:m.start()] + f"{round(v):d}" + text[m.end():])
-    # reorder: move the confidence sentence first
-    sents = re.split(r"(?<=\.)\s+", text)
-    if len(sents) > 2:
-        outs.append(" ".join([sents[-1]] + sents[:-1]))
+    # reorder: move the confidence sentence to the front
+    m = re.search(r"Confidence \d+% \(threshold \d+%\)\.\s*", text)
+    if m:
+        outs.append(m.group(0) + text[:m.start()] + text[m.end():])
     return outs
 
 
@@ -153,7 +168,7 @@ def main():
         t0 = time.perf_counter()
         recs = [x["text"] for x in rec.recommend(a, loc)["actions"][:3]]
         e = explain(a, m, loc, recs)
-        v = verify(e.text, a, m, loc, extra_numbers=numbers_in(recs))
+        v = verify(e.text, a, m, loc, extra_numbers=numbers_in(recs), recommendations=recs)
         explain_decision(a, m)
         lat.append((time.perf_counter() - t0) * 1e3)
         ground.append(v.groundedness)
@@ -174,10 +189,10 @@ def main():
         for kind, bad in perturb(e.text, a, m, rng):
             st = stress.setdefault(kind, [0, 0])
             st[1] += 1
-            st[0] += int(not verify(bad, a, m, loc, extra_numbers=numbers_in(recs)).ok)
+            st[0] += int(not verify(bad, a, m, loc, extra_numbers=numbers_in(recs), recommendations=recs).ok)
         for good in paraphrase(e.text, rng):
             para_n += 1
-            para_ok += int(verify(good, a, m, loc, extra_numbers=numbers_in(recs)).ok)
+            para_ok += int(verify(good, a, m, loc, extra_numbers=numbers_in(recs), recommendations=recs).ok)
     res["attribution_max_abs_error"] = float(max(attr_err)) if attr_err else None
     res["deletion_test_max_abs_error"] = float(max(del_err)) if del_err else None
     res["counterfactuals"] = {"alerts_with_single_cue_cf": n_with_cf, "total": cf_total,

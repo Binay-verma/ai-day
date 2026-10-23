@@ -162,7 +162,7 @@ def numbers_in(texts: Iterable[str]) -> List[float]:
 
 
 def verify(text: str, a: Assessment, model: HazardModel, location: str = "",
-           extra_numbers: Iterable[float] = ()) -> Verification:
+           extra_numbers: Iterable[float] = (), recommendations: Optional[Sequence[str]] = None) -> Verification:
     """Check every hazard word, number and causal claim in ``text`` against the evidence.
 
     Rules (deliberately strict - a false accept is worse than a false reject,
@@ -178,8 +178,11 @@ def verify(text: str, a: Assessment, model: HazardModel, location: str = "",
       the threshold - never "some cue's value" (that would allow swapping values
       between cues) and never a track id;
     * "N percent" is read as a percentage;
-    * numbers in the trusted "Recommended:" section must equal numbers of the
-      playbook text (``extra_numbers``) or a measured cue value;
+    * the trusted playbook actions: when ``recommendations`` (the exact action
+      strings) are given they are cut out of the text and everything else is
+      checked as narrative, so nothing can hide after "Recommended:". Without
+      them, the section after "Recommended:" (up to the next sentence) may only
+      contain numbers of the playbook text (``extra_numbers``) or cue values;
     * in a sentence with a causal marker, every cue mentioned must have raised
       the risk.
     """
@@ -195,8 +198,22 @@ def verify(text: str, a: Assessment, model: HazardModel, location: str = "",
     if location:
         masked = re.sub(re.escape(location), "the zone", masked, flags=re.IGNORECASE)
     masked = re.sub(r"(\d+(?:\.\d+)?)\s*percent\b", r"\1%", masked, flags=re.IGNORECASE)
-    parts = re.split(r"(?i)\brecommended:", masked, maxsplit=1)
-    narrative, recs = parts[0], (parts[1] if len(parts) > 1 else "")
+    if recommendations is not None:
+        recs = ""
+        for r in sorted(recommendations, key=len, reverse=True):
+            r2 = re.sub(re.escape(location), "the zone", r, flags=re.IGNORECASE) if location else r
+            if r2 in masked:
+                recs += " " + r2
+                masked = masked.replace(r2, " ")
+        narrative = re.sub(r"(?i)\brecommended:\s*[;.\s]*", " ", masked)
+    else:
+        parts = re.split(r"(?i)\brecommended:", masked, maxsplit=1)
+        narrative, recs = parts[0], (parts[1] if len(parts) > 1 else "")
+        # the playbook section ends at the first sentence that starts with a capital after a full stop
+        m = re.search(r"\.\s+(?=[A-Z])(?!\d)", recs)
+        if m and not re.search(r"\b(ext|no|approx)\.$", recs[:m.start() + 1], flags=re.IGNORECASE):
+            narrative += " " + recs[m.end():]
+            recs = recs[:m.start()]
 
     # 1) hazard claims (narrative only; the playbook may mention other hazards on purpose)
     positive_kw = {k for c in a.cues if c.contribution > 0 for k in keywords.get(c.name, [])}
@@ -216,7 +233,7 @@ def verify(text: str, a: Assessment, model: HazardModel, location: str = "",
             _check_clause(clause, in_causal, keywords, cue_by_name, cfs, probs_ok, a, v)
 
     # 3) numbers in the playbook section
-    trusted = list(extra_numbers) + [c.value for c in a.cues]
+    trusted = list(extra_numbers) + [c.value for c in a.cues] + (numbers_in(recommendations) if recommendations else [])
     for mt in NUM_RE.finditer(recs):
         num = mt.group(0)
         ok = any(_matches(num, x) for x in trusted)
