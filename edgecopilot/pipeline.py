@@ -24,7 +24,7 @@ from .perception.crowd import CrowdFeatureExtractor
 from .perception.detector import Detection, DetectorOutput, OnnxYolo
 from .perception.fall import FallFeatureExtractor
 from .perception.smoke import SmokeCueExtractor
-from .perception.tracker import Tracker
+from .perception.tracker import Tracker, iou_matrix
 from .privacy import anonymize, draw_skeleton
 from .xai.calibration import ConformalGate
 from .xai.counterfactual import explain_decision
@@ -89,6 +89,7 @@ class Copilot:
         self.scene_cut = rt.get("scene_cut", 0.75)
         self.cooldown_s = rt.get("realert_cooldown_s", 30.0)
         self._closed: Dict[str, tuple] = {}  # key -> (alert, t_closed) for re-alert cooldown
+        self._fall_box: Dict[str, np.ndarray] = {}  # last box of each open/closed fall incident (re-identification)
         self.exposure_jump = rt.get("exposure_jump", 0.45)
         self._unstable_until = -1.0
         self.scene_changes = 0
@@ -173,6 +174,25 @@ class Copilot:
             tau = g.tau if g else None
             m.threshold = float(np.clip(1 / (1 + np.exp(-tau)), floor, ceil)) if tau is not None else base
 
+    def _same_fall_incident(self, subject: str, t: float) -> Optional[str]:
+        """Key of a recently closed fall incident at the same place as ``subject``'s track, if any."""
+        try:
+            tr = self.tracker.tracks.get(int(subject.split("#")[-1]))
+        except ValueError:
+            return None
+        if tr is None:
+            return None
+        box = tr.last.box
+        best, best_iou = None, 0.0
+        for k, (al, tc) in self._closed.items():
+            old = self._fall_box.get(k)
+            if not k.startswith("fall:") or old is None or t - tc > self.cooldown_s or al.status not in ("resolved", "open"):
+                continue
+            iou = float(iou_matrix(old[None], box[None])[0, 0])
+            if iou > best_iou:
+                best, best_iou = k, iou
+        return best if best_iou >= 0.3 else None
+
     def save_calibration(self) -> None:
         import json
         import tempfile
@@ -193,6 +213,7 @@ class Copilot:
         self.hyst.reset()
         self.active.clear()
         self._closed.clear()
+        self._fall_box.clear()
         self._prev_small = None
         self._unstable_until = -1.0
         self._since_heavy = 10 ** 9
@@ -213,6 +234,7 @@ class Copilot:
                 al.status = "resolved"
         self.active.clear()
         self._closed.clear()
+        self._fall_box.clear()
         self._last_people = []
         self._last_fire = None
         self._last_fire_t = -1e9
@@ -390,6 +412,13 @@ class Copilot:
         for a in assessments:
             key = f"{a.hazard}:{a.subject}"
             recent = self._closed.get(key)
+            if a.onset and recent is None and a.hazard == "fall":
+                # the tracker may have lost and re-acquired the same fallen person under a new id:
+                # same place, within the cooldown -> same incident
+                ckey = self._same_fall_incident(a.subject, t)
+                if ckey is not None:
+                    recent = self._closed.pop(ckey)
+                    self._fall_box.pop(ckey, None)
             if a.onset and recent is not None and t - recent[1] <= self.cooldown_s and recent[0].status in ("resolved", "open"):
                 # same incident flaring up again: re-open it instead of paging the operator twice
                 al = recent[0]
@@ -414,17 +443,23 @@ class Copilot:
                     al.status = "resolved"
                 self._closed[key] = (al, t)
                 self._notify_status(al, "cleared")
-        # tracks that disappeared close their fall alerts
+        # tracks that disappeared close their fall alerts (and start the re-alert cooldown)
         for key in [k for k in self.active if k.startswith("fall:")]:
             tid = int(key.split("#")[-1])
-            if tid not in self.tracker.tracks:
+            tr = self.tracker.tracks.get(tid)
+            if tr is not None:
+                self._fall_box[key] = tr.last.box.copy()
+            else:
                 al = self.active.pop(key)
                 if al.status == "open":
                     al.status = "resolved"
+                self._closed[key] = (al, t)
                 self._notify_status(al, "cleared")
         # bounded memory: forget closed incidents once their re-open window has passed
         for k in [k for k, (_, tc) in self._closed.items() if t - tc > self.cooldown_s]:
             del self._closed[k]
+        for k in [k for k in self._fall_box if k not in self._closed and k not in self.active]:
+            del self._fall_box[k]
         timings["explain"] = (time.perf_counter() - t0) * 1e3
         timings["total"] = (time.perf_counter() - t_all) * 1e3
         self._last_frame = frame

@@ -324,3 +324,28 @@ def test_overlay_configs_load_in_pipeline(tmp_path):
             c["models"][k]["path"] = "models/__missing__.onnx"
             c["models"][k].pop("sha256", None)
         Copilot(c, root=str(tmp_path), zone="Corridor B").process(np.zeros((120, 160, 3), np.uint8), 0.0)
+
+
+def test_fall_reacquired_under_new_track_id_is_not_a_second_alert(tmp_path):
+    """A lying person whose track is lost and re-acquired must re-open the incident, not page twice."""
+    from edgecopilot.perception.tracker import Track, TrackState
+    cop = Copilot(no_models(), root=str(tmp_path), zone="Corridor B")
+    box = np.array([100.0, 300.0, 400.0, 380.0])
+
+    def track(tid, b, t):
+        tr = Track(tid)
+        tr.history.append(TrackState(t, b, None, 0.5))
+        return tr
+    first = Alert("fall", "person#1", "Corridor B", 1.0, 0.9, "HIGH", {}, {}, {}, [], [])
+    cop.events.add(first)
+    cop.active["fall:person#1"] = first
+    frame = np.zeros((120, 160, 3), np.uint8)
+    cop.tracker.tracks = {1: track(1, box, 1.0)}
+    cop.process(frame, 1.0)              # track alive: incident box remembered
+    cop.tracker.tracks = {}
+    cop.process(frame, 1.1)              # track lost: incident closed, cooldown starts
+    assert "fall:person#1" in cop._closed and first.status == "resolved"
+    cop.tracker.tracks = {7: track(7, box + 5, 5.0)}
+    assert cop._same_fall_incident("person#7", 5.0) == "fall:person#1"
+    cop.tracker.tracks = {7: track(7, box + 400, 5.0)}   # somewhere else: a different person
+    assert cop._same_fall_incident("person#7", 5.0) is None

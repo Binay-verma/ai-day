@@ -499,7 +499,12 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
                                              "cameras": [w.status() for w in service.cameras.values()],
                                              "alerts": service.store.list_alerts(30)}, default=str))
             while True:
-                msg = await c.q.get()
+                try:
+                    # heartbeat: with no frames (camera offline, file ended) a dead client is
+                    # still noticed, and shutdown is never blocked by an idle handler
+                    msg = await asyncio.wait_for(c.q.get(), timeout=10.0)
+                except asyncio.TimeoutError:
+                    msg = {"type": "ping"}
                 if msg["type"] == "frame":
                     out = {"type": "frame", "camera": msg["camera"], "state": msg["state"],
                            "jpg": base64.b64encode(msg["jpg"]).decode()}
@@ -603,6 +608,7 @@ def main():
     import uvicorn
     uvicorn.run(create_app(service, auth, cfg), host=host, port=args.port or cfg["server"]["port"],
                 log_level="warning", proxy_headers=True, server_header=False,
+                timeout_graceful_shutdown=5,  # SIGTERM (systemd/docker stop) never hangs on open connections
                 # trust X-Forwarded-For only from the TLS proxy, so lockout/rate limits see the real client
                 forwarded_allow_ips=os.environ.get("EDGECOPILOT_TRUSTED_PROXIES", "127.0.0.1"))
 
