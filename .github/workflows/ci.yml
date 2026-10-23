@@ -10,7 +10,7 @@ jobs:
         with: {python-version: "3.11", cache: pip}
       - run: pip install -e ".[dev]"
       - name: Lint
-        run: ruff check edgecopilot tests
+        run: ruff check .
       - name: Types
         run: mypy edgecopilot
       - name: Security (static)
@@ -18,7 +18,7 @@ jobs:
       - name: Dependency vulnerabilities
         run: pip-audit --skip-editable
       - name: Config lint
-        run: python -m edgecopilot.config_schema configs/campus.yaml
+        run: python -m edgecopilot.config_schema configs/campus.yaml && python -m edgecopilot.config_schema configs/production.example.yaml
   test:
     runs-on: ubuntu-latest
     strategy:
