@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import sqlite3
@@ -68,11 +69,13 @@ def _load_key(env: str, path: str) -> Optional[bytes]:
 
 class Store:
     def __init__(self, db_path: str = "data/edgecopilot.db", media_dir: str = "data/media",
-                 encrypt_media: bool = True, key_env: str = "EDGECOPILOT_MEDIA_KEY"):
+                 encrypt_media: bool = True, key_env: str = "EDGECOPILOT_MEDIA_KEY", audit_key: Optional[bytes] = None):
         os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
         os.makedirs(media_dir, exist_ok=True)
         self.db_path = db_path
         self.media_dir = media_dir
+        # keyed chain: without the server secret nobody can rewrite history consistently
+        self.audit_key = audit_key
         self.lock = threading.RLock()
         self.conn = sqlite3.connect(db_path, check_same_thread=False, isolation_level=None)
         self.conn.execute("PRAGMA journal_mode=WAL")
@@ -225,15 +228,23 @@ class Store:
         return {"found": 1, "files": files}
 
     # --------------------------------------------------------------- audit
+    def _chain(self, prev: str, ts: float, actor: str, role: str, action: str, target: str, det: str) -> str:
+        msg = f"{prev}|{ts!r}|{actor}|{role}|{action}|{target}|{det}".encode()
+        if self.audit_key:
+            return hmac.new(self.audit_key, msg, hashlib.sha256).hexdigest()
+        return hashlib.sha256(msg).hexdigest()
+
     def audit(self, actor: str, role: str, action: str, target: str = "", detail: Optional[dict] = None) -> str:
         with self.lock:
             row = self.conn.execute("SELECT hash FROM audit ORDER BY seq DESC LIMIT 1").fetchone()
             prev = row[0] if row else "0" * 64
             ts = time.time()
             det = json.dumps(detail or {}, sort_keys=True, default=str)
-            h = hashlib.sha256(f"{prev}|{ts!r}|{actor}|{role}|{action}|{target}|{det}".encode()).hexdigest()
+            h = self._chain(prev, ts, actor, role, action, target, det)
             self.conn.execute("INSERT INTO audit (ts, actor, role, action, target, detail, prev_hash, hash) "
                               "VALUES (?,?,?,?,?,?,?,?)", (ts, actor, role, action, target, det, prev, h))
+            # head anchor outside the audit table: truncating the tail is detected too
+            self.conn.execute("INSERT OR REPLACE INTO meta (k, v) VALUES ('audit_head', ?)", (h,))
             return h
 
     def audit_log(self, limit: int = 200) -> List[Dict[str, Any]]:
@@ -248,11 +259,15 @@ class Store:
                                      "FROM audit ORDER BY seq").fetchall()
         prev = "0" * 64
         for seq, ts, actor, role, action, target, det, p, h in rows:
-            exp = hashlib.sha256(f"{prev}|{ts!r}|{actor}|{role}|{action}|{target}|{det}".encode()).hexdigest()
+            exp = self._chain(prev, ts, actor, role, action, target, det)
             if p != prev or h != exp:
                 return {"ok": False, "broken_at_seq": seq, "entries": len(rows)}
             prev = h
-        return {"ok": True, "entries": len(rows), "head": prev}
+        with self.lock:
+            row = self.conn.execute("SELECT v FROM meta WHERE k = 'audit_head'").fetchone()
+        if row and row[0] != prev:
+            return {"ok": False, "broken_at_seq": "tail (entries removed after the last recorded head)", "entries": len(rows)}
+        return {"ok": True, "entries": len(rows), "head": prev, "keyed": bool(self.audit_key)}
 
     # ----------------------------------------------------------- retention
     def purge(self, retention_days: float, now: Optional[float] = None) -> Dict[str, int]:

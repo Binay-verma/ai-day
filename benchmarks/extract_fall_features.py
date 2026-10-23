@@ -65,7 +65,12 @@ def main():
     print(f"{len(items)} videos ({sum(i['label'] for i in items)} falls)")
     pose = OnnxYolo(args.model, ["person"], imgsz=args.imgsz, conf=args.conf, iou=0.5, pose=True, threads=2)
     t0 = time.time()
+    ckpt = args.out + ".partial"
+    done = pickle.load(open(ckpt, "rb")) if os.path.exists(ckpt) else {}
     for k, it in enumerate(items):
+        if it["path"] in done:  # resume after an interruption
+            it.update(done[it["path"]])
+            continue
         frames = []
         for frame, t in VideoSource(it["path"], stride=args.stride):
             out = pose(frame)
@@ -75,11 +80,17 @@ def main():
                                     for d in out.detections]})
         it["frames"] = frames
         it["shape"] = frame.shape[:2]
+        done[it["path"]] = {"frames": frames, "shape": it["shape"]}
+        if (k + 1) % 10 == 0:
+            with open(ckpt, "wb") as f:
+                pickle.dump(done, f)
         print(f"[{k + 1}/{len(items)}] S{it['subject']} {'FALL' if it['label'] else 'ADL '} {os.path.basename(it['path'])} "
               f"{len(frames)} frames, elapsed {time.time() - t0:.0f}s", flush=True)
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "wb") as f:
         pickle.dump(items, f)
+    if os.path.exists(ckpt):
+        os.remove(ckpt)
     print("saved", args.out)
 
 

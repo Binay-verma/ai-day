@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
@@ -99,6 +100,7 @@ class Copilot:
         self.recommender = Recommender.from_config(cfg)
         # conformal false-alarm budgets (per hazard for this camera's zone)
         self.gates: Dict[str, ConformalGate] = {}
+        self._calib_lock = threading.Lock()
         self.calib_path = os.path.join(root, "calibration", f"{zone.replace(' ', '_')}.json")
         self._load_calibration()
         self.sensors = sensors or SensorHub()
@@ -129,11 +131,20 @@ class Copilot:
 
     def _load_calibration(self) -> None:
         import json
+        import logging
         if os.path.exists(self.calib_path):
-            with open(self.calib_path) as f:
-                data = json.load(f)
-            for hz, g in data.items():
-                self.gates[hz] = ConformalGate(g["alpha"], scores=g["scores"])
+            try:
+                with open(self.calib_path) as f:
+                    data = json.load(f)
+                for hz, g in data.items():
+                    if hz in self.models:
+                        scores = [float(x) for x in g["scores"] if np.isfinite(float(x))]
+                        self.gates[hz] = ConformalGate(float(g["alpha"]), scores=scores)
+            except (OSError, ValueError, KeyError, TypeError) as e:
+                # a damaged calibration file must never stop the safety system: fall back to defaults, loudly
+                logging.getLogger("edgecopilot.pipeline").error(
+                    "calibration file %s unreadable (%s) - using configured thresholds", self.calib_path, e)
+                self.gates = {}
         self._apply_gates()
 
     def _apply_gates(self) -> None:
@@ -156,9 +167,15 @@ class Copilot:
 
     def save_calibration(self) -> None:
         import json
+        import tempfile
         os.makedirs(os.path.dirname(self.calib_path), exist_ok=True)
-        with open(self.calib_path, "w") as f:
-            json.dump({hz: g.to_dict() for hz, g in self.gates.items()}, f)
+        with self._calib_lock:
+            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(self.calib_path), suffix=".tmp")
+            with os.fdopen(fd, "w") as f:
+                json.dump({hz: g.to_dict() for hz, g in self.gates.items()}, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, self.calib_path)  # atomic: readers see the old or the new file, never a torn one
 
     def reset(self) -> None:
         self.tracker.reset()
@@ -406,6 +423,9 @@ class Copilot:
 
     # ---------------------------------------------------------- feedback loop
     def feedback(self, alert_id: str, confirmed: bool, note: str = "") -> Optional[dict]:
+        prev = self.events.alerts.get(alert_id)
+        if prev is None or prev.status in ("confirmed", "dismissed"):
+            return None  # each alert can be labelled once: repeated dismissals must not desensitise a camera
         al = self.events.update_status(alert_id, "confirmed" if confirmed else "dismissed", note)
         if al is None:
             return None

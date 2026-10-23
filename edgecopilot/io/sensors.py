@@ -13,25 +13,64 @@ explanation can say the sensor was offline instead of trusting old data.
 from __future__ import annotations
 
 import csv
-from collections import defaultdict, deque
-from typing import Deque, Dict, List, Optional, Tuple
+import math
+import threading
+from collections import deque
+from typing import Deque, Dict, Iterable, List, Optional, Tuple
 
 
 class SensorHub:
+    """Thread-safe: HTTP/MQTT threads push while camera threads read.
+
+    ``zones`` (optional) restricts which zone names are accepted, so a device
+    cannot grow memory by inventing zones; without it at most ``max_zones``
+    zones are kept.  ``fallback_zone`` is used only when a camera's own zone has
+    no sensors (CSV replay / single-room demos); in a real deployment leave it
+    ``None`` so a sensor in one room can never vouch for another room.
+    """
+
     FIELDS = ("smoke_ppm", "temp_c", "sound_db")
 
-    def __init__(self, stale_s: float = 10.0):
+    def __init__(self, stale_s: float = 10.0, zones: Optional[Iterable[str]] = None, max_zones: int = 64,
+                 fallback_zone: Optional[str] = "default"):
         self.stale_s = stale_s
-        self.hist: Dict[str, Dict[str, Deque[Tuple[float, float]]]] = defaultdict(lambda: defaultdict(lambda: deque(maxlen=600)))
+        self.allowed = set(zones) if zones is not None else None
+        self.max_zones = max_zones
+        self.fallback_zone = fallback_zone
+        self.hist: Dict[str, Dict[str, Deque[Tuple[float, float]]]] = {}
+        self._lock = threading.RLock()
         self._replay: List[dict] = []
         self._replay_idx = 0
+        self.rejected = 0
 
-    def push(self, msg: dict) -> None:
-        zone = msg.get("zone", "default")
-        t = float(msg["t"])
-        for k in self.FIELDS:
-            if k in msg and msg[k] is not None:
-                self.hist[zone][k].append((t, float(msg[k])))
+    def push(self, msg: dict) -> bool:
+        zone = str(msg.get("zone", "default"))[:60]
+        try:
+            t = float(msg["t"])
+        except (KeyError, TypeError, ValueError):
+            self.rejected += 1
+            return False
+        if not math.isfinite(t):
+            self.rejected += 1
+            return False
+        with self._lock:
+            if zone not in self.hist:
+                if (self.allowed is not None and zone not in self.allowed) or len(self.hist) >= self.max_zones:
+                    self.rejected += 1
+                    return False
+                self.hist[zone] = {}
+            z = self.hist[zone]
+            for k in self.FIELDS:
+                v = msg.get(k)
+                if v is None:
+                    continue
+                try:
+                    v = float(v)
+                except (TypeError, ValueError):
+                    continue
+                if math.isfinite(v):
+                    z.setdefault(k, deque(maxlen=600)).append((t, v))
+        return True
 
     # ------------------------------------------------------------- replay
     def load_csv(self, path: str) -> None:
@@ -54,10 +93,17 @@ class SensorHub:
             self._replay_idx += 1
 
     # ------------------------------------------------------------- cues
+    def _snapshot(self, zone: str) -> Dict[str, List[Tuple[float, float]]]:
+        with self._lock:
+            z = self.hist.get(zone)
+            if not z and self.fallback_zone is not None:
+                z = self.hist.get(self.fallback_zone)
+            return {k: list(q) for k, q in (z or {}).items()}
+
     def cues(self, zone: str, t: float) -> Tuple[Dict[str, float], Dict[str, float]]:
         values: Dict[str, float] = {}
         rel: Dict[str, float] = {}
-        z = self.hist.get(zone) or self.hist.get("default")
+        z = self._snapshot(zone)
         if not z:
             return values, rel
         for k, out in (("smoke_ppm", "smoke_ppm"), ("sound_db", "sound_db")):
@@ -76,11 +122,10 @@ class SensorHub:
         return values, rel
 
     def status(self, t: float) -> Dict[str, dict]:
-        out = {}
-        for zone, fields in self.hist.items():
-            out[zone] = {k: {"value": q[-1][1], "age_s": round(t - q[-1][0], 1), "online": t - q[-1][0] <= self.stale_s}
-                         for k, q in fields.items() if q}
-        return out
+        with self._lock:
+            snap = {zone: {k: q[-1] for k, q in fields.items() if q} for zone, fields in self.hist.items()}
+        return {zone: {k: {"value": v, "age_s": round(t - ts, 1), "online": t - ts <= self.stale_s}
+                       for k, (ts, v) in fields.items()} for zone, fields in snap.items()}
 
 
 def synthetic_fire_trace(zone: str, t0: float, t1: float, fire_at: Optional[float], dt: float = 1.0) -> List[dict]:

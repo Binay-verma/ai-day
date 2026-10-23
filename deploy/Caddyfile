@@ -1,0 +1,12 @@
+# HTTPS for the operator console and the ESP32 sensor API.
+# Internal campus host: Caddy issues a certificate from its own local CA (`tls internal`);
+# install that CA on operator PCs and on the ESP32 nodes (CA_CERT in the sketch),
+# or replace `tls internal` with the campus certificate files.
+copilot.campus.local {
+	tls internal
+	encode gzip
+	reverse_proxy copilot:8000 {
+		header_up X-Forwarded-Proto https
+	}
+	header Strict-Transport-Security "max-age=31536000"
+}

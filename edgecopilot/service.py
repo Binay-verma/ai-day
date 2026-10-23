@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
 from . import __version__
-from .cameras import CameraWorker, ClipBuffer
+from .cameras import CameraWorker, ClipBuffer, redact
 from .copilot.events import EventLog
 from .io.sensors import SensorHub
 from .notify import Notifier
@@ -41,6 +41,7 @@ FAULT_TEXT = {
     "blackout": "image black (lens covered, power or IR failure)",
     "defocus": "image lost its detail (lens obstructed, sprayed or moved)",
     "view_changed": "field of view changed (camera moved) - calibration no longer valid",
+    "processing_error": "analysis software error on this camera's frames",
 }
 
 
@@ -78,15 +79,18 @@ def file_sha256(path: str) -> Optional[str]:
 
 
 class EdgeService:
-    def __init__(self, cfg: dict, root: str = ".", store: Optional[Store] = None, start_mqtt: bool = True):
+    def __init__(self, cfg: dict, root: str = ".", store: Optional[Store] = None, start_mqtt: bool = True,
+                 audit_key: Optional[bytes] = None):
         self.cfg = cfg
         self.root = root
         st = cfg.get("storage", {})
         self.store = store or Store(os.path.join(root, st.get("db_path", "data/edgecopilot.db")),
                                     os.path.join(root, st.get("media_dir", "data/media")),
-                                    st.get("encrypt_media", True), st.get("key_env", "EDGECOPILOT_MEDIA_KEY"))
+                                    st.get("encrypt_media", True), st.get("key_env", "EDGECOPILOT_MEDIA_KEY"),
+                                    audit_key=audit_key)
         self.retention_days = st.get("retention_days", 30)
-        self.sensors = SensorHub()
+        # live sensors: only configured zones, never borrowed across rooms
+        self.sensors = SensorHub(zones=list(cfg.get("zones", {})), fallback_zone=None)
         self.cameras: Dict[str, CameraWorker] = {}
         self.copilots: Dict[str, Copilot] = {}
         self.listeners: List[Callable[[dict], None]] = []
@@ -124,7 +128,9 @@ class EdgeService:
         cfg = dict(self.cfg)
         if cam.get("privacy"):
             cfg = {**cfg, "runtime": {**cfg["runtime"], "privacy": cam["privacy"]}}
-        cop = Copilot(cfg, root=self.root, zone=cam["zone"], sensors=self.sensors, event_log=EventLog(),
+        # a recorded video with its own sensor CSV replays into a private hub (never mixes with live sensors)
+        hub = SensorHub() if sensors_csv else self.sensors
+        cop = Copilot(cfg, root=self.root, zone=cam["zone"], sensors=hub, event_log=EventLog(),
                       enable=cam.get("hazards") or None)
         st = self.cfg.get("storage", {})
         # ${VAR} in camera URLs is filled from the environment so credentials never sit in the config file
@@ -165,10 +171,24 @@ class EdgeService:
                 return False
         return True
 
+    def liveness(self, max_frame_age_s: float = 30.0) -> tuple:
+        """(ok, problem). Dead camera threads or a live stream that stopped delivering frames = not alive.
+        Cameras that are offline/reconnecting are a *camera* problem (trouble alert), not a reason to restart."""
+        now = time.time()
+        for cid, w in self.cameras.items():
+            st = w.health.state
+            if st == "stopped":
+                continue
+            if not w.thread.is_alive():
+                return False, f"camera thread {cid} died"
+            if st == "live" and w.health.last_frame_wall and now - w.health.last_frame_wall > max_frame_age_s and not w.paused:
+                return False, f"camera {cid} stalled ({now - w.health.last_frame_wall:.0f} s without a processed frame)"
+        return True, ""
+
     def _watchdog_loop(self) -> None:
         """Kick the systemd watchdog only while healthy: a hung pipeline gets restarted automatically."""
         while not self._retention_stop.wait(5.0):
-            if self.healthy():
+            if self.healthy() and self.liveness()[0]:
                 sd_notify("WATCHDOG=1")
             else:
                 log.error("watchdog: a camera thread died - withholding WATCHDOG=1 so the service is restarted")
@@ -217,6 +237,7 @@ class EdgeService:
 
     def _on_fault(self, cam_id: str, kind: str, detail: str) -> None:
         """Trouble signal: a failing camera is itself an incident (FM 3232-style), routed like an alert."""
+        detail = redact(detail)
         key = f"{cam_id}:{kind}"
         now = time.time()
         self._broadcast({"type": "camera_fault", "camera": cam_id, "kind": kind, "detail": detail})
@@ -262,11 +283,13 @@ class EdgeService:
         a = self.store.get_alert(alert_id)
         if a is None:
             return None
+        if a["status"] not in ("open", "resolved"):
+            raise ValueError(f"alert already {a['status']} by {a.get('operator') or 'someone'}")
         status = "confirmed" if confirmed else "dismissed"
         self.store.update_alert(alert_id, status=status, operator=actor, operator_note=note[:500], ack_time=time.time())
         cop = self.copilots.get(a.get("camera_id") or "")
         out = {"id": alert_id, "status": status}
-        if cop is not None and alert_id in cop.events.alerts:
+        if cop is not None and alert_id in cop.events.alerts and a["hazard"] in cop.models:
             r = cop.feedback(alert_id, confirmed, note)
             if r:
                 out.update(r)

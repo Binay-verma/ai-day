@@ -136,11 +136,20 @@ class UserCfg(_Strict):
     password_hash: str  # scrypt$<salt hex>$<hash hex>, see `python -m edgecopilot.security hash`
 
 
+class SensorDeviceCfg(_Strict):
+    id: str = Field(pattern=r"^[A-Za-z0-9_.\-]{1,40}$")
+    digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    zones: List[str] = Field(min_length=1)
+
+
 class AuthCfg(_Strict):
     enabled: bool = True
     users: List[UserCfg] = Field(default_factory=list)
     token_ttl_s: int = Field(8 * 3600, ge=60, le=7 * 24 * 3600)
-    sensor_api_keys: List[str] = Field(default_factory=list, description="sha256 hex digests of device keys")
+    sensor_api_keys: List[str] = Field(default_factory=list,
+                                       description="legacy: digests of keys allowed to post for ANY zone (avoid)")
+    sensor_devices: List[SensorDeviceCfg] = Field(default_factory=list,
+                                                    description="device key digest bound to the zone(s) it may report for")
     secret_env: str = "EDGECOPILOT_SECRET"  # noqa: S105 - name of an env var, not a secret
 
 
@@ -284,7 +293,12 @@ class Config(_Strict):
             bad = set(lvl.channels) - chans
             if bad:
                 errors.append(f"notifications.escalation[{i}]: unknown channel(s) {sorted(bad)}")
-        # 5) auth on a non-loopback bind
+        # 5) sensor devices may only report for existing zones
+        for d in self.server.auth.sensor_devices:
+            bad = set(d.zones) - set(self.zones)
+            if bad:
+                errors.append(f"server.auth.sensor_devices[{d.id}]: unknown zone(s) {sorted(bad)}")
+        # 6) auth on a non-loopback bind
         if self.server.host not in ("127.0.0.1", "localhost", "::1") and not self.server.auth.enabled:
             errors.append("server: authentication must be enabled when binding to a non-loopback address")
         if errors:

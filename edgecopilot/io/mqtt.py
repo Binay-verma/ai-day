@@ -36,8 +36,10 @@ def parse_sensor_payload(topic: str, payload: bytes, now: Optional[float] = None
     if not isinstance(data, dict):
         return None
     parts = topic.split("/")
+    # the TOPIC decides the zone (the broker ACL lets each device write only its own topic);
+    # a payload "zone" is honoured only on topics without a zone segment
     z = data.get("zone")
-    zone: str = z if isinstance(z, str) else (parts[1] if len(parts) >= 3 else "default")
+    zone: str = parts[1] if len(parts) >= 3 else (z if isinstance(z, str) else "default")
     zone = zone.replace("_", " ")[:60]
     out = {"zone": zone, "t": now if now is not None else time.time()}
     for k, (lo, hi) in RANGES.items():

@@ -14,7 +14,7 @@ services:
       - ./configs:/app/configs:ro
       - copilot-data:/app/data
       - ./calibration:/app/calibration
-    ports: ["8000:8000"]
+    expose: ["8000"]          # reachable only through the TLS proxy below
     depends_on: [mosquitto]
     read_only: true
     tmpfs: [/tmp]
@@ -23,6 +23,14 @@ services:
     deploy:
       resources:
         limits: {cpus: "2.0", memory: 2g}
+  caddy:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    ports: ["443:443"]
+    depends_on: [copilot]
   mosquitto:
     image: eclipse-mosquitto:2.0.20
     restart: unless-stopped
@@ -56,3 +64,4 @@ services:
     ports: ["127.0.0.1:3000:3000"]
 volumes:
   copilot-data:
+  caddy-data:

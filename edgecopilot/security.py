@@ -81,6 +81,10 @@ class Principal:
     username: str
     role: str
     kind: str = "user"  # user | device
+    zones: Optional[frozenset] = None  # devices: zones they may report for (None = any, legacy keys only)
+
+    def may_report(self, zone: str) -> bool:
+        return self.kind == "device" and (self.zones is None or zone in self.zones)
 
     def can(self, role: str) -> bool:
         return ROLES.get(self.role, -1) >= ROLES[role]
@@ -89,11 +93,13 @@ class Principal:
 class AuthManager:
     def __init__(self, users: Iterable[dict], secret: bytes, ttl_s: int = 8 * 3600,
                  sensor_key_digests: Iterable[str] = (), enabled: bool = True,
+                 sensor_devices: Iterable[dict] = (),
                  max_failures: int = 5, lockout_s: int = 300):
         self.users = {u["username"]: u for u in users}
         self.secret = secret
         self.ttl_s = ttl_s
-        self.sensor_keys = {d.lower() for d in sensor_key_digests}
+        self.sensor_keys = {d.lower() for d in sensor_key_digests}  # legacy, any zone
+        self.devices = [(d["digest"].lower(), d["id"], frozenset(d["zones"])) for d in sensor_devices]
         self.enabled = enabled
         self.max_failures = max_failures
         self.lockout_s = lockout_s
@@ -103,9 +109,24 @@ class AuthManager:
 
     # ------------------------------------------------------------- login
     def locked(self, username: str, ip: str) -> bool:
+        """Short, bounded lockout per (user, client IP).
+
+        After ``max_failures`` failures within ``lockout_s`` the pair waits
+        ``lockout_s`` from the LAST failure. Keyed on the pair (not the user
+        alone) so an attacker elsewhere cannot lock a real operator out; behind
+        a reverse proxy configure ``forwarded_allow_ips`` so the real client IP
+        is used rather than the proxy's.
+        """
         with self._lock:
-            hist = [t for t in self._fail.get((username, ip), []) if time.time() - t < self.lockout_s]
-            self._fail[(username, ip)] = hist
+            now = time.time()
+            hist = [t for t in self._fail.get((username, ip), []) if now - t < self.lockout_s]
+            if hist:
+                self._fail[(username, ip)] = hist
+            else:
+                self._fail.pop((username, ip), None)
+            if len(self._fail) > 10000:  # bounded memory under credential stuffing
+                for k in list(self._fail)[:5000]:
+                    del self._fail[k]
             return len(hist) >= self.max_failures
 
     def login(self, username: str, password: str, ip: str = "?") -> Optional[str]:
@@ -157,13 +178,17 @@ class AuthManager:
     def verify_device(self, api_key: Optional[str]) -> Optional[Principal]:
         if not self.enabled:
             return Principal("device", "viewer", "device")
-        if not api_key:
+        if not api_key or len(api_key) > 256:
             return None
         d = key_digest(api_key)
+        found = None
+        for digest, dev_id, zones in self.devices:  # constant-time compare against every entry
+            if hmac.compare_digest(d, digest):
+                found = Principal(f"device:{dev_id}", "viewer", "device", zones)
         for k in self.sensor_keys:
-            if hmac.compare_digest(d, k):
-                return Principal(f"device:{d[:8]}", "viewer", "device")
-        return None
+            if hmac.compare_digest(d, k) and found is None:
+                found = Principal(f"device:{d[:8]}", "viewer", "device", None)
+        return found
 
 
 class RateLimiter:

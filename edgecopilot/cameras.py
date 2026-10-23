@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import collections
 import logging
+import re
 import os
 import tempfile
 import threading
@@ -32,6 +33,12 @@ import numpy as np
 from .privacy import anonymize
 
 log = logging.getLogger("edgecopilot.cameras")
+_CRED = re.compile(r"(?i)([a-z][a-z0-9+.\-]*://)[^/@\s]*@")
+
+
+def redact(text: str) -> str:
+    """Remove user:password@ from any URL in a message before it is logged, stored or sent."""
+    return _CRED.sub(r"\1***@", str(text))
 
 
 @dataclass
@@ -42,6 +49,7 @@ class Health:
     reconnects: int = 0
     frames: int = 0
     dropped: int = 0  # frames skipped because processing was slower than real time
+    errors: int = 0   # frames whose processing raised (logged, thread keeps running)
     faults: Dict[str, bool] = field(default_factory=dict)  # frozen / blackout / defocus
     last_error: str = ""
 
@@ -212,7 +220,7 @@ class CameraWorker:
             cap = self._open()
             if cap is None:
                 self.health.state = "offline"
-                self.health.last_error = f"cannot open {self.source!r}"
+                self.health.last_error = redact(f"cannot open {self.source!r}")
                 if self.on_fault:
                     self.on_fault(self.cam_id, "offline", self.health.last_error)
                 self.stop_ev.wait(backoff)
@@ -254,7 +262,14 @@ class CameraWorker:
                     lag = t - (time.perf_counter() - t0)
                     if lag > 0:
                         self.stop_ev.wait(lag)
-                self._step(frame, t)
+                try:
+                    self._step(frame, t)
+                except Exception as e:  # noqa: BLE001 - one bad frame must never kill a camera thread
+                    self.health.last_error = redact(f"{type(e).__name__}: {e}")[:300]
+                    self.health.errors = getattr(self.health, "errors", 0) + 1
+                    log.exception("camera %s: frame processing failed", self.cam_id)
+                    if self.health.errors in (1, 10, 100) and self.on_fault:
+                        self.on_fault(self.cam_id, "processing_error", self.health.last_error)
                 now = time.perf_counter()
                 self.health.fps = 0.9 * self.health.fps + 0.1 / max(now - last, 1e-6)
                 last = now
@@ -325,7 +340,7 @@ class CameraWorker:
                 self.latest_jpg = buf.tobytes()
             self.state = {"t": round(t, 2), "people": len(res.people), "motion": round(res.motion, 4),
                           "ran_detector": res.ran_detector, "timings": {k: round(v, 1) for k, v in res.timings.items()},
-                          "fps": round(h.fps, 1), "gauges": gauges, "sensors": cop.sensors.status(t),
+                          "fps": round(h.fps, 1), "gauges": gauges, "sensors": {z: v for z, v in cop.sensors.status(time.time() if not self.is_file else t).items() if z == cop.zone or (self.is_file and z == "default")},
                           "scene_change": res.scene_change}
         if self.on_frame:
             self.on_frame(self.cam_id, self.latest_jpg, self.state)
