@@ -100,12 +100,16 @@ independent audits found is fixed and pinned by a test (130 tests). The explaina
 exact additive evidence ledger with counterfactuals and a grounding verifier, is stronger than what
 commercial video-analytics products expose.
 
-**Accuracy: honest, not yet field-proven.** On public data the fall detector reaches F1 ≈ 0.81–0.83
-(target 0.90, not met). Crowd and fire results are good but come from development sets with wide
-intervals, and the fire detector's false-positive rate on neutral images is above the plan's 10 %
-budget. That is why the system triages alerts into ALARM and VERIFY and keeps a human in the loop.
-The number that matters, false alarms per camera-day and misses on *your* campus cameras, can only
-come from a field trial.
+**Accuracy: honest, not yet field-proven.** On public data the fall detector reaches F1 0.81–0.83
+with the default pose model and 0.886 (CI 0.83–0.94) with the YOLO11s-pose profile, against a
+0.90 target that is not met. The leakage-free fire detector scores mAP 0.57–0.63 and its
+false-positive rate on neutral images (16 %) is above the plan's 10 % budget; the fused fire
+branch still caught 14/17 FURG fire videos. Crowd and fire-video results come from development
+sets with wide intervals. On footage never used in development the frozen system caught 7/11
+falls and raised 2 false alarms in 7 minutes on uncalibrated cameras. That is why the system
+triages alerts into ALARM and VERIFY, calibrates each camera, and keeps a human in the loop.
+The number that matters, false alarms per camera-day and misses on *your* campus cameras, can
+only come from a field trial.
 
 **Not production for life safety, and it must never be presented as such.** Before a real
 deployment the institution must: run a supervised field trial on the real cameras with a
