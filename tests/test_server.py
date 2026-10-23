@@ -179,3 +179,38 @@ def test_console_mute_is_audited(env):
     assert "console_muted" in acts
     c.cookies.clear()
     assert c.post("/api/console/sound", json={"on": True}).status_code == 401
+
+
+def test_feedback_metric_is_per_camera_and_hazard(env):
+    from edgecopilot.server import metrics as prom
+    c, svc = env
+    seed_alert(svc)
+    h = {"Authorization": f"Bearer {login(c, 'asha', 'operator pass 1')}"}
+    assert c.post("/api/alerts/a1/feedback", json={"confirmed": False}, headers=h).status_code == 200
+    prom.refresh(svc)
+    body = c.get("/metrics", headers={"Authorization": "Bearer metrics-token-abc"}).text
+    assert 'edgecopilot_operator_feedback_total{camera="cam1",hazard="fall",outcome="dismissed"}' in body
+    assert "edgecopilot_frame_latency_seconds" in body
+
+
+def test_metrics_refresh_with_a_camera(env, tmp_path):
+    """refresh() runs inside a catch-all in production, so exercise it directly."""
+    from edgecopilot.cameras import CameraWorker
+    from edgecopilot.pipeline import Copilot
+    from edgecopilot.server import metrics as prom
+    c, svc = env
+    cfg = load_config_dict("configs/campus.yaml")
+    for k in cfg["models"]:
+        cfg["models"][k]["path"] = "models/__missing__.onnx"
+    w = CameraWorker("camX", "missing.mp4", Copilot(cfg, root=str(tmp_path), zone="Corridor B"), realtime=False)
+    w.health.last_frame_wall = time.time() - 3
+    w.health.frames = 5
+    w.latency_ms.extend([40, 50, 60, 70, 80])
+    svc.cameras["camX"] = w
+    prom.refresh(svc)
+    prom.refresh(svc)  # second refresh must not re-observe the same frames
+    body = prom.render().decode()
+    assert 'edgecopilot_frame_latency_seconds_count{camera="camX"} 5.0' in body
+    assert 'edgecopilot_alert_threshold{camera="camX",hazard="fall"} 0.6' in body
+    assert 'edgecopilot_last_frame_age_seconds{camera="camX"}' in body
+    del svc.cameras["camX"]

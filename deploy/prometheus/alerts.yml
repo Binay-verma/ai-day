@@ -18,7 +18,7 @@ groups:
         labels: {severity: high}
         annotations: {summary: "Camera {{ $labels.camera }}: {{ $labels.kind }}"}
       - alert: CopilotSlow
-        expr: edgecopilot_frame_latency_ms{quantile="0.95"} > 400
+        expr: histogram_quantile(0.95, sum by (camera, le) (rate(edgecopilot_frame_latency_seconds_bucket[5m]))) > 0.4
         for: 5m
         labels: {severity: warning}
         annotations: {summary: "Processing latency p95 above 400 ms on {{ $labels.camera }}"}
@@ -36,6 +36,32 @@ groups:
         expr: sum by (camera, hazard) (increase(edgecopilot_alerts_total[6h])) > 10
         labels: {severity: warning}
         annotations: {summary: "{{ $labels.camera }} raised over 10 {{ $labels.hazard }} alerts in 6 h - re-check calibration"}
+      - alert: CameraFramesStale
+        expr: edgecopilot_last_frame_age_seconds > 30 and on (camera) edgecopilot_camera_paused == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: "No frame processed on {{ $labels.camera }} for 30 s although it is not paused"}
+      - alert: CameraPausedLong
+        expr: edgecopilot_camera_paused == 1
+        for: 2h
+        labels: {severity: warning}
+        annotations: {summary: "AI analysis on {{ $labels.camera }} has been paused for over 2 h"}
+  - name: edgecopilot-model-drift
+    rules:
+      - alert: HighDismissalRate
+        # most alerts dismissed by operators: the scene no longer matches calibration (ISO 42001 A.6.2.6)
+        expr: |
+          sum by (camera, hazard) (increase(edgecopilot_operator_feedback_total{outcome="dismissed"}[24h]))
+            / clamp_min(sum by (camera, hazard) (increase(edgecopilot_operator_feedback_total[24h])), 1) > 0.5
+          and sum by (camera, hazard) (increase(edgecopilot_operator_feedback_total[24h])) >= 4
+        labels: {severity: warning}
+        annotations: {summary: "Over half of {{ $labels.hazard }} alerts on {{ $labels.camera }} dismissed in 24 h - record new normal footage and re-calibrate"}
+      - alert: AlertLineAtCeiling
+        # calibration pushed the alert line to max_threshold: the camera is as insensitive as policy allows
+        expr: edgecopilot_alert_threshold >= 0.899
+        for: 10m
+        labels: {severity: high}
+        annotations: {summary: "{{ $labels.hazard }} alert line on {{ $labels.camera }} is at its ceiling - review dismissals and calibration"}
   - name: edgecopilot-slo
     rules:
       - record: edgecopilot:camera_availability:ratio_1h

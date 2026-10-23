@@ -6,7 +6,7 @@ import threading
 import time
 
 import numpy as np
-from prometheus_client import CollectorRegistry, Counter, Gauge, generate_latest
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
 REG = CollectorRegistry()
 UP = Gauge("edgecopilot_camera_up", "1 if the camera stream is live", ["camera", "zone"], registry=REG)
@@ -17,11 +17,19 @@ FAULT = Gauge("edgecopilot_camera_fault", "Camera fault active (frozen/blackout/
 PEOPLE = Gauge("edgecopilot_people", "People in view", ["camera"], registry=REG)
 RECONNECTS = Gauge("edgecopilot_camera_reconnects", "Stream reconnects since start", ["camera"], registry=REG)
 ALERTS = Counter("edgecopilot_alerts_total", "Alerts raised", ["camera", "hazard", "severity", "triage"], registry=REG)
-FEEDBACK = Counter("edgecopilot_operator_feedback_total", "Operator decisions", ["outcome"], registry=REG)
+FEEDBACK = Counter("edgecopilot_operator_feedback_total", "Operator decisions per camera and hazard",
+                   ["camera", "hazard", "outcome"], registry=REG)
+LAT_S = Histogram("edgecopilot_frame_latency_seconds", "Per-frame processing latency", ["camera"],
+                  buckets=(0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0, 2.0), registry=REG)
+FRAME_AGE = Gauge("edgecopilot_last_frame_age_seconds", "Seconds since the camera's last processed frame", ["camera"], registry=REG)
+THRESH = Gauge("edgecopilot_alert_threshold", "Current (possibly calibrated) alert line", ["camera", "hazard"], registry=REG)
+CALIB_N = Gauge("edgecopilot_calibration_samples", "Normal-score samples in the conformal gate", ["camera", "hazard"], registry=REG)
+PAUSED = Gauge("edgecopilot_camera_paused", "1 while AI analysis is paused by an operator", ["camera"], registry=REG)
 NOTIFY = Counter("edgecopilot_notifications_total", "Notification deliveries", ["ok"], registry=REG)
 SENSOR_AGE = Gauge("edgecopilot_sensor_age_seconds", "Age of the latest sensor reading", ["zone", "sensor"], registry=REG)
 
 _state = {"ok": 0, "fail": 0}
+_lat_seen: dict = {}
 
 
 def _on_event(msg: dict) -> None:
@@ -39,10 +47,25 @@ def refresh(service) -> None:
         RECONNECTS.labels(w.cam_id).set(h["reconnects"])
         for k in ("frozen", "blackout", "defocus"):
             FAULT.labels(w.cam_id, k).set(1.0 if h["faults"].get(k) else 0.0)
+        PAUSED.labels(w.cam_id).set(1.0 if st.get("paused") else 0.0)
+        if getattr(w.health, "last_frame_wall", 0):
+            FRAME_AGE.labels(w.cam_id).set(max(0.0, time.time() - w.health.last_frame_wall))
         lat = list(w.latency_ms)
         if lat:
             for q in (0.5, 0.95, 0.99):
                 LAT.labels(w.cam_id, str(q)).set(float(np.quantile(lat, q)))
+            # feed the histogram with frames processed since the last refresh
+            n_total = getattr(w.health, "frames", len(lat))
+            new = max(0, min(len(lat), n_total - _lat_seen.get(w.cam_id, n_total - len(lat))))
+            for v in lat[len(lat) - new:]:
+                LAT_S.labels(w.cam_id).observe(v / 1000.0)
+            _lat_seen[w.cam_id] = n_total
+        cop = getattr(w, "copilot", None)
+        if cop is not None:
+            for hz, m in cop.models.items():
+                THRESH.labels(w.cam_id, hz).set(float(m.threshold))
+                g = cop.gates.get(hz)
+                CALIB_N.labels(w.cam_id, hz).set(len(g.scores) if g is not None else 0)
         state = st.get("state") or {}
         PEOPLE.labels(w.cam_id).set(state.get("people", 0))
         for hz, g in (state.get("gauges") or {}).items():

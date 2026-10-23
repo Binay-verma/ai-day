@@ -30,7 +30,7 @@ models:
 # Additive log-odds models: logit = bias + sum_i r_i * w_i * (clip(x_i, lo, hi) - ref_i)
 # phrase = how the cue is verbalised in explanations (v = measured value)
 # lo == ref makes a cue ONE-SIDED: it can only add risk. Used where absence of
-# evidence is not evidence of absence (a quiet room does not rule out panic).
+# evidence is not evidence of absence (a quiet room does not rule out an emergency).
 hazards:
   fall:
     bias: -7.0

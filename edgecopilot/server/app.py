@@ -370,14 +370,15 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
 
     @app.post("/api/alerts/{alert_id}/feedback")
     def feedback(alert_id: str, fb: Feedback, p: Principal = Depends(operator)):
-        _alert_or_404(alert_id)
+        a = _alert_or_404(alert_id)
         try:
             r = service.feedback(alert_id, fb.confirmed, p.username, p.role, fb.note)
         except ValueError as e:
             raise HTTPException(409, str(e)) from e
         if r is None:
             raise HTTPException(404, "unknown alert")
-        prom.FEEDBACK.labels(outcome="confirmed" if fb.confirmed else "dismissed").inc()
+        prom.FEEDBACK.labels(camera=a.get("camera_id", "?"), hazard=a.get("hazard", "?"),
+                             outcome="confirmed" if fb.confirmed else "dismissed").inc()
         return r
 
     @app.post("/api/alerts/{alert_id}/ask")
