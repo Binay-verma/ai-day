@@ -1,0 +1,29 @@
+{
+ "faces_raw": 184,
+ "frames": 70,
+ "per_video": {
+  "datasets/face-demographics-walking.mp4": 39,
+  "datasets/classroom.mp4": 132,
+  "datasets/people-detection.mp4": 0,
+  "Subject 1/05.mp4": 8,
+  "Subject 2/05.mp4": 3,
+  "Subject 3/05.mp4": 1,
+  "Subject 4/05.mp4": 1
+ },
+ "modes": {
+  "blur": {
+   "still_detected": 0,
+   "pose_missed": 0,
+   "rate": 0.0
+  },
+  "skeleton": {
+   "still_detected": 0,
+   "pose_missed": 0,
+   "rate": 0.0
+  },
+  "no_filter_control": {
+   "still_detected": 184,
+   "rate": 1.0
+  }
+ }
+}

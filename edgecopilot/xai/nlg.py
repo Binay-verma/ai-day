@@ -28,11 +28,13 @@ HAZARD_TITLES = {
     "fall": "Fall detected",
     "fire_smoke": "Smoke / fire detected",
     "crowd": "Abnormal crowd behaviour",
+    "intrusion": "Restricted-area intrusion",
 }
 HAZARD_WORDS = {
     "fall": ["fall", "falls", "fell", "fallen", "falling", "collapsed", "collapse", "collapsing", "tripped", "slipped"],
     "fire_smoke": ["smoke", "smoky", "fire", "fires", "flame", "flames", "burning", "blaze", "ablaze"],
     "crowd": ["crowd", "crowds", "crowding", "stampede", "panic", "panicking", "overcrowding", "overcrowded", "crush"],
+    "intrusion": ["intrusion", "intruder", "intruders", "trespass", "trespassing", "unauthorised", "unauthorized", "break-in"],
 }
 CAUSAL_MARKERS = ("due to", "because", "caused by", "driven by", "triggered by")
 

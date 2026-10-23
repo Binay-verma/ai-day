@@ -18,7 +18,13 @@ models:
 
 cameras:
   - {id: corridor-b-1, source: "rtsp://copilot:${CAM_PASS}@10.20.0.11:554/stream1", zone: Corridor B}
-  - {id: lab-a-1, source: "rtsp://copilot:${CAM_PASS}@10.20.0.12:554/stream1", zone: Lab Block A, hazards: {crowd: false}}
+  - id: lab-a-1
+    source: "rtsp://copilot:${CAM_PASS}@10.20.0.12:554/stream1"
+    zone: Lab Block A
+    hazards: {crowd: false}
+    restricted:             # intrusion rules: polygon in 0..1 image coordinates, hours = when presence is NOT allowed
+      - {name: Chemical store, polygon: [[0.62, 0.35], [0.98, 0.35], [0.98, 0.95], [0.62, 0.95]]}
+      - {name: Lab floor, polygon: [[0.05, 0.40], [0.60, 0.40], [0.60, 0.98], [0.05, 0.98]], hours: "20:00-07:00"}
   - {id: audi-1, source: "rtsp://copilot:${CAM_PASS}@10.20.0.13:554/stream1", zone: Auditorium, stride: 2}
 
 server:

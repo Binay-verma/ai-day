@@ -1,7 +1,7 @@
 // Operator console. All server data is inserted with textContent / DOM APIs (never innerHTML),
 // so names, notes and explanation text cannot inject markup (CSP also forbids inline script).
 "use strict";
-const HZ = {fall: "Fall", fire_smoke: "Smoke / fire", crowd: "Crowd", camera_fault: "Camera fault"};
+const HZ = {fall: "Fall", fire_smoke: "Smoke / fire", crowd: "Crowd", intrusion: "Restricted area", camera_fault: "Camera fault"};
 const $ = s => document.querySelector(s);
 const el = (tag, props = {}, ...kids) => {
   const e = document.createElement(tag);

@@ -134,7 +134,7 @@ class EdgeService:
         # a recorded video with its own sensor CSV replays into a private hub (never mixes with live sensors)
         hub = SensorHub(fallback_zone="default") if sensors_csv else self.sensors
         cop = Copilot(cfg, root=self.root, zone=cam["zone"], sensors=hub, event_log=EventLog(max_items=200),
-                      enable=cam.get("hazards") or None)
+                      enable=cam.get("hazards") or None, regions=cam.get("restricted") or None)
         cop.status_listeners.append(self._on_status)
         st = self.cfg.get("storage", {})
         # ${VAR} in camera URLs is filled from the environment so credentials never sit in the config file

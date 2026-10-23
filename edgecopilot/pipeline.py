@@ -71,7 +71,7 @@ class Copilot:
     def __init__(self, cfg: dict, root: str = ".", zone: str = "default",
                  sensors: Optional[SensorHub] = None, event_log: Optional[EventLog] = None,
                  pose_model: Optional[OnnxYolo] = None, fire_model: Optional[OnnxYolo] = None,
-                 enable: Optional[Dict[str, bool]] = None):
+                 enable: Optional[Dict[str, bool]] = None, regions: Optional[List[dict]] = None):
         self.cfg = cfg
         self.root = root
         self.zone = zone
@@ -96,6 +96,9 @@ class Copilot:
         self.scene_changes = 0
         self.enable = {"fall": True, "fire_smoke": True, "crowd": True}
         self.enable.update(enable or {})
+        from .perception.zones import ZoneRules
+        self.zone_rules = ZoneRules(regions) if regions else None
+        self.enable["intrusion"] = bool(regions) and "intrusion" in cfg.get("hazards", {}) and self.enable.get("intrusion", True)
 
         mc = cfg.get("models", {})
         self.pose = pose_model or self._load(mc.get("pose"), ["person"], pose=True)
@@ -209,6 +212,8 @@ class Copilot:
     def reset(self) -> None:
         self.tracker.reset()
         self.fall_fx.reset()
+        if self.zone_rules is not None:
+            self.zone_rules.reset()
         self.crowd_fx.reset()
         self.smoke_fx.reset()
         self.hyst.reset()
@@ -227,6 +232,8 @@ class Copilot:
     def _reset_scene(self) -> None:
         self.tracker.reset()
         self.fall_fx.reset()
+        if self.zone_rules is not None:
+            self.zone_rules.reset()
         self.crowd_fx.reset()
         self.smoke_fx.reset()
         self.hyst.reset()
@@ -297,7 +304,7 @@ class Copilot:
 
         # 2) people + pose
         t0 = time.perf_counter()
-        need_pose = self.enable["fall"] or self.enable["crowd"] or self.privacy != "raw"
+        need_pose = self.enable["fall"] or self.enable["crowd"] or self.enable["intrusion"] or self.privacy != "raw"
         if run_heavy and self.pose is not None and need_pose:
             out = self.pose(frame)
             people = [d for d in out.detections]
@@ -335,6 +342,13 @@ class Copilot:
             self.fall_fx.prune(set(self.tracker.tracks))
             self.hyst.prune("fall:", {f"fall:{i}" for i in self.tracker.tracks}, t)
         timings["fall"] = (time.perf_counter() - t0) * 1e3
+
+        # 3b) restricted-area rules (only on cameras with configured regions)
+        if self.enable["intrusion"] and self.zone_rules is not None:
+            for name, iv in self.zone_rules(people, frame.shape, t, wall_t).items():
+                a = self.models["intrusion"].assess(f"{name}", t, iv, zone_key=self.zone)
+                assessments.append(self.hyst.update(f"intrusion:{name}", a))
+                values_all[f"intrusion:{name}"] = iv
 
         # 4) crowd cues for the zone
         t0 = time.perf_counter()

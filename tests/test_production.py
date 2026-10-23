@@ -24,7 +24,7 @@ RAW = yaml.safe_load(open("configs/campus.yaml"))
 # ------------------------------------------------------------------ config
 def test_shipped_config_is_valid():
     cfg = load_validated("configs/campus.yaml")
-    assert set(cfg.hazards) == {"fall", "fire_smoke", "crowd"}
+    assert set(cfg.hazards) == {"fall", "fire_smoke", "crowd", "intrusion"}
 
 
 @pytest.mark.parametrize("mutate,needle", [

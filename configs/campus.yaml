@@ -64,6 +64,14 @@ hazards:
       divergence:    {weight: 2.0, ref: 0.3, lo: 0.3, hi: 4.0, unit: "body-heights/s", phrase: "people scattering outwards ({v:.1f} body-heights/s)", keywords: [scattering, outwards]}
       coherence:     {weight: 1.0, ref: 0.5, lo: 0.5, hi: 1.0, unit: "", phrase: "people moving in one direction (coherence {v:.2f})", keywords: [direction, coherence]}
       sound_db:      {weight: 0.08, ref: 75.0, lo: 75.0, hi: 120.0, unit: dB, phrase: "sound level {v:.0f} dB", source: sensor, keywords: [sound]}
+  # only active on cameras that list `restricted:` regions (see configs/production.example.yaml)
+  intrusion:
+    bias: -6.0
+    threshold: 0.6
+    cues:
+      dwell_time:    {weight: 0.25, ref: 0.0, lo: 0.0, hi: 120.0, unit: s, phrase: "someone staying in the restricted area for {v:.0f} s", keywords: [staying, stay]}
+      after_hours:   {weight: 3.0, ref: 0.0, lo: 0.0, hi: 1.0, unit: "", phrase: "presence outside permitted hours", source: context, keywords: [hours, permitted]}
+      people:        {weight: 0.5, ref: 1.0, lo: 1.0, hi: 10.0, unit: people, phrase: "{v:.0f} people inside the restricted area", keywords: [people, inside]}
 
 # Temporal smoothing / hysteresis per (hazard, subject)
 hysteresis:
@@ -133,6 +141,10 @@ playbooks:
     - {do: "Open all exits ({exits}) and stop further entry to {zone}", priority: 1, when: "occupancy > 1.0"}
     - {do: "Make a calm PA announcement directing people to {exits}", priority: 2, when: "surge > 3"}
     - {do: "Check for a triggering incident (fire/fall) near {zone}", priority: 2, when: "coherence > 0.6"}
+  intrusion:
+    - {do: "Send a patrol from the {security_desk} to the restricted area {subject} in {zone}", priority: 1}
+    - {do: "Check access permits / lab booking for {zone} before confronting anyone", priority: 2}
+    - {do: "Treat as an after-hours intrusion: escalate to the security supervisor", priority: 1, when: "after_hours > 0.5", escalate: true}
 
 # ALARM vs VERIFY routing from the evidence ledger
 triage:

@@ -137,6 +137,20 @@ class TriageCfg(_Strict):
     strong: float = 0.5
 
 
+class RegionCfg(_Strict):
+    name: str = Field(pattern=r"^[A-Za-z0-9 _\-]{1,40}$")
+    polygon: List[List[float]] = Field(min_length=3, description="[[x, y], ...] in 0..1 image coordinates")
+    hours: Optional[str] = Field(None, pattern=r"^\d{1,2}:\d{2}-\d{1,2}:\d{2}$",
+                                 description="local time window when presence is NOT permitted; omit = always")
+
+    @field_validator("polygon")
+    @classmethod
+    def _unit(cls, v):
+        if any(len(p) != 2 or not (0 <= p[0] <= 1 and 0 <= p[1] <= 1) for p in v):
+            raise ValueError("polygon points must be [x, y] pairs in 0..1")
+        return v
+
+
 class CameraCfg(_Strict):
     id: str = Field(pattern=r"^[A-Za-z0-9_\-]{1,40}$")
     source: str
@@ -147,6 +161,7 @@ class CameraCfg(_Strict):
     hazards: Dict[str, bool] = Field(default_factory=dict)
     realtime: bool = True
     loop: bool = False
+    restricted: List[RegionCfg] = Field(default_factory=list, description="restricted-area rules (intrusion hazard)")
 
 
 class UserCfg(_Strict):
@@ -250,9 +265,9 @@ class Config(_Strict):
     @field_validator("hazards")
     @classmethod
     def _known_hazards(cls, v):
-        unknown = set(v) - {"fall", "fire_smoke", "crowd"}
+        unknown = set(v) - {"fall", "fire_smoke", "crowd", "intrusion"}
         if unknown:
-            raise ValueError(f"unknown hazard(s) {sorted(unknown)}; expected fall, fire_smoke, crowd")
+            raise ValueError(f"unknown hazard(s) {sorted(unknown)}; expected fall, fire_smoke, crowd, intrusion")
         return v
 
     @model_validator(mode="after")

@@ -165,3 +165,52 @@ def test_service_end_to_end_on_video(tmp_path):
     assert "frame" in got and "alert" in got
     assert store.verify_audit_chain()["ok"]
     svc.stop()
+
+
+def test_zone_rules_dwell_hours_and_gap():
+    import numpy as np
+
+    from edgecopilot.perception.detector import Detection
+    from edgecopilot.perception.zones import ZoneRules, in_window
+    assert in_window((20 * 60, 7 * 60), 23 * 60) and in_window((20 * 60, 7 * 60), 3 * 60)
+    assert not in_window((20 * 60, 7 * 60), 12 * 60) and in_window(None, 12 * 60)
+    z = ZoneRules([{"name": "store", "polygon": [[0.5, 0.0], [1.0, 0.0], [1.0, 1.0], [0.5, 1.0]]}])
+    inside = Detection(np.array([350.0, 100.0, 400.0, 300.0]), 0.9, 0, "person")   # foot point (375, 300) in right half
+    outside = Detection(np.array([50.0, 100.0, 100.0, 300.0]), 0.9, 0, "person")
+    assert z([outside], (480, 640), 0.0)["store"]["dwell_time"] == 0.0
+    v = None
+    for k in range(11):
+        v = z([inside], (480, 640), float(k))["store"]
+    assert v["dwell_time"] == 10.0 and v["people"] == 1 and v["after_hours"] == 1.0
+    v = z([], (480, 640), 11.5)["store"]           # a short gap (occlusion) is bridged
+    assert v["after_hours"] == 0.0
+    v = z([inside], (480, 640), 12.0)["store"]
+    assert v["dwell_time"] == 12.0
+    z([], (480, 640), 20.0)
+    assert z([inside], (480, 640), 21.0)["store"]["dwell_time"] == 0.0  # a long absence restarts the clock
+
+
+def test_intrusion_alert_end_to_end(tmp_path):
+    import numpy as np
+
+    from edgecopilot.config_schema import load_config_dict
+    from edgecopilot.perception.detector import Detection, DetectorOutput
+    from edgecopilot.pipeline import Copilot
+
+    class FakePose:
+        def __call__(self, img):
+            kp = np.zeros((17, 3), np.float32)
+            return DetectorOutput([Detection(np.array([400.0, 100.0, 460.0, 400.0]), 0.9, 0, "person", kp)], None, (1, 0, 0, 640, 640), 1.0)
+    cfg = load_config_dict("configs/campus.yaml")
+    cfg["models"]["fire_smoke"]["path"] = "models/__missing__.onnx"
+    cop = Copilot(cfg, root=str(tmp_path), zone="Lab Block A", pose_model=FakePose(),
+                  enable={"fall": False, "crowd": False, "fire_smoke": False},
+                  regions=[{"name": "Chemical store", "polygon": [[0.5, 0.0], [1.0, 0.0], [1.0, 1.0], [0.5, 1.0]]}])
+    alerts = []
+    for k in range(400):
+        frame = np.full((480, 640, 3), 100 + (k % 2), np.uint8)
+        alerts += cop.process(frame, k / 10.0).new_alerts
+    assert len(alerts) == 1 and alerts[0].hazard == "intrusion"
+    al = alerts[0]
+    assert al.verification["groundedness"] == 1.0 and "restricted area" in al.explanation["text"]
+    assert any("patrol" in r["text"] for r in al.recommendations)
