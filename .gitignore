@@ -13,3 +13,4 @@ logs/
 demo/*.mp4
 demo/*_sensors.csv
 demo/*_timeline.json
+calibration/*.json
