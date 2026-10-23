@@ -73,7 +73,7 @@ def main():
     ap.add_argument("--out", default="demo/demo_campus.mp4")
     args = ap.parse_args()
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    vw = cv2.VideoWriter(args.out, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    vw = cv2.VideoWriter(args.out, cv2.VideoWriter.fourcc(*"mp4v"), FPS, (W, H))
     t = 0.0
     timeline, sensor_rows = [], []
     for seg in SEGMENTS:

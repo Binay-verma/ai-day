@@ -73,8 +73,10 @@ class SmokeCueExtractor:
         self.prev_t = t
         in_warmup = (t - (self.t0 if self.t0 is not None else t)) < self.warmup_s
         warm = 0.0 if in_warmup else 1.0  # the first second of video is the reference
-        delta = (d_cells - self.base_dark) * warm
-        closs = np.clip(1 - c_cells / self.base_contrast, -1, 1) * warm
+        base_d, base_c = self.base_dark, self.base_contrast
+        assert base_d is not None and base_c is not None
+        delta = (d_cells - base_d) * warm
+        closs = np.clip(1 - c_cells / base_c, -1, 1) * warm
         # combined per-cell haze score: brighter dark channel AND fewer edges
         score = np.clip(delta, 0, 1) * (0.5 + 0.5 * np.clip(closs, 0, 1))
         k = np.unravel_index(np.argmax(score), score.shape)
@@ -82,15 +84,15 @@ class SmokeCueExtractor:
         density = float(np.clip(delta[k], 0, 1))
         contrast_loss = float(np.clip(closs[k], 0, 1))
         if in_warmup:
-            self.base_dark = 0.7 * self.base_dark + 0.3 * d_cells  # type: ignore[operator]
-            self.base_contrast = 0.7 * self.base_contrast + 0.3 * c_cells  # type: ignore[operator]
+            self.base_dark = 0.7 * base_d + 0.3 * d_cells
+            self.base_contrast = 0.7 * base_c + 0.3 * c_cells
         elif not alert_active and dt > 0:
-            up = d_cells > self.base_dark  # haze rising -> follow very slowly
+            up = d_cells > base_d  # haze rising -> follow very slowly
             a_dark = np.where(up, 1 - np.exp(-dt / self.tau_up_s), 1 - np.exp(-dt / self.tau_down_s))
-            self.base_dark = (1 - a_dark) * self.base_dark + a_dark * d_cells  # type: ignore[operator]
-            loss = c_cells < self.base_contrast  # edges disappearing -> follow very slowly
+            self.base_dark = (1 - a_dark) * base_d + a_dark * d_cells
+            loss = c_cells < base_c  # edges disappearing -> follow very slowly
             a_c = np.where(loss, 1 - np.exp(-dt / self.tau_up_s), 1 - np.exp(-dt / self.tau_down_s))
-            self.base_contrast = (1 - a_c) * self.base_contrast + a_c * c_cells  # type: ignore[operator]
+            self.base_contrast = (1 - a_c) * base_c + a_c * c_cells
         self.n += 1
         # growth: density change per second over ~1 s
         self.hist.append((t, density))

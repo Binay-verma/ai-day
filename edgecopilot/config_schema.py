@@ -169,7 +169,7 @@ class ServerCfg(_Strict):
     max_ws_clients: int = Field(20, ge=1, le=500)
     stream_fps: float = Field(5.0, gt=0, le=30)
     rate_limit_per_min: int = Field(240, ge=10)
-    auth: AuthCfg = Field(default_factory=AuthCfg)
+    auth: AuthCfg = Field(default_factory=lambda: AuthCfg())
 
 
 class StorageCfg(_Strict):
@@ -222,19 +222,19 @@ class MqttCfg(_Strict):
 
 
 class Config(_Strict):
-    runtime: RuntimeCfg = Field(default_factory=RuntimeCfg)
+    runtime: RuntimeCfg = Field(default_factory=lambda: RuntimeCfg())
     models: ModelsCfg
     hazards: Dict[str, HazardCfg]
-    hysteresis: HysteresisCfg = Field(default_factory=HysteresisCfg)
-    feedback: FeedbackCfg = Field(default_factory=FeedbackCfg)
+    hysteresis: HysteresisCfg = Field(default_factory=lambda: HysteresisCfg())
+    feedback: FeedbackCfg = Field(default_factory=lambda: FeedbackCfg())
     contacts: Dict[str, str] = Field(default_factory=dict)
     zones: Dict[str, ZoneCfg]
     playbooks: Dict[str, List[PlaybookStep]] = Field(default_factory=dict)
-    triage: TriageCfg = Field(default_factory=TriageCfg)
+    triage: TriageCfg = Field(default_factory=lambda: TriageCfg())
     cameras: List[CameraCfg] = Field(default_factory=list)
-    server: ServerCfg = Field(default_factory=ServerCfg)
-    storage: StorageCfg = Field(default_factory=StorageCfg)
-    notifications: NotificationsCfg = Field(default_factory=NotificationsCfg)
+    server: ServerCfg = Field(default_factory=lambda: ServerCfg())
+    storage: StorageCfg = Field(default_factory=lambda: StorageCfg())
+    notifications: NotificationsCfg = Field(default_factory=lambda: NotificationsCfg())
     mqtt: Optional[MqttCfg] = None
 
     @field_validator("hazards")

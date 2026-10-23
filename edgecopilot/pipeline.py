@@ -230,7 +230,9 @@ class Copilot:
         if frame is None or frame.size == 0:
             raise ValueError("empty frame")
         if frame.dtype != np.uint8:
-            frame = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            f = frame.astype(np.float64)
+            lo, hi = float(np.nanmin(f)), float(np.nanmax(f))
+            frame = np.nan_to_num((f - lo) * (255.0 / max(hi - lo, 1e-12))).clip(0, 255).astype(np.uint8)
         if frame.ndim == 2:
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
         elif frame.shape[2] == 4:

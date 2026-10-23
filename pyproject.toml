@@ -59,6 +59,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.params.De
 "scripts/*" = ["S", "SIM115"]
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
 check_untyped_defs = false
 

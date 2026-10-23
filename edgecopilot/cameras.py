@@ -133,10 +133,12 @@ class ClipBuffer:
             return None
         fps = max(1.0, (len(frames) - 1) / max(frames[-1][0] - frames[0][0], 1e-3))
         first = cv2.imdecode(np.frombuffer(frames[0][1], np.uint8), cv2.IMREAD_COLOR)
+        if first is None:
+            return None
         fd, path = tempfile.mkstemp(suffix=".mp4")
         os.close(fd)
         try:
-            vw = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (first.shape[1], first.shape[0]))
+            vw = cv2.VideoWriter(path, cv2.VideoWriter.fourcc(*"mp4v"), fps, (first.shape[1], first.shape[0]))
             for _, b in frames:
                 img = cv2.imdecode(np.frombuffer(b, np.uint8), cv2.IMREAD_COLOR)
                 if img is not None and img.shape[:2] == first.shape[:2]:

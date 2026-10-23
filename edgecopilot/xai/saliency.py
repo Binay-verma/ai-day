@@ -79,8 +79,8 @@ def occlusion_saliency(img: np.ndarray, score_fn: Callable[[np.ndarray], float],
             im = img.copy()
             im[i * h // grid:(i + 1) * h // grid, j * w // grid:(j + 1) * w // grid] = fill
             sal[i, j] = max(0.0, base - score_fn(im))
-    sal = cv2.resize(sal, (w, h), interpolation=cv2.INTER_LINEAR)
-    return sal / (sal.max() + 1e-9)
+    out = np.asarray(cv2.resize(sal, (w, h), interpolation=cv2.INTER_LINEAR), np.float32)
+    return out / (out.max() + 1e-9)
 
 
 def overlay(img: np.ndarray, sal: np.ndarray, alpha: float = 0.45) -> np.ndarray:

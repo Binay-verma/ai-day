@@ -27,8 +27,8 @@ from typing import Any, Dict, List, Optional
 try:
     from cryptography.fernet import Fernet, InvalidToken
 except ImportError:  # pragma: no cover
-    Fernet = None
-    InvalidToken = Exception
+    Fernet = None  # type: ignore[misc,assignment]
+    InvalidToken = Exception  # type: ignore[misc,assignment]
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS alerts (

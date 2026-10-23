@@ -91,7 +91,7 @@ class CrowdFeatureExtractor:
         dt = t - self.prev_t if self.prev_t is not None else 0.0
         if not 1e-3 < dt < 2.0:
             dt = 1 / 25.0  # first frame after a gap / clock jump: assume one nominal frame interval
-        flow = cv2.calcOpticalFlowFarneback(self.prev, gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+        flow = cv2.calcOpticalFlowFarneback(self.prev, gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)  # type: ignore[call-overload]
         self.prev, self.prev_t = gray, t
         fx, fy = flow[..., 0], flow[..., 1]
         mag = np.sqrt(fx * fx + fy * fy)

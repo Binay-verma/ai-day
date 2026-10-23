@@ -60,7 +60,7 @@ def main(argv=None):
             img = cop.render(cop._last_frame, res.people, res.hazards, res.assessments)
             if writer is None:
                 os.makedirs(os.path.dirname(args.save) or ".", exist_ok=True)
-                writer = cv2.VideoWriter(args.save, cv2.VideoWriter_fourcc(*"mp4v"), src.fps / args.stride,
+                writer = cv2.VideoWriter(args.save, cv2.VideoWriter.fourcc(*"mp4v"), src.fps / args.stride,
                                          (img.shape[1], img.shape[0]))
             writer.write(img)
     if writer:
