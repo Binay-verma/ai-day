@@ -1,10 +1,10 @@
 {
  "bomFormat": "CycloneDX",
  "specVersion": "1.5",
- "serialNumber": "urn:uuid:d143be0c-adf7-41d9-9bdf-37cdd7ced34a",
+ "serialNumber": "urn:uuid:5badf2f8-2492-4a39-801c-6ea24d9a6c19",
  "version": 1,
  "metadata": {
-  "timestamp": "2026-10-23T19:36:17.223760+00:00",
+  "timestamp": "2026-10-23T20:29:44.039661+00:00",
   "component": {
    "type": "application",
    "name": "edgecopilot",

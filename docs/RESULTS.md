@@ -29,10 +29,10 @@ development (§8). An independent audit of every claim is in
 | Crowd (UMN) | frame AUC, standard / label-artefact-tolerant | 0.81 (CI 0.72–0.96) / 0.91 (CI 0.85–0.97) | ≥ 0.90 | ⚠️ tolerant labels post hoc |
 | Fire (images, leakage-free) | mAP@0.5, Home-fire test / DBA-Fire scene hold-out | **0.564 / 0.651** (start checkpoint 0.371 / 0.356) | ≥ 0.60 | ⚠️ DBA met, Home-fire not |
 | Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.76 (Home-fire) at **15.5 %** FPR (CI 12.3–19.4) | ≥ 0.85 at ≤ 10 % | ❌ |
-| Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **14 / 17** (CI 0.59–0.94), median time-to-alert 2.8 s; **1** false alarm in 4.7 min | — | ⚠️ development set |
+| Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **15 / 17** (CI 0.66–0.97), median time-to-alert 2.7 s; **0** false alarms in 4.7 min (one-sided 95 % bound ≈ 38 / h) | — | ⚠️ development set |
 | External check (§8) | frozen system, unseen sources: fall recall / all-hazard false alarms | **7 / 11** falls (CI 0.35–0.85); **2** false alarms in 7.2 min (CI 1.9–60 / h) | — | ⚠️ honest gap |
-| Saliency | Eigen-CAM deletion AUC vs random / centre controls | SAL_ROW | better than both | ❌ |
-| Edge | full 3-hazard pipeline, 2 cores | EDGE_ROW | ≥ 8 FPS | ✅ |
+| Saliency | Eigen-CAM deletion AUC vs random / centre controls (40 images) | 0.148 vs 0.350 / 0.115: beats random (p < 0.001), **not** the centre control | better than both | ❌ |
+| Edge | full 3-hazard pipeline, 2 cores | **12.0 FPS** at 416 px (production config); 7.8 INT8-640; 6.6 FP32-640 | ≥ 8 FPS | ⚠️ met at 416 px only |
 
 ## 2. Falls: GMDCSA24 (160 clips, 4 subjects, 79 falls)
 
@@ -153,20 +153,21 @@ held-out check.
 
 ### 4.2 System level: FURG fire videos (full copilot fire branch, 10 fps, first 60 s)
 
-| | Result |
-|---|---|
-| Fire videos detected | **14 / 17** (CI 0.59–0.94); median time-to-alert **2.8 s** after the first annotated flame (v1 model: 13 / 17, 5.0 s) |
-| False alarms on 6 non-fire videos (4.7 min, incl. hand-held and robot cameras) | **1** (≈ 13 / h, CI 0.3–71 / h), on the `icra` robot video |
-| Explanations grounded | 100 % of alerts |
-| Misses | the very small flames of the model-house videos `house3/4/6` |
+| | 15-epoch detector (shipped) | 5-epoch detector |
+|---|---|---|
+| Fire videos detected | **15 / 17** (CI 0.66–0.97) | 14 / 17 |
+| Median time-to-alert after the first annotated flame | **2.7 s** | 2.8 s |
+| False alarms on 6 non-fire videos (4.7 min, incl. hand-held and robot cameras) | **0** (one-sided 95 % bound ≈ 38 / h) | 1 (`icra` robot video) |
+| Explanations grounded | 100 % of alerts | 100 % |
+| Misses | the very small flames of `house3`, `house4` | + `house6` |
 
 The fused system does much better than the detector alone would suggest: the detector's
 false positives on neutral images rarely reach the alert line, because the alarm needs
 corroboration (dark-channel smoke density, flicker, persistence, sensors). **Caveat:** these
 23 videos were also used to find and fix failure modes (camera ego-motion damping, flicker
 weight, citation cut-off, people-in-view gating for rapid exit), so these are
-development-set numbers. With 4.7 minutes of non-fire video the false-alarm interval is very
-wide.
+development-set numbers, and 4.7 minutes of non-fire video is far too little to claim a
+false-alarm rate.
 
 ## 5. Explanation quality (73 real alerts from the fall and crowd benchmarks)
 
@@ -193,11 +194,60 @@ narrators (no LLM could be downloaded on the build machine).
 
 ## 6. Edge performance (full pipeline, all three hazards, demo reel, 2 cores)
 
-EDGE_SECTION
+`benchmarks/bench_latency.py` on the 69 s demo reel (1,032 frames, 960×540, 15 fps; falls, fire,
+crowd and sensors all enabled), idle machine. "CPU-s / video-min" is CPU time per minute of video
+(an energy proxy).
+
+| Configuration | Processed FPS | Latency p50 / p95 (ms) | Pose p50 (ms) | CPU-s / video-min | Alerts on the reel |
+|---|---|---|---|---|---|
+| FP32 640, cascade on (`campus.yaml` default) | 6.6 | 145 / 271 | 99 | 200 | fall 18.8 s*, fall 27.3 s, fire 47.2 s, crowd 66.4 s |
+| INT8 640, cascade on | 7.8 | 123 / 222 | 84 | 150 | same events (±0.3 s) |
+| **FP32 416, cascade on (`production.example.yaml`)** | **12.0** | **84 / 140** | 47 | **102** | same events (±0.9 s) |
+| YOLO11s-pose 640 (`profiles/fall_accurate.yaml`) | 4.2 | 274 / 389 | 209 | 352 | same events |
+| FP32 640, cascade **off** | 4.3 | 228 / 280 | 106 | 310 | same events |
+
+\*The 18.8 s fall alert is the known false alarm on the "lying down on a bed" clip, routed as
+VERIFY (§2).
+
+* **The audit fixes cost speed.** The pre-audit build ran at 10.7 FPS at 640 px. The fixes that
+  made it safe (the person model now always runs when privacy blurring is on, the fire detector
+  runs at least once a second even in a still scene, crowd and flow state is maintained) cost
+  about 40 %. At 640 px FP32 the 8 FPS target is no longer met; the 416 px models meet it with
+  the same alerts on the reel, so they are the production default. The fire model was trained at
+  416 px anyway; the cost of 416 is smaller, more distant people for the pose model.
+* The **motion-gated cascade** (heavy models skipped on static frames) gives +53 % FPS and −35 %
+  CPU at 640 px with the same alerts.
+* **INT8** (static QDQ, detection head kept in FP32, calibrated on training images only): models
+  3.3–3.6× smaller, +18 % FPS on this x86 sandbox, fire mAP +0.6 (Home-fire) and −3.8 (DBA) points (§4.1).
+  On ARM boards with int8 dot-product units INT8 is the expected winner.
+* The **YOLO11s-pose** profile buys the best fall accuracy (§2) for 3× the CPU of the 416 setup;
+  it suits a box with one or two cameras, or a mini-PC.
+* Cloud comparison (landscape report §4.5): a cloud round-trip alone is ~15–80 ms and a cloud
+  vision-language explanation 0.9–4.6 s per image; here the whole decision is on-device and no
+  video leaves the box.
 
 ## 7. Saliency faithfulness (fire/smoke detector, Home-fire test)
 
-SAL_SECTION
+Deletion (grey-out the most salient pixels first; lower = more faithful) and insertion (reveal
+from a blurred image; higher = better), 10 steps, score = the target detection's confidence
+(D-RISE style), 40 test images, shipped 15-epoch detector.
+
+| Map | Deletion AUC ↓ | Insertion AUC ↑ | Time |
+|---|---|---|---|
+| random (control) | 0.350 | 0.521 | – |
+| centred Gaussian (control) | 0.115 | 0.481 | – |
+| **Eigen-CAM, whole frame (on-device, no gradients)** | 0.148 | 0.383 | **6.3 ms** |
+| Eigen-CAM re-normalised in the box (shown in console) | 0.060 | 0.585 | 7.8 ms |
+| uniform inside the box (control) | 0.040 | 0.600 | – |
+| occlusion 6×6 (model-agnostic reference) | 0.036 | 0.571 | 3,520 ms |
+
+**Honest reading.** Eigen-CAM is clearly better than random (deletion 0.148 vs 0.350; better on
+29 of 40 images, Wilcoxon p < 0.001) at ~6 ms on the edge CPU. It is **not** better than a plain
+centre-bias map (0.148 vs 0.115; better on only 16 of 40, p = 0.16), and inside the detection box
+it beats a uniform box on only 4 of 40 images. Even the 500× slower occlusion map is no better
+than the box. For this detector the *box* is the faithful visual evidence and heat maps are a
+visual aid. That is why the copilot's primary explanation is the evidence ledger (exact,
+verifiable), not the heat map; many "explainable" systems present heat maps as the explanation.
 
 ## 8. External sanity check: frozen system on footage never used in development
 
