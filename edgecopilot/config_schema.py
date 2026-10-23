@@ -80,6 +80,7 @@ class HazardCfg(_Strict):
     threshold: float = Field(0.6, gt=0, lt=1)
     cues: Dict[str, CueCfg]
     alpha: Optional[float] = Field(None, gt=0, lt=1, description="conformal false-alarm budget")
+    min_threshold: float = Field(0.2, gt=0, lt=1, description="floor for calibrated alert lines")
 
 
 class HysteresisCfg(_Strict):

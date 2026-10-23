@@ -137,12 +137,22 @@ class Copilot:
         self._apply_gates()
 
     def _apply_gates(self) -> None:
-        """Alert line = max(configured threshold, conformal threshold for the budget)."""
+        """Alert line for each hazard on this camera.
+
+        Without calibration: the configured threshold.  With a calibrated
+        conformal gate: the conformal quantile for the stated false-alarm budget
+        (it may be lower than the default on a calm camera - that is how the
+        indoor UMN scene went from 0/4 to 4/4 events detected - or higher on a busy
+        one), but never below ``min_threshold`` so a degenerate calibration set
+        cannot make a camera alert on noise.
+        """
         for hz, m in self.models.items():
-            base = self.cfg["hazards"][hz].get("threshold", 0.5)
+            hcfg = self.cfg["hazards"][hz]
+            base = hcfg.get("threshold", 0.5)
+            floor = hcfg.get("min_threshold", 0.2)
             g = self.gates.get(hz)
             tau = g.tau if g else None
-            m.threshold = max(base, 1 / (1 + np.exp(-tau))) if tau is not None else base
+            m.threshold = float(np.clip(1 / (1 + np.exp(-tau)), floor, 0.999)) if tau is not None else base
 
     def save_calibration(self) -> None:
         import json

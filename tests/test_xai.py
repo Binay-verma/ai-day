@@ -1,4 +1,5 @@
 import math
+import os
 
 import numpy as np
 import pytest
@@ -166,3 +167,19 @@ def test_cue_phrases_bind_only_to_their_own_cue():
                     continue
                 clash = [k for k in ospec.keywords if _re.search(rf"\b{_re.escape(k.lower())}", phrase)]
                 assert not clash, (hz, name, "phrase matches keywords of", other, clash)
+
+
+def test_calibrated_alert_line_respects_floor(tmp_path):
+    import json
+    from edgecopilot.pipeline import Copilot
+    cfg = load_config("configs/campus.yaml")
+    for k in cfg["models"]:
+        cfg["models"][k]["path"] = "models/__missing__.onnx"
+    os.makedirs(tmp_path / "calibration")
+    # calm camera: normal scores far below the default line -> calibrated line drops, but not below the floor
+    json.dump({"crowd": {"alpha": 0.1, "scores": [-12.0] * 50}, "fall": {"alpha": 0.1, "scores": list(np.linspace(-8, 2, 50))}},
+              open(tmp_path / "calibration" / "Corridor_B.json", "w"))
+    cop = Copilot(cfg, root=str(tmp_path), zone="Corridor B")
+    assert cop.models["crowd"].threshold == pytest.approx(0.2)
+    assert 0.5 < cop.models["fall"].threshold < 0.9
+    assert cop.models["fire_smoke"].threshold == pytest.approx(0.6)  # uncalibrated hazard keeps its default
