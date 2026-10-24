@@ -103,6 +103,7 @@ If the campus firewall blocks NTP, use the campus NTP server instead. Check
 | `frozen` fault | encoder stuck, someone looped a still image | reboot camera; investigate tampering |
 | `blackout` fault | lens covered, IR failure at night | inspect physically |
 | `defocus` fault | lens sprayed / moved | inspect, re-aim, re-calibrate |
+| `low_visibility` fault | night without IR, fog or glare, failing sensor (noise) | add IR / lighting or a low-light camera; until then patrol the area - detection is unreliable (RESULTS section 12) |
 | Many dismissed alerts on one camera | scene unlike calibration footage (new furniture, lighting) | record new normal footage and re-run `calibrate_zone.py` |
 | Latency p95 > 400 ms | too many cameras per box | use the 416 px or INT8 models, raise `fire_every`, or add an edge box |
 

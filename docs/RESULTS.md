@@ -32,6 +32,7 @@ development (§8). An independent audit of every claim is in
 | Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **15 / 17** (CI 0.66–0.97), median time-to-alert 2.7 s; **0** false alarms in 4.7 min (one-sided 95 % bound ≈ 38 / h) | — | ⚠️ development set |
 | Falls, unseen dataset (§9) | UR-Fall, frozen system: falls detected / alerts on daily-activity clips | **23 / 30** with the YOLO11s-pose profile (19 / 30 default); 0 / 5 | — | ⚠️ only 5 negative clips |
 | External check (§8) | frozen system, unseen sources: fall recall / false alarms in 7.2 min | default 6 / 11, fall profile **9 / 11**; 1 false alarm (crowd, uncalibrated camera), 0 false fall alarms | — | ⚠️ honest gap |
+| Robustness (§12) | fire mAP kept under 8 corruptions x 3 severities (rPC) / mean person recall | 0.69 / 0.83; collapse in severe noise, flat contrast and darkness, now raised as a low-visibility trouble alert | — | ⚠️ needs IR at night |
 | Saliency | Eigen-CAM deletion AUC vs random / centre controls (40 images) | 0.148 vs 0.350 / 0.115: beats random (p < 0.001), **not** the centre control | better than both | ❌ |
 | Edge | full 3-hazard pipeline, 2 cores | **12.0 FPS** at 416 px (production config); 7.8 INT8-640; 6.6 FP32-640 | ≥ 8 FPS | ⚠️ met at 416 px only |
 
@@ -344,7 +345,38 @@ the alert line and the ALARM/VERIFY routing rather than as a stand-alone probabi
 
 ## 12. Corruption robustness
 
-ROBUSTNESS_BODY
+`benchmarks/eval_robustness.py`: the ImageNet-C protocol (Hendrycks & Dietterich 2019; mPC /
+rPC from Michaelis et al. 2019) on a CCTV-relevant subset plus low light, severities 1 / 3 / 5.
+Fire: mAP@0.5 on 300 leakage-free Home-fire test images and false-positive rate on 200 neutral
+images. People: recall of the clean-frame person detections (pseudo ground truth) on 76 frames
+from GMDCSA24 and the Intel sample videos.
+
+| Corruption | Fire mAP s1 / s3 / s5 (clean 0.578) | Person recall s1 / s3 / s5 |
+|---|---|---|
+| gaussian noise | 0.48 / 0.27 / 0.15 | 0.97 / 0.86 / **0.22** |
+| motion blur | 0.55 / 0.49 / 0.31 | 0.99 / 0.96 / 0.79 |
+| defocus blur | 0.55 / 0.44 / 0.28 | 1.00 / 0.97 / 0.90 |
+| fog | 0.47 / 0.38 / 0.26 | 0.99 / 0.97 / 0.94 |
+| contrast | 0.52 / 0.32 / **0.00** | 0.97 / 0.94 / **0.18** |
+| JPEG compression | 0.57 / 0.54 / 0.43 | 0.98 / 0.90 / 0.58 |
+| pixelate | 0.58 / 0.57 / 0.56 | 0.98 / 0.97 / 0.78 |
+| low light (night without IR) | 0.57 / 0.33 / **0.02** | 1.00 / 0.91 / **0.10** |
+| **mean over all (mPC)** | **0.40, rPC 0.69** | **0.83** |
+
+Person detection (and so fall detection) holds up well to blur, fog, compression and moderate
+darkness, but collapses in three conditions: severe sensor noise, a washed-out flat image, and
+near-darkness. Fire detection degrades earlier, notably with noise and fog, which is another
+reason the fire alarm needs corroboration from flicker, smoke density and sensors.
+
+**What the system does about it.** A model that cannot see must not stay silent. The camera
+health check now raises a **low-visibility** trouble alert ("image too dark, flat or noisy for
+reliable analysis") when the image's grey-level spread falls below 5 or its estimated noise
+passes 32 for 10 s; thresholds were set from this benchmark (clean CCTV: spread 40-50, noise
+at most 8.6). On the benchmark frames it flags 0 / 76 clean, moderate-noise, moderate-dark,
+moderate-contrast and fog frames, where recall stays at 0.86 or more, and 76 / 76 at severe
+noise and severe contrast; severe low light is caught as **blackout** on 74 / 76 frames. Night
+operation therefore needs IR illumination or a low-light camera; the trouble alert is what
+tells the operator when that is missing.
 
 ## 13. Fire detector operating point and hard-negative mining (not adopted)
 

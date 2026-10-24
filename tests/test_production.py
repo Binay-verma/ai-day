@@ -270,3 +270,24 @@ def test_fitted_gmdcsa_profile_is_rejected():
     from edgecopilot.config_schema import load_validated
     with pytest.raises(Exception, match="min_cues"):
         load_validated("benchmarks/results/experiments/fall_fitted_gmdcsa.yaml")
+
+
+def test_low_visibility_trouble_signal():
+    import numpy as np
+
+    from edgecopilot.cameras import TamperDetector
+    import cv2
+    rng = np.random.default_rng(0)
+    yy, xx = np.mgrid[0:360, 0:640]
+    base = np.dstack([(60 + 0.2 * xx + 0.1 * yy) % 256] * 3).astype(np.uint8)   # smooth scene with objects
+    for k in range(12):
+        cv2.rectangle(base, (40 * k, 100 + 10 * k), (40 * k + 30, 220 + 5 * k), (30 + 15 * k,) * 3, -1)
+    td = TamperDetector()
+    for i in range(30):  # normal, slightly changing scene
+        assert not td(np.clip(base.astype(int) + i % 3, 0, 255).astype(np.uint8), i / 2)["low_visibility"]
+    flat = np.full((360, 640, 3), 120, np.uint8) + rng.integers(0, 3, (360, 640, 3), dtype=np.uint8)
+    out = [td(flat, 15 + i / 2)["low_visibility"] for i in range(30)]
+    assert not out[0] and out[-1]                      # debounced: only after 10 s
+    td2 = TamperDetector()
+    noisy = lambda: np.clip(base.astype(int) + rng.normal(0, 160, base.shape), 0, 255).astype(np.uint8)  # noqa: E731
+    assert any(td2(noisy(), i / 2)["low_visibility"] for i in range(40))

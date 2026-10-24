@@ -47,7 +47,7 @@ def refresh(service) -> None:
         UP.labels(w.cam_id, st["zone"]).set(1.0 if h["state"] == "live" else 0.0)
         FPS.labels(w.cam_id).set(h["fps"])
         RECONNECTS.labels(w.cam_id).set(h["reconnects"])
-        for k in ("frozen", "blackout", "defocus"):
+        for k in ("frozen", "blackout", "defocus", "low_visibility"):
             FAULT.labels(w.cam_id, k).set(1.0 if h["faults"].get(k) else 0.0)
         PAUSED.labels(w.cam_id).set(1.0 if st.get("paused") else 0.0)
         if getattr(w.health, "last_frame_wall", 0):

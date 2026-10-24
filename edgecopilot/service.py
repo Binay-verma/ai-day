@@ -43,6 +43,7 @@ FAULT_TEXT = {
     "view_changed": "field of view changed (camera moved) - calibration no longer valid",
     "processing_error": "analysis software error on this camera's frames",
     "self_test_failed": "periodic self-test failed (models, frames or alert chain)",
+    "low_visibility": "image too dark, flat or noisy for reliable analysis (night without IR, fog, glare, sensor noise)",
 }
 
 

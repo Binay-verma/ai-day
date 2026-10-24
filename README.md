@@ -85,6 +85,7 @@ image benchmark and the frozen-system external check are not.
 | Fire/smoke detector (leakage-free split) | mAP@0.5 **0.56** Home-fire / **0.65** DBA-Fire scenes (start checkpoint 0.37 / 0.36); 15.5 % false positives on neutral images, so it is one cue among several, never the alarm on its own |
 | Fire, system level (FURG videos) | **15/17** fire videos detected (median 2.7 s), **0** false alarms in 4.7 min of non-fire video incl. moving cameras |
 | External check (frozen system, unseen footage) | **9/11** falls with the fall profile (6/11 default); 1 false alarm in 7.2 min (crowd, uncalibrated camera), 0 false fall alarms |
+| Robustness (night, noise, blur, fog, JPEG) | fire detector keeps 69 % of its accuracy, person detection 83 % recall on average; the conditions where it collapses now raise a **low-visibility** trouble alert |
 | Privacy filter, verified | an independent face detector finds **0 of 184** faces after the filter |
 | Edge speed (all 3 hazards at once) | **12.0 FPS** with the 416 px production models; 7.8 INT8-640; 6.6 FP32-640 (the audit's safety fixes cost ~40 % at 640 px) |
 | Saliency honesty check | Eigen-CAM beats random but not a centre-bias control, so the ledger, not the heat map, is the explanation |

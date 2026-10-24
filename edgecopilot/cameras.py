@@ -62,12 +62,19 @@ class Health:
 class TamperDetector:
     """Debounced image-health checks on a tiny grey thumbnail (< 0.5 ms/frame)."""
 
+    # Low visibility: thresholds from benchmarks/eval_robustness.py - person recall collapses (to 0.10-0.22)
+    # when the thumbnail's grey-level spread falls below ~5 (night without IR, washed-out contrast) or the
+    # noise estimate passes ~50; clean CCTV frames measured spread 40-50 and noise <= 8.6.
+    MIN_SPREAD, MAX_NOISE = 5.0, 32.0
+    _K = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], np.float32)
+
     def __init__(self, frozen_s: float = 15.0, blackout_s: float = 5.0, defocus_s: float = 10.0,
-                 dark_level: float = 12.0, sharp_drop: float = 0.2):
-        self.frozen_s, self.blackout_s, self.defocus_s = frozen_s, blackout_s, defocus_s
+                 dark_level: float = 12.0, sharp_drop: float = 0.2, low_vis_s: float = 10.0):
+        self.frozen_s, self.blackout_s, self.defocus_s, self.low_vis_s = frozen_s, blackout_s, defocus_s, low_vis_s
         self.dark_level, self.sharp_drop = dark_level, sharp_drop
         self.prev: Optional[np.ndarray] = None
-        self.since: Dict[str, Optional[float]] = {"frozen": None, "blackout": None, "defocus": None}
+        self.since: Dict[str, Optional[float]] = {"frozen": None, "blackout": None, "defocus": None, "low_visibility": None}
+        self._noise = 0.0
         self.sharp_base: Optional[float] = None
         self.n = 0
 
@@ -85,8 +92,14 @@ class TamperDetector:
             # slow baseline so that a sudden loss of detail stands out
             self.sharp_base = 0.995 * self.sharp_base + 0.005 * sharp
         conds["defocus"] = self.n > 50 and self.sharp_base > 5 and sharp < self.sharp_drop * self.sharp_base
+        if self.n % 5 == 1:  # Immerkaer (1996) noise estimate on a 320-px grey image, every 5th frame
+            gg = frame if frame.ndim == 2 else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gg = cv2.resize(gg, (320, max(8, int(gg.shape[0] * 320 / max(gg.shape[1], 1))))).astype(np.float32)
+            h, w = gg.shape
+            self._noise = float(np.abs(cv2.filter2D(gg, -1, self._K)[1:-1, 1:-1]).sum() * np.sqrt(0.5 * np.pi) / (6 * (w - 2) * (h - 2)))
+        conds["low_visibility"] = not conds["blackout"] and (float(g.std()) < self.MIN_SPREAD or self._noise > self.MAX_NOISE)
         self.prev = g.astype(np.int16)
-        hold = {"frozen": self.frozen_s, "blackout": self.blackout_s, "defocus": self.defocus_s}
+        hold = {"frozen": self.frozen_s, "blackout": self.blackout_s, "defocus": self.defocus_s, "low_visibility": self.low_vis_s}
         out = {}
         for k, c in conds.items():
             if c:
