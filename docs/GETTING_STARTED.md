@@ -136,6 +136,21 @@ A laptop camera at table height is harder for fall detection than a ceiling came
 often cut off or seen end-on). For better fall detection add
 `pose: {path: models/yolo11s-pose.onnx}` under the camera in the webcam config (uses ~3x CPU).
 
+### Where your test is saved, and how to share it for review
+
+Every alert (explanation, evidence, decision, your confirm / dismiss) is stored in
+`data/edgecopilot.db`; privacy-filtered snapshots and heat maps are stored encrypted in
+`data/media/`. To export a session as one file:
+
+```bash
+python scripts/export_session.py --hours 6                 # alerts, evidence, audit, machine info
+python scripts/export_session.py --hours 6 --with-images   # + the pixelated snapshots / heat maps
+```
+
+It writes `outputs/session_export.zip`. Nothing leaves the computer unless you send it. Tip:
+note down what you did and when (e.g. "15:02 fell on the mat, 15:05 lay down slowly"), so each
+alert, or each missing alert, can be matched to what really happened.
+
 ---
 
 ## 7. Other ways to run
