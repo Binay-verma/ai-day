@@ -3,6 +3,7 @@
 extends: ../campus.yaml
 runtime:
   long_lie_s: 20          # shorter than the default 60 s so a test escalates quickly
+  threads: 4              # laptops have more cores than the 2-core edge box the default assumes
 cameras:
   - id: webcam
     source: "0"

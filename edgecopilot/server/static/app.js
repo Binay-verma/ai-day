@@ -57,8 +57,10 @@ function updateState(cam, s) {
     m.querySelector(".fill").style.width = (g.prob * 100).toFixed(1) + "%";
     m.querySelector(".tick").style.left = (g.threshold * 100) + "%";
     m.querySelector(".val").textContent = Math.round(g.prob * 100) + "%";
-    const pos = (g.top || []).filter(c => c.c > 0).map(c => c.name.replace(/_/g, " "));
-    m.querySelector(".why").textContent = pos.length ? "pushed up by " + pos.join(", ") + (g.subject ? ` (${g.subject})` : "") : "nothing unusual";
+    const pos = (g.top || []).filter(c => c.c > 0 && !c.name.endsWith("_gate")).map(c => c.name.replace(/_/g, " "));
+    let why = pos.length ? "pushed up by " + pos.join(", ") + (g.subject ? ` (${g.subject})` : "") : "nothing unusual";
+    if (g.gated && g.gate_phrase) why += " - held below the line: " + g.gate_phrase;
+    m.querySelector(".why").textContent = why;
   }
   const t = $("#timings"); t.replaceChildren();
   for (const [k, v] of Object.entries(s.timings || {})) t.append(el("span", {}, k + " ", el("b", {textContent: v})));

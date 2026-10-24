@@ -171,6 +171,7 @@ class Assessment:
     prob: float
     threshold: float  # probability threshold in force
     cues: List[Cue] = field(default_factory=list)
+    gated: bool = False   # an evidence gate held the score below the alert line
     active: bool = False  # after temporal hysteresis
     onset: bool = False   # became active on this update
     ema_logit: Optional[float] = None  # smoothed logit used by the alert line
@@ -198,11 +199,14 @@ class Assessment:
 class HazardModel:
     """Additive log-odds model for one hazard type."""
 
-    def __init__(self, hazard: str, bias: float, cues: Iterable[CueSpec], threshold: float = 0.5):
+    def __init__(self, hazard: str, bias: float, cues: Iterable[CueSpec], threshold: float = 0.5,
+                 gate: Optional[dict] = None):
         self.hazard = hazard
         self.bias = float(bias)
         self.specs: Dict[str, CueSpec] = {c.name: c for c in cues}
         self.threshold = float(threshold)
+        # evidence gate (e.g. falls: a lying posture alone is not a fall - there must be an uncontrolled descent)
+        self.gate = gate
         # per-subject bias offsets learned from operator feedback
         self.bias_offset: Dict[str, float] = {}
 
@@ -210,7 +214,7 @@ class HazardModel:
     def from_config(cls, hazard: str, cfg: dict) -> HazardModel:
         specs = [ShapeCueSpec(name=k, **v) if v.get("knots") else CueSpec(name=k, **{x: y for x, y in v.items() if x not in ("knots", "slopes")})
                  for k, v in cfg["cues"].items()]
-        return cls(hazard, cfg.get("bias", 0.0), specs, cfg.get("threshold", 0.5))
+        return cls(hazard, cfg.get("bias", 0.0), specs, cfg.get("threshold", 0.5), gate=cfg.get("gate"))
 
     def assess(self, subject: str, t: float, values: Dict[str, float],
                reliability: Optional[Dict[str, float]] = None,
@@ -231,7 +235,36 @@ class HazardModel:
             except (KeyError, ValueError):
                 phrase = f"{name} = {x:.2f}"
             cues.append(Cue(name, x, spec.unit, c, r, phrase, spec.source))
-        return Assessment(self.hazard, subject, t, bias, total, sigmoid(total), self.threshold, cues)
+        gated = False
+        if self.gate:
+            total, gated = self._apply_gate(values, cues, total)
+        a = Assessment(self.hazard, subject, t, bias, total, sigmoid(total), self.threshold, cues)
+        a.gated = gated
+        return a
+
+    def _apply_gate(self, values: Dict[str, float], cues: List[Cue], total: float) -> tuple:
+        """Evidence gate as an explicit, exact ledger term.
+
+        If the gate cues (e.g. hip drop + descent speed) together contribute less than
+        ``min_contribution`` and the ``unless`` condition (e.g. motionless on the ground for a
+        long time) does not hold, the score is capped ``margin`` log-odds below the alert line by
+        a named rule term, so the ledger still sums exactly and says why nothing fired.
+        """
+        g = self.gate or {}
+        motion = sum(c.contribution for c in cues if c.name in g.get("cues", []))
+        unless = g.get("unless") or {}
+        if unless and float(values.get(unless.get("cue", ""), 0.0) or 0.0) >= float(unless.get("at_least", 1e9)):
+            return total, False  # e.g. long lie: the person has been down long enough to matter anyway
+        if motion >= float(g.get("min_contribution", 0.0)):
+            return total, False
+        th = min(max(self.threshold, 1e-6), 1 - 1e-6)
+        line = math.log(th / (1 - th))
+        cap = min(0.0, (line - float(g.get("margin", 0.5))) - total)
+        if cap < 0:
+            cues.append(Cue("fall_motion_gate" if self.hazard == "fall" else f"{self.hazard}_gate", float(motion), "log-odds",
+                            cap, 1.0, g.get("phrase", "the required evidence was not seen"), "rule"))
+            total += cap
+        return total, True
 
     # ----------------------------------------------------- operator feedback
     def feedback(self, zone_key: str, label: int, prob: float, lr: float = 0.5,

@@ -350,8 +350,10 @@ class CameraWorker:
         for a in res.assessments:
             g = gauges.get(a.hazard)
             if g is None or a.prob > g["prob"]:
+                gate = next((c for c in a.cues if c.source == "rule"), None)
                 gauges[a.hazard] = {"prob": round(a.prob, 3), "subject": a.subject, "active": a.active,
-                                    "threshold": a.threshold,
+                                    "threshold": a.threshold, "gated": bool(getattr(a, "gated", False)),
+                                    "gate_phrase": gate.phrase if gate is not None else "",
                                     "top": [{"name": c.name, "c": round(c.contribution, 2), "v": round(c.value, 3)}
                                             for c in a.top_cues(3, positive_only=False, min_abs=0.0)]}
         with self._lock:

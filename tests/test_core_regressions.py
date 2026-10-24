@@ -364,3 +364,53 @@ def test_long_lie_escalates_once(tmp_path):
     assert cop._check_long_lie(a(cop.long_lie_s + 1), al)
     assert al.severity == "CRITICAL" and al.triage["mode"] == "ALARM" and seen == ["long_lie"]
     assert not cop._check_long_lie(a(cop.long_lie_s + 50), al)  # only once
+
+
+# Falling vs lying down (webcam test: slowly lying down on a bed raised fall alarms)
+def _fall_model():
+    return HazardModel.from_config("fall", CFG["hazards"]["fall"])
+
+
+def test_lying_down_slowly_is_held_below_the_line_with_an_exact_reason():
+    m = _fall_model()
+    lying = {"torso_angle": 95, "aspect_ratio": 3.5, "height_drop": 0.8, "tilt_rate": 160,
+             "descent_speed": 0.18, "hip_drop": 0.05, "ground_time": 3.0}
+    a = m.assess("person#1", 0, lying)
+    assert a.gated and a.prob < m.threshold
+    assert a.attribution_error() < 1e-9                      # the gate is an explicit ledger term
+    gate = [c for c in a.cues if c.source == "rule"]
+    assert gate and "lying down, not falling" in gate[0].phrase
+
+
+def test_a_real_fall_passes_the_gate():
+    m = _fall_model()
+    fall = {"torso_angle": 90, "aspect_ratio": 3.0, "height_drop": 0.7, "tilt_rate": 150,
+            "descent_speed": 0.9, "hip_drop": 0.45, "ground_time": 1.0}
+    a = m.assess("person#1", 0, fall)
+    assert not a.gated and a.prob >= m.threshold
+
+
+def test_long_motionless_lie_still_alerts_without_a_seen_fall():
+    m = _fall_model()
+    down = {"torso_angle": 90, "aspect_ratio": 3.0, "height_drop": 0.7, "tilt_rate": 20,
+            "descent_speed": 0.1, "hip_drop": 0.02, "ground_time": 65.0}
+    a = m.assess("person#1", 0, down)
+    assert not a.gated and a.prob >= m.threshold
+
+
+def test_hip_drop_measures_how_far_the_hips_went_down():
+    from edgecopilot.perception.fall import FallFeatureExtractor
+    from edgecopilot.perception.tracker import Track, TrackState
+
+    def run(boxes):
+        fx, tr = FallFeatureExtractor(), Track(1)
+        v = None
+        for k, b in enumerate(boxes):
+            tr.history.append(TrackState(k / 15, np.array(b, float), None, 0.9))
+            v, _ = fx(tr, k / 15)
+        return v
+    standing = [[100, 100, 160, 400]] * 20
+    fall = standing + [[100 + 10 * k, 100 + 20 * k, 160 + 25 * k, 400] for k in range(1, 10)] + [[190, 320, 400, 400]] * 10
+    lie = standing + [[100, 250, 160, 400]] * 15 + [[100 + 12 * k, 250 + 5 * k, 160 + 25 * k, 400] for k in range(1, 9)] + [[196, 300, 360, 400]] * 10
+    assert run(fall)["hip_drop"] > 0.3          # hips fall from standing height to the floor
+    assert run(lie)["hip_drop"] < run(fall)["hip_drop"]

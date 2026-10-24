@@ -42,6 +42,8 @@ class FallState:
     entry_tilt: float = 0.0
     seen_high: bool = False  # observed in a non-low posture before (so a transition is measurable)
     hip_hist: list = field(default_factory=list)  # [(t, y)] for smoothed velocity
+    hip_long: list = field(default_factory=list)  # [(t, y)] last few seconds, for the hip drop of a transition
+    entry_hip_drop: float = 0.0
 
 
 def _mid(kp: np.ndarray, a: int, b: int) -> Optional[np.ndarray]:
@@ -105,6 +107,10 @@ class FallFeatureExtractor:
         y = float(hip[1]) if hip is not None else float((box[1] + box[3]) / 2)
         st.hip_hist.append((t, y))
         st.hip_hist = [p for p in st.hip_hist if t - p[0] <= 1.0]
+        st.hip_long.append((t, y))
+        st.hip_long = [p for p in st.hip_long if t - p[0] <= self.descent_window_s]
+        # how far the hips went down over the last few seconds, in standing body-heights (image y grows downwards)
+        hip_drop_now = float(np.clip((y - min(p[1] for p in st.hip_long)) / H, 0, 2))
         prev = st.hip_hist[:-1]
         in_win = [p for p in prev if t - p[0] <= self.vel_window_s]
         ref = in_win[0] if in_win else (prev[-1] if prev else (t, y))
@@ -131,9 +137,11 @@ class FallFeatureExtractor:
                 st.low_since = t  # transition to a low posture: remember how fast it happened
                 st.entry_descent = recent_peak
                 st.entry_tilt = recent_tilt
+                st.entry_hip_drop = hip_drop_now
             elif t - st.low_since <= self.entry_window_s:
                 st.entry_descent = max(st.entry_descent, recent_peak)
                 st.entry_tilt = max(st.entry_tilt, recent_tilt)
+                st.entry_hip_drop = max(st.entry_hip_drop, hip_drop_now)
             if speed < self.still_speed:
                 if st.lying_since is None:
                     st.lying_since = t
@@ -144,6 +152,7 @@ class FallFeatureExtractor:
             st.lying_since = None
             st.entry_descent = 0.0
             st.entry_tilt = 0.0
+            st.entry_hip_drop = 0.0
             st.seen_high = True
         # descent = speed of the most recent transition to the ground while low,
         # otherwise the peak downward speed over the last few seconds
@@ -158,6 +167,8 @@ class FallFeatureExtractor:
             "height_drop": float(np.clip(1 - h / H, 0, 1)),
             "aspect_ratio": float(w / max(h, 1.0)),
             "ground_time": float(ground_time),
+            # diagnostic (not a model cue unless configured): hip drop of the transition into the low posture
+            "hip_drop": float(st.entry_hip_drop if st.low_since is not None else hip_drop_now),
         }
         # a transition is only measurable if we saw the person in a higher posture first
         trans_rel = 1.0 if st.seen_high else 0.2

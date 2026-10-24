@@ -93,6 +93,20 @@ class CueCfg(_Strict):
         return self
 
 
+class GateUnlessCfg(_Strict):
+    cue: str
+    at_least: float
+
+
+class GateCfg(_Strict):
+    """Evidence gate: the hazard can only reach its alert line when the gate cues contribute enough."""
+    cues: List[str] = Field(min_length=1)
+    min_contribution: float = 0.0
+    margin: float = Field(0.5, ge=0, le=5)
+    unless: Optional[GateUnlessCfg] = None
+    phrase: str = "the required evidence was not seen"
+
+
 class HazardCfg(_Strict):
     bias: float
     threshold: float = Field(0.6, gt=0, lt=1)
@@ -101,6 +115,7 @@ class HazardCfg(_Strict):
     min_threshold: float = Field(0.2, gt=0, lt=1, description="floor for calibrated alert lines")
     max_threshold: float = Field(0.9, gt=0, lt=1, description="ceiling for calibrated alert lines: operator "
                                  "feedback can never desensitise a camera beyond this")
+    gate: Optional[GateCfg] = None
     min_cues: int = Field(1, ge=1, le=5, description="corroboration rule: no fewer than this many cues may reach the alert line "
                           "(2 = no single cue can raise this hazard on its own)")
 
