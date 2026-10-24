@@ -1,0 +1,13 @@
+# Laptop webcam test:  python -m edgecopilot.server.app --config configs/examples/webcam.yaml --demo
+# (use source "1" if index 0 is the wrong camera, e.g. an iPhone via Continuity Camera)
+extends: ../campus.yaml
+runtime:
+  long_lie_s: 20          # shorter than the default 60 s so a test escalates quickly
+cameras:
+  - id: webcam
+    source: "0"
+    zone: Corridor B
+    realtime: true
+    restricted:
+      # right third of the image is a "restricted area" at any time: stand there ~25 s to see an intrusion alert
+      - {name: Test restricted area, polygon: [[0.67, 0.0], [1.0, 0.0], [1.0, 1.0], [0.67, 1.0]]}
