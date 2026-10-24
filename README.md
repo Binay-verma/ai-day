@@ -114,6 +114,8 @@ production-readiness verdict.
 
 ## Quick start
 
+**Step-by-step guide (Windows / macOS / Linux, webcam testing, demo script, troubleshooting): [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).**
+
 ```bash
 pip install -e ".[dev]"            # runtime: onnxruntime + opencv + fastapi (no torch)
 # models + demo video: unzip the release asset edge-copilot-models-and-demo.zip into the repo root
@@ -134,6 +136,7 @@ RTSP camera: `--source rtsp://user:pass@camera/stream`. ESP32 node posts to `/ap
 
 | Doc | What |
 |---|---|
+| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | install, run, webcam test, 5-minute demo script, troubleshooting |
 | [docs/AUDIT.md](docs/AUDIT.md) | audit findings, fixes, standards position, verdict |
 | [docs/RESULTS.md](docs/RESULTS.md) | every benchmark, with intervals and caveats |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | components and data flow |
