@@ -1,71 +1,71 @@
 {
-  "n_alerts": 77,
-  "attribution_max_abs_error": 1.3322676295501878e-15,
+  "n_alerts": 74,
+  "attribution_max_abs_error": 8.881784197001252e-16,
   "deletion_test_max_abs_error": 1.7763568394002505e-15,
   "deletion_test_note": "gate-aware: a deletion that makes an evidence gate fire is checked including that gate's named rule term",
   "deletions_that_trip_an_evidence_gate": {
-    "n": 25,
-    "of": 525
+    "n": 21,
+    "of": 504
   },
   "counterfactuals": {
-    "alerts_with_single_cue_cf": 77,
-    "total": 339,
+    "alerts_with_single_cue_cf": 74,
+    "total": 330,
     "validity": 1.0,
-    "plausibility_in_normal_range": 0.8082595870206489,
-    "sufficient_reason_mean_size": 3.8051948051948052
+    "plausibility_in_normal_range": 0.8090909090909091,
+    "sufficient_reason_mean_size": 3.8783783783783785
   },
   "template_grounding": {
     "mean_groundedness": 1.0,
     "unsupported_claim_rate": 0.0,
-    "mean_claims_per_explanation": 11.974025974025974
+    "mean_claims_per_explanation": 11.972972972972974
   },
   "verifier_stress": {
     "number_drift": {
-      "detected": 76,
-      "n": 77,
-      "rate": 0.987012987012987
+      "detected": 74,
+      "n": 74,
+      "rate": 1.0
     },
     "false_cause": {
-      "detected": 69,
-      "n": 69,
+      "detected": 65,
+      "n": 65,
       "rate": 1.0
     },
     "wrong_hazard": {
-      "detected": 77,
-      "n": 77,
+      "detected": 74,
+      "n": 74,
       "rate": 1.0
     },
     "invented_sensor": {
-      "detected": 77,
-      "n": 77,
+      "detected": 74,
+      "n": 74,
       "rate": 1.0
     },
     "confidence_inflation": {
-      "detected": 77,
-      "n": 77,
+      "detected": 74,
+      "n": 74,
       "rate": 1.0
     },
     "value_swap": {
-      "detected": 77,
-      "n": 77,
+      "detected": 74,
+      "n": 74,
       "rate": 1.0
     },
     "hazard_drift": {
-      "detected": 77,
-      "n": 77,
+      "detected": 74,
+      "n": 74,
       "rate": 1.0
     },
     "synonym_false_cause": {
-      "detected": 69,
-      "n": 69,
+      "detected": 65,
+      "n": 65,
       "rate": 1.0
     }
   },
-  "verifier_detection_rate": 0.9983333333333333,
-  "verifier_false_reject_rate_on_paraphrases": 0.006637168141592875,
-  "n_paraphrases": 452,
+  "verifier_detection_rate": 1.0,
+  "verifier_false_reject_rate_on_paraphrases": 0.006880733944954143,
+  "n_paraphrases": 436,
   "explain_latency_ms": {
-    "p50": 0.8103999998638756,
-    "p95": 1.3322456006790162
+    "p50": 1.0126224999567057,
+    "p95": 1.5203888499968339
   }
 }

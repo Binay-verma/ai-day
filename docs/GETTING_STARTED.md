@@ -129,6 +129,7 @@ Place the laptop 3–4 m away so it sees your **whole body and the floor**. Then
 | Not a fall | Lie down slowly and deliberately (sit first, then lie back) | No fall alert. The fall gauge says "held below the line: no fast, uncontrolled descent was seen (lying down, not falling)". If you stay down 60 s (20 s in the webcam config) it alerts anyway as a possible long lie |
 | Not a fall | Crouch or bend down fast, then stand up | No fall alert ("the person did not end up lying down") |
 | Intrusion | Stand in the right third of the image ~25 s | "Restricted-area intrusion" alert with a patrol action |
+| Crowd | 3+ people walk in, then all run out of view at once (or uncomment the `zones` test lines in the webcam config) | Crowd measures abnormal *movement* (sudden dispersal, panic) and over-capacity, not a head count. 2 people standing in view correctly stays near 0 % (Corridor B holds 30) |
 | Fire | Hold a phone playing a fire video close to the camera | May raise smoke / fire; without the MQ-2 sensor it may stay VERIFY. **Never use a real flame indoors** |
 | Camera trouble | Cover the lens ~5 s | "Camera blackout" trouble alert |
 | What if? | Open it on any alert, drag a slider | Score and decision update |

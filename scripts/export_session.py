@@ -48,6 +48,16 @@ def versions() -> dict:
     return out
 
 
+def _detail(row):
+    d = row.get("detail") or {}
+    if isinstance(d, str):
+        try:
+            d = json.loads(d)
+        except ValueError:
+            d = {"raw": d}
+    return d if isinstance(d, dict) else {"raw": d}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default=os.path.join(ROOT, "data", "edgecopilot.db"))
@@ -77,6 +87,8 @@ def main():
     audit = [x for x in store.audit_log(5000) if (x.get("ts") or 0) >= since]
     session = {"exported_utc": utc_iso(time.time()), "period_hours": a.hours, "n_alerts": len(rows),
                "alerts_by_hazard_and_triage": counts, "incidents": correlate(alerts), "alerts": rows,
+               "held_by_evidence_gate": [{"time_utc": utc_iso(x.get("ts")), "camera": x.get("target"), **_detail(x)}
+                                         for x in audit if x.get("action") == "hazard_held"],
                "audit": audit, "audit_chain_check": store.verify_audit_chain(), "machine": versions()}
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
     n_img = 0

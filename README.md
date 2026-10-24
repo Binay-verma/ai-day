@@ -76,10 +76,10 @@ image benchmark and the frozen-system external check are not.
 
 | Area | Result |
 |---|---|
-| Explanation exactness | per-cue contributions sum to the score with max error **1.3e-15** (77 real alerts) |
-| Grounded text | **0 %** unsupported claims; verifier catches **99.8 %** of injected narrator errors (8 types) at **0.7 %** false rejects |
-| Counterfactuals | **100 %** valid (339); explanation + verification ≈ 1 ms |
-| Falls (GMDCSA24, leave-one-subject-out) | F1 **0.877** default (precision 0.955), **0.843** with the YOLO11s-pose profile. Target 0.90: not met |
+| Explanation exactness | per-cue contributions sum to the score with max error **8.9e-16** (74 real alerts) |
+| Grounded text | **0 %** unsupported claims; verifier catches **100 %** of 574 injected narrator errors (8 types) at **0.7 %** false rejects |
+| Counterfactuals | **100 %** valid (330); explanation + verification ≈ 1 ms |
+| Falls (GMDCSA24, leave-one-subject-out) | F1 **0.875** default (precision 0.969), **0.835** with the YOLO11s-pose profile. Target 0.90: not met |
 | Falling vs lying down | fall evidence gate (uncontrolled descent **and** lying posture required): false alarms on deliberate lie-downs **6 → 0**, shown on the gauge as an exact ledger term |
 | Falls, second dataset never used in development (UR-Fall) | **24/30** with the YOLO11s-pose profile (23/30 default), 0/5 alarms on daily activities |
 | Abnormal crowd movement (UMN) | **10/11** dispersal events, 0 false alarms in 200 s of normal video, with per-camera conformal calibration |

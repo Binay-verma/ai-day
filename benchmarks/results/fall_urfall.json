@@ -6,7 +6,7 @@
    0.591,
    0.882
   ],
-  "alarm_mode": 13,
+  "alarm_mode": 12,
   "median_delay_after_fall_onset_s": 1.5,
   "adl_clips": 5,
   "adl_clips_with_any_alert": 0,
@@ -66,12 +66,12 @@
    "alerts": [
     [
      "fall",
-     4.63,
+     5.23,
      "VERIFY"
     ]
    ],
    "onset_s": 0.43333333333333335,
-   "delay_s": 4.2,
+   "delay_s": 4.8,
    "seconds": 3.2
   },
   {
@@ -205,7 +205,7 @@
     [
      "fall",
      1.67,
-     "ALARM"
+     "VERIFY"
     ]
    ],
    "onset_s": 0.5,
@@ -306,12 +306,12 @@
    "alerts": [
     [
      "fall",
-     2.57,
+     3.23,
      "VERIFY"
     ]
    ],
    "onset_s": 0.1,
-   "delay_s": 2.47,
+   "delay_s": 3.13,
    "seconds": 1.8
   },
   {

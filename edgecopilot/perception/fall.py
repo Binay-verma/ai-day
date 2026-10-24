@@ -68,8 +68,10 @@ class FallFeatureExtractor:
     """Keeps per-track state and produces fall cue values each frame."""
 
     def __init__(self, descent_window_s: float = 3.0, lying_angle: float = 55.0,
-                 still_speed: float = 0.25, vel_window_s: float = 0.3, entry_window_s: float = 2.0):
+                 still_speed: float = 0.25, vel_window_s: float = 0.3, entry_window_s: float = 2.0,
+                 motion_rel_floor: float = 0.5):
         self.descent_window_s = descent_window_s
+        self.motion_rel_floor = motion_rel_floor
         self.entry_window_s = entry_window_s
         self.vel_window_s = vel_window_s
         self.lying_angle = lying_angle
@@ -173,7 +175,10 @@ class FallFeatureExtractor:
         # a transition is only measurable if we saw the person in a higher posture first
         trans_rel = 1.0 if st.seen_high else 0.2
         rel = {"torso_angle": rel_ang,
-               "descent_speed": trans_rel * min(1.0, 0.5 + 0.5 * len(st.standing_heights) / 10),
+               # motion in body-heights needs a measured standing height: with none (track first seen
+               # low, or cut off by the image edge) the current box is used and the speeds are inflated
+               "descent_speed": trans_rel * min(1.0, self.motion_rel_floor + (1 - self.motion_rel_floor) * len(st.standing_heights) / 10),
+               "hip_drop": trans_rel * min(1.0, self.motion_rel_floor + (1 - self.motion_rel_floor) * len(st.standing_heights) / 10),
                "tilt_rate": trans_rel * rel_ang,
                "height_drop": min(1.0, len(st.standing_heights) / 10)}
         return values, rel

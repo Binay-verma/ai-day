@@ -156,10 +156,10 @@
     {
      "hazard": "fall",
      "t": 1.2,
-     "prob": 0.889,
+     "prob": 0.88,
      "mode": "ALARM",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 92 deg from vertical, a horizontal body shape (width/height 2.7) and the torso rotating 143 deg/s. It would not have fired if tilt rate had been below 50.56 deg/s (observed 143.42 deg/s). Confidence 89% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 92 deg from vertical, a horizontal body shape (width/height 2.7) and the torso rotating 143 deg/s. It would not have fired if tilt rate had been below 55.20 deg/s (observed 143.42 deg/s). Confidence 88% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   }

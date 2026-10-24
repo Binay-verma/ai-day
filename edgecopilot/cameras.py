@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import collections
 import logging
+import math
 import re
 import os
 import tempfile
@@ -175,6 +176,7 @@ class CameraWorker:
         self.realtime = realtime
         self.loop = loop
         self.on_alert, self.on_fault, self.on_clip, self.on_frame = on_alert, on_fault, on_clip, on_frame
+        self.on_held: Optional[Callable] = None  # an evidence gate held a would-be alert below the line
         self.clip = clip
         self.stale_s = stale_s
         self.sensors_csv = sensors_csv
@@ -348,6 +350,12 @@ class CameraWorker:
         ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 72])
         gauges: Dict[str, dict] = {}
         for a in res.assessments:
+            if getattr(a, "gated", False) and self.on_held:
+                gate = next((c for c in a.cues if c.source == "rule"), None)
+                ungated = a.logit - (gate.contribution if gate is not None else 0.0)
+                if gate is not None and 1.0 / (1.0 + math.exp(-max(min(ungated, 50.0), -50.0))) >= a.threshold:
+                    # would have alerted without the gate: record it, so a test or audit can see the gate at work
+                    self.on_held(self.cam_id, a, gate)
             g = gauges.get(a.hazard)
             if g is None or a.prob > g["prob"]:
                 gate = next((c for c in a.cues if c.source == "rule"), None)

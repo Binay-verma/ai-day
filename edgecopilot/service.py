@@ -16,6 +16,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import logging
+import math
 import os
 import socket
 import threading
@@ -147,6 +148,7 @@ class EdgeService:
                          on_clip=self._on_clip, on_frame=self._on_frame,
                          clip=ClipBuffer(st.get("clip_pre_s", 5.0), st.get("clip_post_s", 10.0)),
                          sensors_csv=sensors_csv)
+        w.on_held = self._on_held
         with self.lock:
             self.cameras[cam["id"]] = w
             self.copilots[cam["id"]] = cop
@@ -358,6 +360,28 @@ class EdgeService:
             self._broadcast({"type": "alert_update", "id": al.id, "change": change})
         except Exception:  # noqa: BLE001
             log.exception("failed to persist status change of %s", al.id)
+
+    def _on_held(self, cam_id: str, a, gate) -> None:
+        """An evidence gate held a would-be alert below the line (e.g. someone lying down, not falling).
+
+        Not an alert and nothing is paged: it is written to the audit trail (rate-limited per person)
+        so that commissioning tests and reviews can see that the gate, not a blind spot, kept it quiet.
+        """
+        key = f"held:{cam_id}:{a.hazard}:{a.subject}"
+        now = time.time()
+        if now - self._fault_last.get(key, 0.0) < 20.0:
+            return
+        self._fault_last[key] = now
+        prob_without_gate = 1.0 / (1.0 + math.exp(-max(min(a.logit - gate.contribution, 50.0), -50.0)))
+        detail = {"hazard": a.hazard, "subject": a.subject, "t_video": round(float(a.t), 2), "gate": gate.name,
+                  "reason": gate.phrase, "prob_shown": round(a.prob, 3), "prob_without_gate": round(prob_without_gate, 3),
+                  "threshold": a.threshold,
+                  "cues": [{"name": c.name, "value": round(c.value, 3), "c": round(c.contribution, 2)} for c in a.cues]}
+        self._broadcast({"type": "held", "camera": cam_id, **{k: detail[k] for k in ("hazard", "subject", "reason")}})
+        try:
+            self.store.audit("system", "admin", "hazard_held", cam_id, detail)
+        except Exception:  # noqa: BLE001
+            log.exception("could not record held event")
 
     def _on_fault(self, cam_id: str, kind: str, detail: str) -> None:
         """Trouble signal: a failing camera is itself an incident (FM 3232-style), routed like an alert."""

@@ -10,5 +10,15 @@ cameras:
     zone: Corridor B
     realtime: true
     restricted:
-      # right third of the image is a "restricted area" at any time: stand there ~25 s to see an intrusion alert
+      # right third of the image is a "restricted area" at any time (no permitted hours, so "outside
+      # permitted hours" is always one of the reasons): stand there ~15-25 s to see an intrusion alert.
+      # Standing anywhere else in the image never raises it.
       - {name: Test restricted area, polygon: [[0.67, 0.0], [1.0, 0.0], [1.0, 1.0], [0.67, 1.0]]}
+
+# Crowd test (optional). The crowd hazard is abnormal crowd MOVEMENT (panic, sudden dispersal,
+# over-capacity), not a head count: Corridor B holds 30 people, so 2-3 people standing in view
+# correctly score ~0 %, and "everyone leaving at once" needs at least 3 people. To try it at a
+# desk, uncomment the next lines: then 3 people in view = 3x capacity (~90 %), 2 people ~14 %.
+# zones:
+#   Corridor B:
+#     capacity: 1

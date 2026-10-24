@@ -424,3 +424,32 @@ def test_hip_drop_measures_how_far_the_hips_went_down():
     lie = standing + [[100, 250, 160, 400]] * 15 + [[100 + 12 * k, 250 + 5 * k, 160 + 25 * k, 400] for k in range(1, 9)] + [[196, 300, 360, 400]] * 10
     assert run(fall)["hip_drop"] > 0.3          # hips fall from standing height to the floor
     assert run(lie)["hip_drop"] < run(fall)["hip_drop"]
+
+
+def test_hip_drop_is_discounted_without_a_measured_standing_height():
+    from edgecopilot.perception.fall import FallFeatureExtractor
+    from edgecopilot.perception.tracker import Track, TrackState
+    fx, tr = FallFeatureExtractor(), Track(1)
+    rel = None
+    for k in range(5):  # first seen lying (webcam start-up, body cut off): no upright reference
+        tr.history.append(TrackState(k / 15, np.array([100, 300, 400, 380], float), None, 0.9))
+        _, rel = fx(tr, k / 15)
+    assert rel["hip_drop"] <= 0.5 and rel["descent_speed"] <= 0.5
+
+
+def test_gate_hold_is_recorded_in_the_audit_trail_not_paged():
+    from types import SimpleNamespace
+    from edgecopilot.service import EdgeService as Service
+    m = _fall_model()
+    a = m.assess("person#1", 3.0, {"torso_angle": 95, "aspect_ratio": 3.5, "height_drop": 0.8, "tilt_rate": 160,
+                                   "descent_speed": 0.18, "hip_drop": 0.05, "ground_time": 3.0})
+    gate = next(c for c in a.cues if c.source == "rule")
+    rows, sent = [], []
+    fake = SimpleNamespace(_fault_last={}, _broadcast=sent.append,
+                           store=SimpleNamespace(audit=lambda *args: rows.append(args)))
+    Service._on_held(fake, "cam1", a, gate)
+    Service._on_held(fake, "cam1", a, gate)  # rate-limited
+    assert len(rows) == 1 and rows[0][2] == "hazard_held"
+    d = rows[0][4]
+    assert d["gate"] == "fall_motion_gate" and d["prob_without_gate"] >= d["threshold"] > d["prob_shown"]
+    assert sent and sent[0]["type"] == "held"
