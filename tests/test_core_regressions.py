@@ -453,3 +453,29 @@ def test_gate_hold_is_recorded_in_the_audit_trail_not_paged():
     d = rows[0][4]
     assert d["gate"] == "fall_motion_gate" and d["prob_without_gate"] >= d["threshold"] > d["prob_shown"]
     assert sent and sent[0]["type"] == "held"
+
+
+def test_lying_down_on_the_floor_from_standing_is_not_a_fall_but_a_fast_drop_is():
+    # webcam test 3: lying down on the floor from standing in 2-3 s passed the gate (hips drop as far as in a fall)
+    from edgecopilot.perception.fall import FallFeatureExtractor
+    from edgecopilot.perception.tracker import Track, TrackState
+    m = _fall_model()
+
+    def peak(boxes):
+        fx, tr, best = FallFeatureExtractor(), Track(1), None
+        for k, b in enumerate(boxes):
+            tr.history.append(TrackState(k / 15, np.array(b, float), None, 0.9))
+            v, rel = fx(tr, k / 15)
+            a = m.assess("p", k / 15, v, rel)
+            best = a if best is None or a.prob > best.prob else best
+        return best
+
+    def lerp(a, b, n):
+        return [list(np.array(a) + (np.array(b) - np.array(a)) * i / n) for i in range(1, n + 1)]
+    stand, kneel, sit, lie = [100, 100, 160, 400], [100, 230, 170, 400], [90, 260, 200, 400], [40, 340, 340, 400]
+    for secs in (2, 3):
+        n = secs * 15
+        a = peak([stand] * 30 + lerp(stand, kneel, n // 3) + lerp(kneel, sit, n // 3) + lerp(sit, lie, n - 2 * (n // 3)) + [lie] * 45)
+        assert a.gated and a.prob < m.threshold, secs
+    a = peak([stand] * 30 + lerp(stand, lie, 8) + [lie] * 45)
+    assert not a.gated and a.prob >= m.threshold

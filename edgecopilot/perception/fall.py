@@ -69,9 +69,10 @@ class FallFeatureExtractor:
 
     def __init__(self, descent_window_s: float = 3.0, lying_angle: float = 55.0,
                  still_speed: float = 0.25, vel_window_s: float = 0.3, entry_window_s: float = 2.0,
-                 motion_rel_floor: float = 0.5):
+                 motion_rel_floor: float = 0.5, hip_window_s: float = 1.0):
         self.descent_window_s = descent_window_s
         self.motion_rel_floor = motion_rel_floor
+        self.hip_window_s = hip_window_s
         self.entry_window_s = entry_window_s
         self.vel_window_s = vel_window_s
         self.lying_angle = lying_angle
@@ -110,8 +111,10 @@ class FallFeatureExtractor:
         st.hip_hist.append((t, y))
         st.hip_hist = [p for p in st.hip_hist if t - p[0] <= 1.0]
         st.hip_long.append((t, y))
-        st.hip_long = [p for p in st.hip_long if t - p[0] <= self.descent_window_s]
-        # how far the hips went down over the last few seconds, in standing body-heights (image y grows downwards)
+        st.hip_long = [p for p in st.hip_long if t - p[0] <= self.hip_window_s]
+        # how far the hips went down within the last second, in standing body-heights (image y grows downwards).
+        # A short window makes this a measure of speed: lying down on the floor in 2-3 s drops the hips as far
+        # as a fall does, but not within one second (second webcam test).
         hip_drop_now = float(np.clip((y - min(p[1] for p in st.hip_long)) / H, 0, 2))
         prev = st.hip_hist[:-1]
         in_win = [p for p in prev if t - p[0] <= self.vel_window_s]
