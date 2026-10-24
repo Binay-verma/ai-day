@@ -251,3 +251,22 @@ def test_clip_buffer_pre_and_post():
     frames = done[0][1]
     assert frames[0][0] <= 1.0 + 1e-6 and frames[-1][0] >= 2.9
     assert ClipBuffer.encode_mp4(frames)[4:8] in (b"ftyp", b"mdat", b"free")
+
+
+def test_corroboration_rule_rejects_single_cue_fall_models():
+    import pytest
+
+    from edgecopilot.config_schema import HazardCfg
+    cue = {"weight": 1.0, "ref": 0.0, "lo": 0.0, "hi": 10.0, "phrase": "x {v}", "keywords": ["x"]}
+    ok = HazardCfg(bias=-12, threshold=0.6, min_threshold=0.5, min_cues=2, cues={"a": cue, "b": cue})
+    assert ok.min_cues == 2
+    with pytest.raises(ValueError, match="min_cues"):
+        HazardCfg(bias=-8, threshold=0.6, min_threshold=0.5, min_cues=2, cues={"a": cue, "b": cue})
+
+
+def test_fitted_gmdcsa_profile_is_rejected():
+    import pytest
+
+    from edgecopilot.config_schema import load_validated
+    with pytest.raises(Exception, match="min_cues"):
+        load_validated("benchmarks/results/experiments/fall_fitted_gmdcsa.yaml")

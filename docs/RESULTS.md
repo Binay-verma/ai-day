@@ -23,13 +23,14 @@ development (§8). An independent audit of every claim is in
 | Explanations | verifier false rejects on meaning-preserving paraphrases | **0.5 %** (2 / 436; CI 0.1–1.7) | ≤ 5 % | ✅ |
 | Explanations | counterfactual validity / alerts with a single-cue counterfactual | **100 %** of 318 / 73 of 73 | 100 % | ✅ |
 | Falls (GMDCSA24) | video F1, leave-one-subject-out, shipped YOLO11n-pose | 0.81–0.83 depending on variant (CI ≈ 0.74–0.89) | ≥ 0.90 | ❌ |
-| Falls (GMDCSA24) | same, **YOLO11s-pose profile** (`configs/profiles/fall_accurate.yaml`) | **0.886** (CI 0.83–0.94) | ≥ 0.90 | ⚠️ close, not met |
+| Falls (GMDCSA24) | same, YOLO11s-pose with expert weights (`configs/profiles/fall_accurate.yaml`) / with weights re-fitted per fold | 0.840 (CI 0.77–0.90) / 0.886 (CI 0.83–0.94) | ≥ 0.90 | ❌ not met (the re-fitted weights do not transfer, §8) |
 | Calibration | fall false-alarm rate vs budget α = 0.1, held-out subjects | 0.11 (9 / 81, CI 0.06–0.20) with 11n; 0.086 (7 / 81, CI 0.04–0.17) with 11s | ≤ α + 1 % | ⚠️ point estimate only |
 | Crowd (UMN) | dispersal events detected, per-camera conformal α = 0.01 | **10 / 11** (CI 0.62–0.98), 0 false alarms in 200 s of normal video (≤ 66 / h upper bound) | all, ≤ 1 FA / clip | ⚠️ development set |
 | Crowd (UMN) | frame AUC, standard / label-artefact-tolerant | 0.81 (CI 0.72–0.96) / 0.91 (CI 0.85–0.97) | ≥ 0.90 | ⚠️ tolerant labels post hoc |
 | Fire (images, leakage-free) | mAP@0.5, Home-fire test / DBA-Fire scene hold-out | **0.564 / 0.651** (start checkpoint 0.371 / 0.356) | ≥ 0.60 | ⚠️ DBA met, Home-fire not |
 | Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.76 (Home-fire) at **15.5 %** FPR (CI 12.3–19.4) | ≥ 0.85 at ≤ 10 % | ❌ |
 | Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **15 / 17** (CI 0.66–0.97), median time-to-alert 2.7 s; **0** false alarms in 4.7 min (one-sided 95 % bound ≈ 38 / h) | — | ⚠️ development set |
+| Falls, unseen dataset (§10) | UR-Fall, frozen system: falls detected / alerts on daily-activity clips | **27 / 30** with YOLO11s-pose (19 / 30 default); 0 / 5 | — | ✅ with the fall profile |
 | External check (§8) | frozen system, unseen sources: fall recall / all-hazard false alarms | **7 / 11** falls (CI 0.35–0.85); **2** false alarms in 7.2 min (CI 1.9–60 / h) | — | ⚠️ honest gap |
 | Saliency | Eigen-CAM deletion AUC vs random / centre controls (40 images) | 0.148 vs 0.350 / 0.115: beats random (p < 0.001), **not** the centre control | better than both | ❌ |
 | Edge | full 3-hazard pipeline, 2 cores | **12.0 FPS** at 416 px (production config); 7.8 INT8-640; 6.6 FP32-640 | ≥ 8 FPS | ⚠️ met at 416 px only |
@@ -60,8 +61,12 @@ fitted, but the cue design was developed on this dataset. Treat these as optimis
   YOLO11n-pose for the 9.9 M YOLO11s-pose (same cues, same fusion) raises every variant.
   With leave-one-subject-out weight fitting it reaches F1 0.886; per held-out subject:
   0.88 / 0.94 / 0.93 / 0.77. The 0.90 target is inside the interval but the point
-  estimate is below it. The profile `configs/profiles/fall_accurate.yaml` ships the same
-  recipe fitted on all four subjects; it costs more CPU (§6).
+  estimate is below it. **But the re-fitted weights do not transfer**: fitted on all four
+  subjects they put almost all weight on descent speed, and on ordinary walking footage that
+  raised 17 false fall alarms in 7 minutes (§8). The shipped profile
+  `configs/profiles/fall_accurate.yaml` therefore uses YOLO11s-pose with the **expert**
+  weights (F1 0.840 here), which need several cues to agree; the config now enforces that
+  (`min_cues: 2`). It costs more CPU (§6).
 * **The re-fit keeps every cue's sign physically meaningful.** Weights are constrained to be
   monotone. Fitted without the constraint, "time motionless on the ground" gets a negative
   weight in all 4 folds (−0.37 … −0.78), which would be unsafe in deployment. With it,
@@ -277,14 +282,75 @@ learned during commissioning, and an uncalibrated camera compares against a gene
 Field validation on the real campus cameras is required before any claim about deployed
 accuracy.
 
-## 9. Reproduce
+## 10. Second fall dataset: UR Fall Detection (frozen system, never used in development)
+
+UR Fall Detection (Kwolek & Kepski 2014), camera 0, 30 fall clips and the 5 daily-activity
+clips that are mirrored on GitHub (`benchmarks/eval_urfall.py`). Only the RGB half of UR's
+depth|RGB frames is used, at 15 fps; the last frame is held 4 s because the clips end about a
+second after the impact. Fall onset = first frame labelled "falling" in the official UR CSV.
+Nothing was tuned on these clips; each configuration was run once.
+
+| Configuration | Falls detected | ALARM / VERIFY | Median delay after fall onset | Alerts on ADL clips |
+|---|---|---|---|---|
+| `campus.yaml` (YOLO11n-pose, default) | 19 / 30 (63 %, CI 46–78) | 1 / 18 | 1.9 s | 0 / 5 |
+| **`profiles/fall_accurate.yaml` (YOLO11s-pose)** | **27 / 30 (90 %, CI 74–97)** | **19 / 8** | **0.9 s** | 0 / 5 |
+
+This is the strongest evidence in the project for the fall branch, because the data is
+independent: on the dataset used for development the larger pose model gained +0.05–0.08 F1;
+on unseen data it gains +27 points of recall, detects twice as fast, and is confident enough
+for ALARM on two thirds of the falls. The cost is CPU (§6: 4.2 FPS for all three hazards on
+2 cores), so the production example runs it only on fall-critical cameras
+(`cameras[].pose`, per-camera override). Limits: only 5 negative clips are available on
+GitHub, so this says nothing reliable about false alarms; the misses, checked frame by frame: `fall-03` (the person walks right up to the camera,
+half out of frame, before falling), `fall-20` (a fall from a chair that ends sitting up
+on the floor, not lying) and `fall-21` (the person lands at the bottom edge, mostly out of
+frame).
+
+## 11. Privacy filter verification
+
+See [PRIVACY.md](PRIVACY.md#verified-not-assumed-does-the-face-filter-actually-work). An
+independent face detector (YuNet) found **0 of 184** faces after the default filter (6
+videos, 70 frames). The original Gaussian head blur let it find 26 / 184 (14 %); this
+benchmark found that bug and the filter was changed to coarse pixelation.
+
+## 12. Calibration of the stated confidence (falls, YOLO11s-pose, leave-one-subject-out)
+
+`benchmarks/eval_calibration.py`, 160 videos, video-level confidence = peak smoothed
+probability, model re-fitted without the held-out subject.
+
+| | ECE (15 bins) | Brier |
+|---|---|---|
+| as shipped | 0.085 | 0.111 |
+| temperature-scaled on training subjects | 0.078 | 0.111 |
+
+The stated confidence is off by about 8 percentage points on average, and temperature
+scaling barely helps, so it is not applied; the console shows the confidence together with
+the alert line and the ALARM/VERIFY routing rather than as a stand-alone probability.
+
+ROBUSTNESS_SECTION
+
+HARDNEG_SECTION
+
+## 15. What did not work (kept so nobody repeats it)
+
+`benchmarks/results/experiments/README.md`. On GMDCSA24 (LOSO, YOLO11s-pose):
+
+| Idea | Result |
+|---|---|
+| Monotone GAM shape functions instead of straight-line cue weights (explanations stay exact) | F1 0.863 vs 0.886; best of 8 settings 0.872 |
+| One-Euro key-point smoothing before the fall cues | F1 0.859–0.882 vs 0.886 |
+
+Both point the same way: the fall model is limited by what the pose model sees, which §10
+confirms on independent data.
+
+## 16. Reproduce
 
 ```bash
 python benchmarks/extract_fall_features.py --out data/gmdcsa24_lowconf.pkl                 # ~35 min, 2 cores
 python benchmarks/extract_fall_features.py --model models/yolo11s-pose.onnx --out data/gmdcsa24_s_lowconf.pkl
 python benchmarks/eval_fall.py
 python benchmarks/eval_fall.py --cache data/gmdcsa24_s_lowconf.pkl --out benchmarks/results/fall_gmdcsa24_yolo11s.json \
-       --profile-out configs/profiles/fall_accurate.yaml --pose-model models/yolo11s-pose.onnx
+       --profile-out benchmarks/results/experiments/fall_fitted_gmdcsa.yaml --pose-model models/yolo11s-pose.onnx
 python benchmarks/eval_crowd.py
 python scripts/prepare_fire_data.py && python scripts/train_fire.py --epochs 5 --name ft   # ~20 min / epoch
 python benchmarks/eval_fire.py --weights <d-fire start .pt> --onnx models/fire_smoke.onnx models/fire_smoke.int8.onnx
@@ -292,5 +358,10 @@ python benchmarks/eval_fire_video.py
 python benchmarks/eval_xai.py
 python benchmarks/eval_saliency.py
 python benchmarks/eval_external.py
+python benchmarks/eval_urfall.py && python benchmarks/eval_urfall.py --config configs/profiles/fall_accurate.yaml --out benchmarks/results/fall_urfall_yolo11s.json
+python benchmarks/eval_privacy.py
+python benchmarks/eval_calibration.py
+python benchmarks/eval_robustness.py
+python benchmarks/eval_fire_roc.py
 python benchmarks/bench_latency.py
 ```

@@ -105,7 +105,7 @@ def evaluate(items, series_all, model, hyst, threshold_logit=None):
     return rows
 
 
-def refit(model, items, series_all, l2=3.0):
+def refit(model, items, series_all, l2=3.0, single_cue_line=None):
     names = list(model.specs)
     X, y = [], []
     for it, s in zip(items, series_all):
@@ -113,7 +113,7 @@ def refit(model, items, series_all, l2=3.0):
             X.append([vals.get(n, model.specs[n].ref) for n in names])
             y.append(lab)
     specs = [model.specs[n] for n in names]
-    b, w = fit_weights(np.array(X), np.array(y, float), specs, model.bias, l2=l2)
+    b, w = fit_weights(np.array(X), np.array(y, float), specs, model.bias, l2=l2, single_cue_line=single_cue_line)
     m2 = HazardModel("fall", b, [CueSpec(**{**s.__dict__, "weight": float(wi)}) for s, wi in zip(specs, w)], model.threshold)
     return m2
 

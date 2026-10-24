@@ -306,13 +306,16 @@ class Hysteresis:
 
 def fit_weights(X: np.ndarray, y: np.ndarray, specs: List[CueSpec], prior_bias: float,
                 l2: float = 1.0, iters: int = 2000, lr: float = 0.05, monotone: bool = True,
-                sample_weight: Optional[np.ndarray] = None):
+                sample_weight: Optional[np.ndarray] = None, single_cue_line: Optional[float] = None):
     """Fit additive weights on transformed cues, L2-pulled towards expert priors.
 
     ``monotone=True`` keeps every weight's sign equal to the expert prior's
     (projected gradient descent): more evidence can never *lower* the risk,
     which keeps the model safe and its explanations sensible even when the
-    training labels have quirks.  Returns (bias, weights).
+    training labels have quirks.  ``single_cue_line`` (a log-odds alert line)
+    adds the corroboration rule: after every step each weight is clipped so that
+    bias + that cue's largest contribution stays below the line, i.e. no single
+    cue can raise the hazard on its own (``min_cues: 2``).  Returns (bias, weights).
     """
     Z = np.stack([[s.transform(v) for s, v in zip(specs, row)] for row in X])
     w0 = np.array([s.weight for s in specs], dtype=float)
@@ -332,4 +335,8 @@ def fit_weights(X: np.ndarray, y: np.ndarray, specs: List[CueSpec], prior_bias: 
         b -= lr * gb
         if monotone:
             w = np.where(sign > 0, np.maximum(w, 0), np.where(sign < 0, np.minimum(w, 0), w))
+        if single_cue_line is not None:
+            span = np.array([max(s.hi - s.ref, s.ref - s.lo) for s in specs]) + 1e-9
+            cap = max(single_cue_line - b - 0.05, 0.0)
+            w = np.clip(w, -cap / span, cap / span)
     return b, w

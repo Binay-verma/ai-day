@@ -1,19 +1,19 @@
 {
  "summary": {
   "protocol": "frozen system (configs/campus.yaml as shipped), sources never used in development; fall clips followed by the last frame held 4.0 s; 15.0 fps",
-  "fall_recall": "7/11",
+  "fall_recall": "6/11",
   "fall_recall_wilson95": [
-   0.354,
-   0.848
+   0.28,
+   0.787
   ],
   "normal_minutes": 7.2,
-  "false_alarms_all_hazards": 2,
-  "false_alarms_per_hour": 16.6,
+  "false_alarms_all_hazards": 1,
+  "false_alarms_per_hour": 8.3,
   "false_alarms_per_hour_95ci": [
-   1.9,
-   60.0
+   0.1,
+   46.2
   ],
-  "alerts_grounded": "9/9"
+  "alerts_grounded": "7/7"
  },
  "falls": [
   {
@@ -127,17 +127,8 @@
   {
    "clip": "fall_extras/urfd_samples/fall-23-cam0.mp4",
    "seconds": 2.5,
-   "detected": true,
-   "alerts": [
-    {
-     "hazard": "fall",
-     "t": 3.13,
-     "prob": 0.619,
-     "mode": "VERIFY",
-     "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 141 deg from vertical, a rapid descent of 1.6 body-heights/s and the torso rotating 172 deg/s. It would not have fired if tilt rate had been below 166.34 deg/s (observed 171.70 deg/s). Confidence 62% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
-    }
-   ]
+   "detected": false,
+   "alerts": []
   },
   {
    "clip": "fall_extras/urfd_samples/fall-24-cam0.mp4",
@@ -150,17 +141,8 @@
   {
    "clip": "fall_extras/urfd_samples/adl-10-cam0.mp4",
    "seconds": 9.9,
-   "false_alarms": 1,
-   "alerts": [
-    {
-     "hazard": "fall",
-     "t": 5.4,
-     "prob": 0.633,
-     "mode": "VERIFY",
-     "grounded": true,
-     "text": "Fall detected (person#6) in External test. Alert raised due to the torso rotating 500 deg/s, a rapid descent of 1.6 body-heights/s and body height dropped by 65%. It would not have fired if descent speed had been below 1.53 body-heights/s (observed 1.61 body-heights/s). Confidence 63% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#6; Do not move the person until trained help arrives."
-    }
-   ]
+   "false_alarms": 0,
+   "alerts": []
   },
   {
    "clip": "test_videos/classroom.mp4",

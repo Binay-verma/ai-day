@@ -101,6 +101,23 @@ class HazardCfg(_Strict):
     min_threshold: float = Field(0.2, gt=0, lt=1, description="floor for calibrated alert lines")
     max_threshold: float = Field(0.9, gt=0, lt=1, description="ceiling for calibrated alert lines: operator "
                                  "feedback can never desensitise a camera beyond this")
+    min_cues: int = Field(1, ge=1, le=5, description="corroboration rule: no fewer than this many cues may reach the alert line "
+                          "(2 = no single cue can raise this hazard on its own)")
+
+    @model_validator(mode="after")
+    def _corroboration(self):
+        """With min_cues = k, the bias plus the (k-1) largest possible single-cue contributions must stay below
+        the alert line at the default threshold and at the lowest calibrated one (min_threshold)."""
+        if self.min_cues > 1:
+            import math
+            best = sorted((max(c.weight * (c.hi - c.ref), c.weight * (c.lo - c.ref)) for c in self.cues.values()
+                           if not c.knots), reverse=True)
+            line = math.log(self.min_threshold / (1 - self.min_threshold))
+            reach = self.bias + sum(best[: self.min_cues - 1])
+            if reach >= line:
+                raise ValueError(f"min_cues = {self.min_cues} violated: {self.min_cues - 1} cue(s) alone reach log-odds "
+                                 f"{reach:.2f} >= the lowest alert line {line:.2f} (min_threshold {self.min_threshold})")
+        return self
 
     @model_validator(mode="after")
     def _threshold_order(self):

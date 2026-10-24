@@ -35,6 +35,8 @@ hazards:
   fall:
     bias: -7.0
     threshold: 0.6
+    min_cues: 2        # corroboration: no single fall cue may raise an alert on its own (RESULTS section 8)
+    min_threshold: 0.5 # calibration may lower the fall alert line, but not below the point where one cue would suffice
     cues:
       torso_angle:   {weight: 0.06, ref: 30.0, lo: 0.0, hi: 90.0, unit: deg, phrase: "torso tilted {v:.0f} deg from vertical", keywords: [tilted, torso angle]}
       descent_speed: {weight: 2.0, ref: 0.4, lo: 0.0, hi: 3.0, unit: "body-heights/s", phrase: "a rapid descent of {v:.1f} body-heights/s", keywords: [descent, dropped quickly, went down]}
