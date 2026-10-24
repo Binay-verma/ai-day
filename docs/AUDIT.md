@@ -67,9 +67,10 @@ private OpenAPI schema plus a TLS proxy in compose (S13).
 | External check on walking footage | Fall weights fitted on GMDCSA24 learned a single-cue shortcut (descent speed) and raised 17 false fall alarms in 7 minutes | Fitted profile rejected; the config now enforces a corroboration rule (`min_cues: 2`: no single cue can raise a fall) and the fall alert line can't be calibrated below the point where one cue would suffice |
 | Running the console end to end | SIGTERM hung forever once frames stopped (idle WebSocket handlers); a fall re-acquired under a new track id paged twice | WebSocket heartbeat + 5 s graceful-shutdown bound; incidents re-identified by place |
 | UR-Fall input check | Depth and RGB side by side fed to the models in the first external run | RGB half only; numbers corrected and disclosed |
+| Webcam field test by the team | Lying down slowly on a bed pushed the fall score over the line: posture cues alone could reach it (6 of 7 GMDCSA24 false alarms were lie-downs) | Fall evidence gate: an uncontrolled descent (new hip-drop cue) *and* a lying end posture are both required, as exact named ledger terms shown on the gauge; lie-down false alarms 6 → 0, GMDCSA24 F1 0.814 → 0.877, UR-Fall 19 → 23 / 30 (RESULTS §2.1) |
 
-Added in the same round: a second, independent fall dataset (UR-Fall: 23 / 30 with the fall
-profile, 0 / 5 alarms on daily activities); per-camera pose models; long-lie escalation;
+Added in the same round: a second, independent fall dataset (UR-Fall: 24 / 30 with the fall
+profile after the evidence gate, 0 / 5 alarms on daily activities); per-camera pose models; long-lie escalation;
 cross-camera incident grouping; shift-handover report; restricted-area intrusion rules;
 an exact What-if explorer; an hourly end-to-end self-test with trouble alerts; calibration (ECE)
 and corruption-robustness benchmarks; and a log of the ideas that did not work (GAM shape

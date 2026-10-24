@@ -390,6 +390,16 @@ def test_a_real_fall_passes_the_gate():
     assert not a.gated and a.prob >= m.threshold
 
 
+def test_fast_drop_that_does_not_end_lying_is_held_by_the_posture_gate():
+    # e.g. a person bending/crouching fast or a box moving across the body: fast descent but upright
+    m = _fall_model()
+    crouch = {"torso_angle": 20, "aspect_ratio": 0.9, "height_drop": 0.45, "tilt_rate": 500,
+              "descent_speed": 2.1, "hip_drop": 0.42, "ground_time": 0.0}
+    a = m.assess("person#1", 0, crouch)
+    assert a.gated and a.prob < m.threshold and a.attribution_error() < 1e-9
+    assert any(c.name == "fall_posture_gate" and "did not end up lying down" in c.phrase for c in a.cues)
+
+
 def test_long_motionless_lie_still_alerts_without_a_seen_fall():
     m = _fall_model()
     down = {"torso_angle": 90, "aspect_ratio": 3.0, "height_drop": 0.7, "tilt_rate": 20,

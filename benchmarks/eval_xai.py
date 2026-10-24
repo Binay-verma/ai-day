@@ -150,6 +150,7 @@ def main():
     print(f"{len(alerts)} alerts collected")
     res = {"n_alerts": len(alerts)}
     attr_err, del_err, cf_valid, cf_total, cf_plaus, n_with_cf, suff_sizes = [], [], 0, 0, 0, 0, []
+    gate_trips, del_n = 0, 0
     ground, n_claims, lat = [], [], []
     stress = {}
     para_ok, para_n = 0, 0
@@ -164,7 +165,12 @@ def main():
             v2 = dict(vals)
             v2[c.name] = m.specs[c.name].ref
             b = m.assess(a.subject, a.t, v2, rel)
-            del_err.append(abs((a.logit - b.logit) - c.contribution))
+            # Gate-aware: if removing this cue makes an evidence gate fire, the gate's own named
+            # rule term (in b's ledger) accounts for the extra drop; the ledger stays exact.
+            rule_b = sum(x.contribution for x in b.cues if x.source == "rule") - sum(x.contribution for x in a.cues if x.source == "rule")
+            gate_trips += int(getattr(b, "gated", False) and not getattr(a, "gated", False))
+            del_n += 1
+            del_err.append(abs((a.logit - b.logit) - (c.contribution - rule_b)))
         t0 = time.perf_counter()
         recs = [x["text"] for x in rec.recommend(a, loc)["actions"][:3]]
         e = explain(a, m, loc, recs)
@@ -195,6 +201,8 @@ def main():
             para_ok += int(verify(good, a, m, loc, extra_numbers=numbers_in(recs), recommendations=recs).ok)
     res["attribution_max_abs_error"] = float(max(attr_err)) if attr_err else None
     res["deletion_test_max_abs_error"] = float(max(del_err)) if del_err else None
+    res["deletion_test_note"] = "gate-aware: a deletion that makes an evidence gate fire is checked including that gate's named rule term"
+    res["deletions_that_trip_an_evidence_gate"] = {"n": gate_trips, "of": del_n}
     res["counterfactuals"] = {"alerts_with_single_cue_cf": n_with_cf, "total": cf_total,
                               "validity": cf_valid / max(cf_total, 1), "plausibility_in_normal_range": cf_plaus / max(cf_total, 1),
                               "sufficient_reason_mean_size": float(np.mean(suff_sizes)) if suff_sizes else None}

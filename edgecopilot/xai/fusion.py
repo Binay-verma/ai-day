@@ -243,26 +243,34 @@ class HazardModel:
         return a
 
     def _apply_gate(self, values: Dict[str, float], cues: List[Cue], total: float) -> tuple:
-        """Evidence gate as an explicit, exact ledger term.
+        """Evidence gate(s) as an explicit, exact ledger term.
 
-        If the gate cues (e.g. hip drop + descent speed) together contribute less than
-        ``min_contribution`` and the ``unless`` condition (e.g. motionless on the ground for a
-        long time) does not hold, the score is capped ``margin`` log-odds below the alert line by
-        a named rule term, so the ledger still sums exactly and says why nothing fired.
+        ``self.gate`` is one requirement or a list of them. Each requirement names cues whose
+        contributions together must reach ``min_contribution`` (falls: an uncontrolled descent
+        AND a lying posture). An ``unless`` condition (e.g. motionless on the ground for a long
+        time) lifts that requirement. If any requirement fails, the score is capped ``margin``
+        log-odds below the alert line by a named rule term, so the ledger still sums exactly and
+        says why nothing fired.
         """
-        g = self.gate or {}
-        motion = sum(c.contribution for c in cues if c.name in g.get("cues", []))
-        unless = g.get("unless") or {}
-        if unless and float(values.get(unless.get("cue", ""), 0.0) or 0.0) >= float(unless.get("at_least", 1e9)):
-            return total, False  # e.g. long lie: the person has been down long enough to matter anyway
-        if motion >= float(g.get("min_contribution", 0.0)):
+        reqs = self.gate if isinstance(self.gate, list) else [self.gate or {}]
+        failed = None
+        for g in reqs:
+            unless = g.get("unless") or {}
+            if unless and float(values.get(unless.get("cue", ""), 0.0) or 0.0) >= float(unless.get("at_least", 1e9)):
+                continue  # e.g. long lie: the person has been down long enough to matter anyway
+            got = sum(c.contribution for c in cues if c.name in g.get("cues", []))
+            if got < float(g.get("min_contribution", 0.0)):
+                failed = (g, got)
+                break
+        if failed is None:
             return total, False
+        g, got = failed
         th = min(max(self.threshold, 1e-6), 1 - 1e-6)
         line = math.log(th / (1 - th))
         cap = min(0.0, (line - float(g.get("margin", 0.5))) - total)
         if cap < 0:
-            cues.append(Cue("fall_motion_gate" if self.hazard == "fall" else f"{self.hazard}_gate", float(motion), "log-odds",
-                            cap, 1.0, g.get("phrase", "the required evidence was not seen"), "rule"))
+            name = g.get("name") or f"{self.hazard}_gate"
+            cues.append(Cue(name, float(got), "log-odds", cap, 1.0, g.get("phrase", "the required evidence was not seen"), "rule"))
             total += cap
         return total, True
 

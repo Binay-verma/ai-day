@@ -126,11 +126,19 @@ Place the laptop 3–4 m away so it sees your **whole body and the floor**. Then
 | Privacy | Sit in front of the camera | Your face is pixelated |
 | Fall | Walk in, drop quickly onto a mat / cushion, stay down | Fall alert within a few seconds, with its reasons |
 | Long lie | Stay down ~20 s (the webcam config shortens 60 s to 20 s) | Alert escalates to CRITICAL "STILL DOWN" |
-| Not a fall | Lie down slowly and deliberately | Ideally nothing, or a VERIFY alert (a known weak spot) |
+| Not a fall | Lie down slowly and deliberately (sit first, then lie back) | No fall alert. The fall gauge says "held below the line: no fast, uncontrolled descent was seen (lying down, not falling)". If you stay down 60 s (20 s in the webcam config) it alerts anyway as a possible long lie |
+| Not a fall | Crouch or bend down fast, then stand up | No fall alert ("the person did not end up lying down") |
 | Intrusion | Stand in the right third of the image ~25 s | "Restricted-area intrusion" alert with a patrol action |
 | Fire | Hold a phone playing a fire video close to the camera | May raise smoke / fire; without the MQ-2 sensor it may stay VERIFY. **Never use a real flame indoors** |
 | Camera trouble | Cover the lens ~5 s | "Camera blackout" trouble alert |
 | What if? | Open it on any alert, drag a slider | Score and decision update |
+
+How it tells a fall from lying down: a fall alert needs *both* an uncontrolled descent (fast
+drop of the hips, measured in body-heights) *and* a lying posture at the end. Slowly lying down
+only gives the second. Push-ups and throwing yourself onto a bed are known look-alikes.
+
+Use `threads: 4` (up to 6 on a laptop with 8+ cores; the webcam config ships with 4). With 2
+threads the first webcam test ran at ~7 FPS, and a fast fall then spans only a few frames.
 
 A laptop camera at table height is harder for fall detection than a ceiling camera (the body is
 often cut off or seen end-on). For better fall detection add

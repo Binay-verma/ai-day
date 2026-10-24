@@ -100,6 +100,7 @@ class GateUnlessCfg(_Strict):
 
 class GateCfg(_Strict):
     """Evidence gate: the hazard can only reach its alert line when the gate cues contribute enough."""
+    name: Optional[str] = Field(None, pattern=r"^[a-z_]{1,40}_gate$")
     cues: List[str] = Field(min_length=1)
     min_contribution: float = 0.0
     margin: float = Field(0.5, ge=0, le=5)
@@ -115,7 +116,7 @@ class HazardCfg(_Strict):
     min_threshold: float = Field(0.2, gt=0, lt=1, description="floor for calibrated alert lines")
     max_threshold: float = Field(0.9, gt=0, lt=1, description="ceiling for calibrated alert lines: operator "
                                  "feedback can never desensitise a camera beyond this")
-    gate: Optional[GateCfg] = None
+    gate: Optional[List[GateCfg]] = None
     min_cues: int = Field(1, ge=1, le=5, description="corroboration rule: no fewer than this many cues may reach the alert line "
                           "(2 = no single cue can raise this hazard on its own)")
 

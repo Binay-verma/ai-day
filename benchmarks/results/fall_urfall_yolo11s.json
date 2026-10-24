@@ -1,13 +1,13 @@
 {
  "summary": {
   "config": "configs/profiles/fall_accurate.yaml",
-  "fall_recall": "23/30",
+  "fall_recall": "24/30",
   "fall_recall_wilson95": [
-   0.591,
-   0.882
+   0.627,
+   0.905
   ],
-  "alarm_mode": 3,
-  "median_delay_after_fall_onset_s": 2.2,
+  "alarm_mode": 16,
+  "median_delay_after_fall_onset_s": 1.17,
   "adl_clips": 5,
   "adl_clips_with_any_alert": 0,
   "adl_alerts": 0,
@@ -17,10 +17,16 @@
   {
    "clip": "fall-01",
    "fall": true,
-   "detected": false,
-   "alerts": [],
+   "detected": true,
+   "alerts": [
+    [
+     "fall",
+     4.67,
+     "ALARM"
+    ]
+   ],
    "onset_s": 2.7333333333333334,
-   "delay_s": null,
+   "delay_s": 1.93,
    "seconds": 5.3
   },
   {
@@ -30,12 +36,12 @@
    "alerts": [
     [
      "fall",
-     3.53,
-     "VERIFY"
+     3.13,
+     "ALARM"
     ]
    ],
    "onset_s": 1.3,
-   "delay_s": 2.23,
+   "delay_s": 1.83,
    "seconds": 3.6
   },
   {
@@ -45,45 +51,56 @@
    "alerts": [
     [
      "fall",
-     9.6,
+     7.6,
      "VERIFY"
     ]
    ],
    "onset_s": 4.9,
-   "delay_s": 4.7,
+   "delay_s": 2.7,
    "seconds": 7.1
   },
   {
    "clip": "fall-04",
    "fall": true,
-   "detected": false,
-   "alerts": [],
+   "detected": true,
+   "alerts": [
+    [
+     "fall",
+     2.27,
+     "ALARM"
+    ],
+    [
+     "fall",
+     4.77,
+     "VERIFY"
+    ]
+   ],
    "onset_s": 0.43333333333333335,
-   "delay_s": null,
+   "delay_s": 1.83,
    "seconds": 3.2
   },
   {
    "clip": "fall-05",
    "fall": true,
-   "detected": false,
-   "alerts": [],
+   "detected": true,
+   "alerts": [
+    [
+     "fall",
+     3.73,
+     "ALARM"
+    ]
+   ],
    "onset_s": 2.6,
-   "delay_s": null,
+   "delay_s": 1.13,
    "seconds": 5.0
   },
   {
    "clip": "fall-06",
    "fall": true,
-   "detected": true,
-   "alerts": [
-    [
-     "fall",
-     4.17,
-     "VERIFY"
-    ]
-   ],
+   "detected": false,
+   "alerts": [],
    "onset_s": 0.3333333333333333,
-   "delay_s": 3.83,
+   "delay_s": null,
    "seconds": 3.3
   },
   {
@@ -93,12 +110,12 @@
    "alerts": [
     [
      "fall",
-     6.23,
+     4.33,
      "VERIFY"
     ]
    ],
    "onset_s": 2.8,
-   "delay_s": 3.43,
+   "delay_s": 1.53,
    "seconds": 5.2
   },
   {
@@ -108,12 +125,12 @@
    "alerts": [
     [
      "fall",
-     2.4,
-     "VERIFY"
+     2.33,
+     "ALARM"
     ]
    ],
    "onset_s": 0.9666666666666667,
-   "delay_s": 1.43,
+   "delay_s": 1.37,
    "seconds": 3.0
   },
   {
@@ -123,12 +140,12 @@
    "alerts": [
     [
      "fall",
-     9.2,
+     6.2,
      "VERIFY"
     ]
    ],
    "onset_s": 4.0,
-   "delay_s": 5.2,
+   "delay_s": 2.2,
    "seconds": 6.1
   },
   {
@@ -138,27 +155,21 @@
    "alerts": [
     [
      "fall",
-     4.37,
+     2.47,
      "VERIFY"
     ]
    ],
    "onset_s": 1.3,
-   "delay_s": 3.07,
+   "delay_s": 1.17,
    "seconds": 4.3
   },
   {
    "clip": "fall-11",
    "fall": true,
-   "detected": true,
-   "alerts": [
-    [
-     "fall",
-     3.8,
-     "VERIFY"
-    ]
-   ],
+   "detected": false,
+   "alerts": [],
    "onset_s": 1.6,
-   "delay_s": 2.2,
+   "delay_s": null,
    "seconds": 4.3
   },
   {
@@ -168,12 +179,12 @@
    "alerts": [
     [
      "fall",
-     2.13,
-     "VERIFY"
+     2.07,
+     "ALARM"
     ]
    ],
    "onset_s": 0.8,
-   "delay_s": 1.33,
+   "delay_s": 1.27,
    "seconds": 3.6
   },
   {
@@ -183,12 +194,12 @@
    "alerts": [
     [
      "fall",
-     2.8,
-     "VERIFY"
+     2.53,
+     "ALARM"
     ]
    ],
    "onset_s": 1.4333333333333333,
-   "delay_s": 1.37,
+   "delay_s": 1.1,
    "seconds": 2.8
   },
   {
@@ -199,7 +210,7 @@
     [
      "fall",
      1.6,
-     "VERIFY"
+     "ALARM"
     ]
    ],
    "onset_s": 0.5,
@@ -213,12 +224,12 @@
    "alerts": [
     [
      "fall",
-     2.0,
+     1.87,
      "ALARM"
     ]
    ],
    "onset_s": 0.9,
-   "delay_s": 1.1,
+   "delay_s": 0.97,
    "seconds": 2.3
   },
   {
@@ -228,12 +239,12 @@
    "alerts": [
     [
      "fall",
-     1.87,
+     1.73,
      "VERIFY"
     ]
    ],
    "onset_s": 0.5333333333333333,
-   "delay_s": 1.33,
+   "delay_s": 1.2,
    "seconds": 1.8
   },
   {
@@ -243,12 +254,12 @@
    "alerts": [
     [
      "fall",
-     5.27,
-     "VERIFY"
+     2.93,
+     "ALARM"
     ]
    ],
    "onset_s": 1.9333333333333333,
-   "delay_s": 3.33,
+   "delay_s": 1.0,
    "seconds": 3.1
   },
   {
@@ -258,12 +269,12 @@
    "alerts": [
     [
      "fall",
-     1.8,
-     "VERIFY"
+     1.73,
+     "ALARM"
     ]
    ],
    "onset_s": 0.5,
-   "delay_s": 1.3,
+   "delay_s": 1.23,
    "seconds": 2.1
   },
   {
@@ -300,17 +311,12 @@
    "alerts": [
     [
      "fall",
-     1.27,
+     1.13,
      "ALARM"
-    ],
-    [
-     "fall",
-     4.03,
-     "VERIFY"
     ]
    ],
    "onset_s": 0.1,
-   "delay_s": 1.17,
+   "delay_s": 1.03,
    "seconds": 1.8
   },
   {
@@ -320,12 +326,12 @@
    "alerts": [
     [
      "fall",
-     2.93,
-     "VERIFY"
+     1.93,
+     "ALARM"
     ]
    ],
    "onset_s": 0.8666666666666667,
-   "delay_s": 2.07,
+   "delay_s": 1.07,
    "seconds": 2.5
   },
   {
@@ -350,12 +356,12 @@
    "alerts": [
     [
      "fall",
-     5.07,
+     2.53,
      "VERIFY"
     ]
    ],
    "onset_s": 1.4666666666666666,
-   "delay_s": 3.6,
+   "delay_s": 1.07,
    "seconds": 2.8
   },
   {
@@ -365,12 +371,12 @@
    "alerts": [
     [
      "fall",
-     3.6,
+     1.6,
      "VERIFY"
     ]
    ],
    "onset_s": 0.4,
-   "delay_s": 3.2,
+   "delay_s": 1.2,
    "seconds": 2.0
   },
   {
@@ -389,12 +395,12 @@
    "alerts": [
     [
      "fall",
-     2.23,
-     "VERIFY"
+     2.0,
+     "ALARM"
     ]
    ],
    "onset_s": 0.8666666666666667,
-   "delay_s": 1.37,
+   "delay_s": 1.13,
    "seconds": 2.2
   },
   {
@@ -404,12 +410,12 @@
    "alerts": [
     [
      "fall",
-     4.47,
+     2.73,
      "VERIFY"
     ]
    ],
    "onset_s": 1.6,
-   "delay_s": 2.87,
+   "delay_s": 1.13,
    "seconds": 3.3
   },
   {
@@ -419,12 +425,12 @@
    "alerts": [
     [
      "fall",
-     3.17,
-     "VERIFY"
+     1.93,
+     "ALARM"
     ]
    ],
    "onset_s": 0.8,
-   "delay_s": 2.37,
+   "delay_s": 1.13,
    "seconds": 2.3
   },
   {

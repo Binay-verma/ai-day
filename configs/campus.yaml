@@ -41,10 +41,15 @@ hazards:
     # What separates them is an uncontrolled descent of the hips (GMDCSA24: hip drop median 0.42 body-heights
     # for falls vs 0.05 for lying down, descent 0.81 vs 0.18 body-heights/s - RESULTS section 2).
     gate:
-      cues: [descent_speed, hip_drop]
-      min_contribution: 0.5
-      unless: {cue: ground_time, at_least: 60}   # lying motionless this long matters even without a seen fall
-      phrase: "no fast, uncontrolled descent was seen (lying down, not falling)"
+      - name: fall_motion_gate
+        cues: [descent_speed, hip_drop]
+        min_contribution: 0.5
+        unless: {cue: ground_time, at_least: 60}   # lying motionless this long matters even without a seen fall
+        phrase: "no fast, uncontrolled descent was seen (lying down, not falling)"
+      - name: fall_posture_gate                    # a fast drop that does not end lying down (crouching, occlusion); 0.75 chosen on GMDCSA24 only (1.0 and 1.5 each lost a fall there)
+        cues: [torso_angle, aspect_ratio, height_drop]
+        min_contribution: 0.75
+        phrase: "the person did not end up lying down (no fall posture)"
     cues:
       torso_angle:   {weight: 0.06, ref: 30.0, lo: 0.0, hi: 90.0, unit: deg, phrase: "torso tilted {v:.0f} deg from vertical", keywords: [tilted, torso angle]}
       descent_speed: {weight: 2.0, ref: 0.4, lo: 0.0, hi: 3.0, unit: "body-heights/s", phrase: "a rapid descent of {v:.1f} body-heights/s", keywords: [descent, dropped quickly, went down]}

@@ -111,4 +111,8 @@ If the campus firewall blocks NTP, use the campus NTP server instead. Check
 
 * This is a **decision-support** tool. It is **not a certified fire alarm** (IS 2189 / EN 54 / UL 268 detectors and the building's fire alarm panel remain the life-safety system) and not a medical device.
 * Falls onto beds and partially visible people are the weakest case (see docs/RESULTS.md §2).
-* A person lying down deliberately can raise a VERIFY fall alert.
+* A person lying down deliberately is held below the fall line by the fall evidence gate (no
+  uncontrolled descent seen; RESULTS §2.1), and the gauge says so. If they stay down for 60 s it
+  is raised anyway as a possible unwitnessed long lie: that is intended. Push-ups and falling
+  back onto a bed from sitting remain look-alikes. Do not lower `hazards.fall.gate` minimums to
+  chase bed falls: it brings the lie-down false alarms back.

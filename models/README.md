@@ -11,7 +11,7 @@ recreates them. The edge runtime only loads the ONNX files.
 | Licence | AGPL-3.0 (Ultralytics) |
 | Input | 640×640 letterboxed RGB, FP32 |
 | Outputs | `output0` (1, 56, 8400) boxes + score + key-points; `/model.16/cv2/act/Mul_output_0` (1, 64, 80, 80) P3 neck feature for Eigen-CAM |
-| Used for | person tracking, fall cues (torso angle, descent, tilt rate, height drop, aspect, ground time), crowd head-count and scale, head anonymisation |
+| Used for | person tracking, fall cues (torso angle, descent, hip drop, tilt rate, height drop, aspect, ground time), crowd head-count and scale, head anonymisation |
 | Known limits | Misses people in unusual floor postures and when heavily occluded (see fall error analysis in `docs/RESULTS.md`); trained on COCO, not on CCTV angles |
 | Not evaluated (factors) | night / IR, top-down ceiling cameras, wheelchairs and mobility aids, children, very crowded scenes (> 50 people) |
 | Out of scope | face recognition, re-identification across cameras, emotion inference: tracks are local to one camera and are never linked to identity |
@@ -22,7 +22,7 @@ recreates them. The edge runtime only loads the ONNX files.
 |---|---|
 | Source | Ultralytics YOLO11s-pose (COCO-pose), 9.9 M parameters, AGPL-3.0 |
 | Used by | `configs/profiles/fall_accurate.yaml`, or per camera via `cameras[].pose` |
-| Evidence | same cues and expert weights as the default: UR-Fall (never used in development) 23 / 30 falls vs 19 / 30 with YOLO11n-pose; external clips 9 / 11 vs 6 / 11, no false fall alarm on 7 minutes of walking footage |
+| Evidence | same cues, expert weights and fall evidence gate as the default: UR-Fall 24 / 30 falls vs 23 / 30 with YOLO11n-pose; external clips 9 / 11 vs 8 / 11, no false fall alarm on 7 minutes of walking footage (RESULTS sections 2.1, 8, 9) |
 | Cost | ~3x the CPU of YOLO11n-pose (4.2 FPS for all three hazards on 2 cores at 640 px) |
 | Do not | combine it with fall weights re-fitted on one dataset: that learned a single-cue shortcut (17 false alarms, RESULTS section 8); `min_cues: 2` in the config now rejects such weights |
 

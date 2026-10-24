@@ -1,66 +1,71 @@
 {
-  "n_alerts": 73,
-  "attribution_max_abs_error": 1.5543122344752192e-15,
+  "n_alerts": 77,
+  "attribution_max_abs_error": 1.3322676295501878e-15,
   "deletion_test_max_abs_error": 1.7763568394002505e-15,
+  "deletion_test_note": "gate-aware: a deletion that makes an evidence gate fire is checked including that gate's named rule term",
+  "deletions_that_trip_an_evidence_gate": {
+    "n": 25,
+    "of": 525
+  },
   "counterfactuals": {
-    "alerts_with_single_cue_cf": 73,
-    "total": 318,
+    "alerts_with_single_cue_cf": 77,
+    "total": 339,
     "validity": 1.0,
-    "plausibility_in_normal_range": 0.7452830188679245,
-    "sufficient_reason_mean_size": 3.5616438356164384
+    "plausibility_in_normal_range": 0.8082595870206489,
+    "sufficient_reason_mean_size": 3.8051948051948052
   },
   "template_grounding": {
     "mean_groundedness": 1.0,
     "unsupported_claim_rate": 0.0,
-    "mean_claims_per_explanation": 11.972602739726028
+    "mean_claims_per_explanation": 11.974025974025974
   },
   "verifier_stress": {
     "number_drift": {
-      "detected": 72,
-      "n": 73,
-      "rate": 0.9863013698630136
+      "detected": 76,
+      "n": 77,
+      "rate": 0.987012987012987
     },
     "false_cause": {
-      "detected": 60,
-      "n": 60,
+      "detected": 69,
+      "n": 69,
       "rate": 1.0
     },
     "wrong_hazard": {
-      "detected": 73,
-      "n": 73,
+      "detected": 77,
+      "n": 77,
       "rate": 1.0
     },
     "invented_sensor": {
-      "detected": 73,
-      "n": 73,
+      "detected": 77,
+      "n": 77,
       "rate": 1.0
     },
     "confidence_inflation": {
-      "detected": 73,
-      "n": 73,
+      "detected": 77,
+      "n": 77,
       "rate": 1.0
     },
     "value_swap": {
-      "detected": 73,
-      "n": 73,
+      "detected": 77,
+      "n": 77,
       "rate": 1.0
     },
     "hazard_drift": {
-      "detected": 73,
-      "n": 73,
+      "detected": 77,
+      "n": 77,
       "rate": 1.0
     },
     "synonym_false_cause": {
-      "detected": 60,
-      "n": 60,
+      "detected": 69,
+      "n": 69,
       "rate": 1.0
     }
   },
-  "verifier_detection_rate": 0.9982078853046595,
-  "verifier_false_reject_rate_on_paraphrases": 0.004587155963302725,
-  "n_paraphrases": 436,
+  "verifier_detection_rate": 0.9983333333333333,
+  "verifier_false_reject_rate_on_paraphrases": 0.006637168141592875,
+  "n_paraphrases": 452,
   "explain_latency_ms": {
-    "p50": 1.1426239998399979,
-    "p95": 5.676572799984567
+    "p50": 0.8103999998638756,
+    "p95": 1.3322456006790162
   }
 }
