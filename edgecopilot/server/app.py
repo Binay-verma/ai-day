@@ -600,6 +600,24 @@ alarm system (IS 2189 / NBC 2016) or professional medical assessment.</p>
 </body></html>"""
 
 
+SETUP_HINT = ("The demo video and the ONNX models are not in git (size and licences). Unzip the release asset "
+              "edge-copilot-models-and-demo.zip into the project folder, or build them yourself: "
+              "pip install -e \".[train]\" && python scripts/setup_models.py (see README, Quick start).")
+
+
+def _preflight(cfg: dict, cams: list) -> None:
+    """Fail fast with a clear message instead of an endless 'cannot open' loop on a fresh clone."""
+    missing_src = [str(c["source"]) for c in cams if c.get("enabled", True)
+                   and not str(c["source"]).isdigit() and "://" not in str(c["source"])
+                   and not os.path.exists(str(c["source"])) and not os.path.exists(os.path.join(ROOT, str(c["source"])))]
+    if missing_src:
+        raise SystemExit(f"Video file not found: {', '.join(missing_src)}\n{SETUP_HINT}")
+    for name in ("pose", "fire_smoke"):
+        p = cfg["models"][name]["path"]
+        if not (os.path.exists(p) or os.path.exists(os.path.join(ROOT, p))):
+            log.warning("model %s not found at %s - that hazard runs on weaker cues only. %s", name, p, SETUP_HINT)
+
+
 def build(args) -> tuple:
     cfg = load_config_dict(args.config)
     if args.privacy:
@@ -623,6 +641,7 @@ def build(args) -> tuple:
                  "loop": not args.no_loop, "hazards": {}}]
     if not cams:
         raise SystemExit("No cameras: add a `cameras:` list to the config or pass --source")
+    _preflight(cfg, cams)
     for c in cams:
         if not c.get("enabled", True):
             continue
