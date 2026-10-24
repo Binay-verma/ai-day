@@ -1,15 +1,33 @@
 {
- "model": "models/fire_smoke.onnx",
- "n_pos": 1285,
- "n_neg": 400,
- "roc_auc": 0.8619143968871595,
- "recall_at_fpr10": 0.6715953307392996,
- "threshold_at_fpr10": 0.3709844946861267,
- "fpr_at_that_threshold": 0.1,
- "fpr_at_recall85": 0.285,
- "threshold_at_recall85": 0.13283711671829224,
- "at_0.25": {
-  "recall": 0.756420233463035,
-  "fpr": 0.155
- }
+ "shipped_15_epochs": {
+  "model": "models/fire_smoke.onnx",
+  "n_pos": 1285,
+  "n_neg": 400,
+  "roc_auc": 0.8619143968871595,
+  "recall_at_fpr10": 0.6715953307392996,
+  "threshold_at_fpr10": 0.3709844946861267,
+  "fpr_at_that_threshold": 0.1,
+  "fpr_at_recall85": 0.285,
+  "threshold_at_recall85": 0.13283711671829224,
+  "at_0.25": {
+   "recall": 0.756420233463035,
+   "fpr": 0.155
+  }
+ },
+ "hard_negative_finetune_not_adopted": {
+  "model": "models/hn/fire_smoke.onnx",
+  "n_pos": 1285,
+  "n_neg": 400,
+  "roc_auc": 0.8610729571984437,
+  "recall_at_fpr10": 0.6622568093385214,
+  "threshold_at_fpr10": 0.3068101406097412,
+  "fpr_at_that_threshold": 0.1,
+  "fpr_at_recall85": 0.35,
+  "threshold_at_recall85": 0.052336156368255615,
+  "at_0.25": {
+   "recall": 0.6933852140077821,
+   "fpr": 0.1175
+  }
+ },
+ "decision": "not adopted: recall at 10% FPR 0.662 vs 0.672 (rule fixed in advance: adopt only if it improves)"
 }

@@ -31,7 +31,7 @@ development (§8). An independent audit of every claim is in
 | Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.76 (Home-fire) at **15.5 %** FPR (CI 12.3–19.4) | ≥ 0.85 at ≤ 10 % | ❌ |
 | Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **15 / 17** (CI 0.66–0.97), median time-to-alert 2.7 s; **0** false alarms in 4.7 min (one-sided 95 % bound ≈ 38 / h) | — | ⚠️ development set |
 | Falls, unseen dataset (§10) | UR-Fall, frozen system: falls detected / alerts on daily-activity clips | **27 / 30** with YOLO11s-pose (19 / 30 default); 0 / 5 | — | ✅ with the fall profile |
-| External check (§8) | frozen system, unseen sources: fall recall / all-hazard false alarms | **7 / 11** falls (CI 0.35–0.85); **2** false alarms in 7.2 min (CI 1.9–60 / h) | — | ⚠️ honest gap |
+| External check (§8) | frozen system, unseen sources: fall recall / false alarms in 7.2 min | default 6 / 11, fall profile **9 / 11**; 1 false alarm (crowd, uncalibrated camera), 0 false fall alarms | — | ⚠️ honest gap |
 | Saliency | Eigen-CAM deletion AUC vs random / centre controls (40 images) | 0.148 vs 0.350 / 0.115: beats random (p < 0.001), **not** the centre control | better than both | ❌ |
 | Edge | full 3-hazard pipeline, 2 cores | **12.0 FPS** at 416 px (production config); 7.8 INT8-640; 6.6 FP32-640 | ≥ 8 FPS | ⚠️ met at 416 px only |
 
@@ -263,24 +263,35 @@ repository (4); each fall clip is followed by its last frame held 4 s ("the pers
 down"), because some clips end within a second of the impact. Normal: a UR-Fall daily-
 activity clip and 6 Intel IoT DevKit sample videos (walking, aisles, classroom, worker zone),
 7.2 minutes in total. No camera was calibrated (commissioning step 4 skipped), which is the
-worst case.
+worst case. (These sources were used only for this check; after it, one configuration was
+rejected - see below - so for the fall profile they are no longer completely unseen.)
 
-| | Result |
-|---|---|
-| Falls detected | **7 / 11** (CI 0.35–0.85); 1 ALARM, 6 VERIFY |
-| Missed | CAUCAFall forward and left falls, one web example, UR-Fall fall-24 (1.9 s clip) |
-| False alarms, all hazards | **2** in 7.2 min = 16.6 / h (CI 1.9–60 / h) |
-| What they were | a person sitting down fast on UR-Fall ADL (torso rotation 500 °/s, descent 1.6 body-heights/s), routed VERIFY; a group walking towards the camera in a short clip read as abnormal crowd movement ("100 % of the people in view leaving, 5.7× faster than normal, coherence 1.00"), routed ALARM |
-| Explanations grounded | 9 / 9 alerts |
+**Correction (2026-10-24).** UR-Fall videos store depth and RGB side by side; the first run fed
+the whole double frame to the models. With only the RGB half (as in §10) the numbers below are
+the corrected first runs of each configuration.
 
-**Reading.** This is the most honest number on this page, and it is worse than the
-in-domain benchmarks: about two thirds of falls detected, mostly as VERIFY, and a false-alarm
-rate that would be unacceptable without calibration. Both false alarms are explained in
-terms an operator can check at a glance, which is the point of the evidence ledger. The crowd
-false alarm is exactly what per-camera calibration is for: the "normal" speed of a scene is
-learned during commissioning, and an uncalibrated camera compares against a generic prior.
-Field validation on the real campus cameras is required before any claim about deployed
-accuracy.
+| | Default (`campus.yaml`, YOLO11n-pose) | Fall profile (YOLO11s-pose, expert weights) | *Rejected: YOLO11s-pose with GMDCSA-fitted weights* |
+|---|---|---|---|
+| Falls detected | 6 / 11 (CI 0.28–0.79) | **9 / 11** (CI 0.52–0.95) | *9 / 11* |
+| False fall alarms on 7.2 min of normal video | 0 | **0** | ***17*** |
+| Other false alarms | 1 crowd | 1 crowd | 1 crowd |
+| Explanations grounded | 7 / 7 | 10 / 10 | 28 / 28 |
+
+**What the false alarms were.** The crowd alert in every column is the same: a group walking
+towards the camera in a short clip, read as abnormal crowd movement ("100 % of the people in
+view leaving, 5.7x faster than normal, coherence 1.00"), routed ALARM. That is exactly what
+per-camera calibration is for: the "normal" speed of a scene is learned during commissioning,
+and an uncalibrated camera compares against a generic prior. The 17 fall alarms of the fitted
+weights all cite "a rapid descent" alone - people walking into or out of frame. Weights fitted
+on one dataset had learned a single-cue shortcut that the expert weights (which need several
+cues to agree) do not have, so the shipped profile keeps the expert weights and the config now
+rejects any fall model in which one cue can reach the alert line (`min_cues: 2`).
+
+**Reading.** These are the most honest numbers on this page and they are worse than the
+in-domain benchmarks: the default system finds about half of these falls, the fall profile
+about four in five, and no camera was calibrated. Every alert is explained in terms an operator
+can check at a glance, which is how the bad profile was caught. Field validation on the real
+campus cameras is required before any claim about deployed accuracy.
 
 ## 10. Second fall dataset: UR Fall Detection (frozen system, never used in development)
 
@@ -293,18 +304,22 @@ Nothing was tuned on these clips; each configuration was run once.
 | Configuration | Falls detected | ALARM / VERIFY | Median delay after fall onset | Alerts on ADL clips |
 |---|---|---|---|---|
 | `campus.yaml` (YOLO11n-pose, default) | 19 / 30 (63 %, CI 46–78) | 1 / 18 | 1.9 s | 0 / 5 |
-| **`profiles/fall_accurate.yaml` (YOLO11s-pose)** | **27 / 30 (90 %, CI 74–97)** | **19 / 8** | **0.9 s** | 0 / 5 |
+| **`profiles/fall_accurate.yaml` (YOLO11s-pose, expert weights)** | **23 / 30 (77 %, CI 59–88)** | 3 / 20 | 2.2 s | 0 / 5 |
+| *rejected: YOLO11s-pose, GMDCSA-fitted weights* | *27 / 30* | *19 / 8* | *0.9 s* | *0 / 5 - but 17 false fall alarms on walking footage (§8)* |
 
-This is the strongest evidence in the project for the fall branch, because the data is
-independent: on the dataset used for development the larger pose model gained +0.05–0.08 F1;
-on unseen data it gains +27 points of recall, detects twice as fast, and is confident enough
-for ALARM on two thirds of the falls. The cost is CPU (§6: 4.2 FPS for all three hazards on
-2 cores), so the production example runs it only on fall-critical cameras
-(`cameras[].pose`, per-camera override). Limits: only 5 negative clips are available on
-GitHub, so this says nothing reliable about false alarms; the misses, checked frame by frame: `fall-03` (the person walks right up to the camera,
-half out of frame, before falling), `fall-20` (a fall from a chair that ends sitting up
-on the floor, not lying) and `fall-21` (the person lands at the bottom edge, mostly out of
-frame).
+The larger pose model adds 4 falls (+13 points of recall) on independent data. The fitted
+weights look even better here (27 / 30, faster, more ALARMs) - and this is the trap: UR-Fall
+has only 5 negative clips, so it cannot show false alarms; the external walking footage (§8)
+showed 17. A benchmark without enough negatives rewards a trigger-happy model. The profile costs
+CPU (§6: 4.2 FPS for all three hazards on 2 cores), so the production example runs it only on
+fall-critical cameras (`cameras[].pose`, per-camera override). Limits: only 5 negative clips are available on
+GitHub, so this says nothing reliable about false alarms. The 7 misses of the shipped profile,
+checked frame by frame, share one pattern: the person ends up close to the camera at the
+bottom edge of the image, partly cut off, curled up or lying along the viewing direction
+(foreshortened, so the body still looks upright in 2-D: `fall-01`, `-05`, `-19`, `-21`, `-27`),
+plus one fall from a chair that ends sitting up (`fall-20`) and one that ends with the legs
+raised (`fall-04`). Camera placement that sees the whole floor (OPERATIONS.md, commissioning
+step 2) matters as much as the model.
 
 ## 11. Privacy filter verification
 
@@ -329,7 +344,30 @@ the alert line and the ALARM/VERIFY routing rather than as a stand-alone probabi
 
 ROBUSTNESS_SECTION
 
-HARDNEG_SECTION
+## 14. Fire detector operating point and hard-negative mining (not adopted)
+
+`benchmarks/eval_fire_roc.py`: image score = highest fire/smoke confidence; positives =
+leakage-free Home-fire test images (1,285), negatives = DeepQuest neutral (400).
+
+| Model | ROC AUC | Recall at 10 % FPR | FPR at 85 % recall | Recall / FPR at conf 0.25 |
+|---|---|---|---|---|
+| **shipped (15 epochs)** | 0.862 | **0.672** | 0.285 | 0.756 / 0.155 |
+| + hard-negative fine-tune (4 epochs) | 0.861 | 0.662 | 0.350 | 0.693 / 0.118 |
+
+The plan's criterion (recall ≥ 0.85 at ≤ 10 % FPR) is far from met: at a 10 % false-positive
+budget the detector finds two thirds of the fire images. To attack that, 188 confounder images
+that the detector fired on (warm room lighting, red decor, aurora, sunsets; mined from the cair
+"Normal Images" set, 1 near-duplicate of an evaluation image removed, and **3 images showing a
+lit fireplace or smoke removed after looking at every one** - a lit fireplace is real fire) plus
+102 clean ones were added and the model was fine-tuned for 4 epochs, checkpoint rule fixed in
+advance (last epoch). It lowered false positives at the default threshold (15.5 % → 11.8 %)
+but lost the same amount of recall: the ROC curve did not move, so by the rule set before the
+test it was **not adopted** (`scripts/mine_hard_negatives.py`, `scripts/train_fire_hn.sh`).
+Shifting the threshold would give the same trade-off for free. Reading: the detector's
+confusions are not a lack of negative examples; a better fire *image* detector needs more
+positive indoor fire data or a larger model - and the system-level answer stays the evidence
+ledger, where a single detection of warm light does not reach the alert line without
+corroboration (FURG: 0 false alarms, §4.2).
 
 ## 15. What did not work (kept so nobody repeats it)
 

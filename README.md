@@ -79,11 +79,13 @@ image benchmark and the frozen-system external check are not.
 | Explanation exactness | per-cue contributions sum to the score with max error **1.6e-15** (73 real alerts) |
 | Grounded text | **0 %** unsupported claims; verifier catches **99.8 %** of injected narrator errors (8 types) at **0.5 %** false rejects |
 | Counterfactuals | **100 %** valid (318); explanation + verification ≈ 1 ms |
-| Falls (GMDCSA24, leave-one-subject-out) | F1 **0.81–0.83** with the default YOLO11n-pose; **0.886** (CI 0.83–0.94) with the YOLO11s-pose profile. Target 0.90: not met |
+| Falls (GMDCSA24, leave-one-subject-out) | F1 **0.81–0.83** default, **0.84** with the YOLO11s-pose profile. Target 0.90: not met |
+| Falls, second dataset never used in development (UR-Fall) | **23/30** with the YOLO11s-pose profile (19/30 default), 0/5 alarms on daily activities |
 | Abnormal crowd movement (UMN) | **10/11** dispersal events, 0 false alarms in 200 s of normal video, with per-camera conformal calibration |
 | Fire/smoke detector (leakage-free split) | mAP@0.5 **0.56** Home-fire / **0.65** DBA-Fire scenes (start checkpoint 0.37 / 0.36); 15.5 % false positives on neutral images, so it is one cue among several, never the alarm on its own |
 | Fire, system level (FURG videos) | **15/17** fire videos detected (median 2.7 s), **0** false alarms in 4.7 min of non-fire video incl. moving cameras |
-| External check (frozen system, unseen footage) | **7/11** falls; **2** false alarms in 7.2 min on uncalibrated cameras, both explained |
+| External check (frozen system, unseen footage) | **9/11** falls with the fall profile (6/11 default); 1 false alarm in 7.2 min (crowd, uncalibrated camera), 0 false fall alarms |
+| Privacy filter, verified | an independent face detector finds **0 of 184** faces after the filter |
 | Edge speed (all 3 hazards at once) | **12.0 FPS** with the 416 px production models; 7.8 INT8-640; 6.6 FP32-640 (the audit's safety fixes cost ~40 % at 640 px) |
 | Saliency honesty check | Eigen-CAM beats random but not a centre-bias control, so the ledger, not the heat map, is the explanation |
 
@@ -123,7 +125,7 @@ pytest -q
 
 Production stack (TLS, MQTT, monitoring): copy `.env.example` to `.env`, then `docker compose up -d`; see `docs/OPERATIONS.md`.
 
-Fall-accurate profile (YOLO11s-pose, more CPU): `--config configs/profiles/fall_accurate.yaml`.
+Fall-accurate profile (YOLO11s-pose, ~3x CPU): `--config configs/profiles/fall_accurate.yaml`, or per camera with `cameras[].pose` (see `configs/production.example.yaml`).
 
 RTSP camera: `--source rtsp://user:pass@camera/stream`. ESP32 node posts to `/api/sensors`.
 

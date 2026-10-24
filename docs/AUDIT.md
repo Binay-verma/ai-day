@@ -59,6 +59,23 @@ private OpenAPI schema plus a TLS proxy in compose (S13).
 | Small number errors (99.2 % → 99.1 %, 306 → 305 counterfactuals, descent-speed ranges, GBM comparison, an unverifiable 0.64 → 0.81 claim) | Corrected or removed |
 | Saliency was described as better than the controls, but it beats only random | Reported as failing the centre-control criterion. The heat map is presented as a visual aid; the evidence ledger is the explanation |
 
+### Second round (24 Oct): new benchmarks and an end-to-end run found four more real problems
+
+| Found by | Problem | Fix |
+|---|---|---|
+| Privacy verification with an independent face detector (`eval_privacy.py`) | The Gaussian head blur still let a face detector find 26 of 184 faces (14 %) | Coarse head pixelation: 0 / 184 |
+| External check on walking footage | Fall weights fitted on GMDCSA24 learned a single-cue shortcut (descent speed) and raised 17 false fall alarms in 7 minutes | Fitted profile rejected; the config now enforces a corroboration rule (`min_cues: 2`: no single cue can raise a fall) and the fall alert line can't be calibrated below the point where one cue would suffice |
+| Running the console end to end | SIGTERM hung forever once frames stopped (idle WebSocket handlers); a fall re-acquired under a new track id paged twice | WebSocket heartbeat + 5 s graceful-shutdown bound; incidents re-identified by place |
+| UR-Fall input check | Depth and RGB side by side fed to the models in the first external run | RGB half only; numbers corrected and disclosed |
+
+Added in the same round: a second, independent fall dataset (UR-Fall: 23 / 30 with the fall
+profile, 0 / 5 alarms on daily activities); per-camera pose models; long-lie escalation;
+cross-camera incident grouping; shift-handover report; restricted-area intrusion rules;
+an exact What-if explorer; an hourly end-to-end self-test with trouble alerts; calibration (ECE)
+and corruption-robustness benchmarks; and a log of the ideas that did not work (GAM shape
+functions, key-point smoothing, constrained re-fit, hard-negative fine-tune), so that nobody
+repeats them.
+
 ## 2. Standards position
 
 The standards analysis separates three bars that "production-ready" can mean.
@@ -100,16 +117,17 @@ independent audits found is fixed and pinned by a test (130 tests). The explaina
 exact additive evidence ledger with counterfactuals and a grounding verifier, is stronger than what
 commercial video-analytics products expose.
 
-**Accuracy: honest, not yet field-proven.** On public data the fall detector reaches F1 0.81–0.83
-with the default pose model and 0.886 (CI 0.83–0.94) with the YOLO11s-pose profile, against a
-0.90 target that is not met. The leakage-free fire detector scores mAP 0.56–0.65 and its
-false-positive rate on neutral images (15.5 %) is above the plan's 10 % budget; the fused fire
-branch still caught 15/17 FURG fire videos with no false alarm. Crowd and fire-video results come from development
-sets with wide intervals. On footage never used in development the frozen system caught 7/11
-falls and raised 2 false alarms in 7 minutes on uncalibrated cameras. That is why the system
-triages alerts into ALARM and VERIFY, calibrates each camera, and keeps a human in the loop.
-The number that matters, false alarms per camera-day and misses on *your* campus cameras, can
-only come from a field trial.
+**Accuracy: honest, not yet field-proven.** Falls: F1 0.81–0.84 on the development set (target
+0.90, not met), but on a second dataset never used in development the fall profile caught
+23 / 30 UR-Fall falls and 9 / 11 external falls with no false fall alarm on ordinary walking
+footage. Fire: the leakage-free image detector scores mAP 0.56–0.65 and finds only two thirds of
+fire images at a 10 % false-positive budget (the plan asked for 85 %); the fused fire branch,
+which needs corroboration, still caught 15 / 17 FURG fire videos with no false alarm. Crowd and
+fire-video results come from development sets with wide intervals, and the one false alarm on
+unseen footage came from an uncalibrated camera. That is why the system triages alerts into
+ALARM and VERIFY, calibrates each camera, refuses single-cue fall models, and keeps a human in
+the loop. The number that matters, false alarms per camera-day and misses on *your* campus
+cameras, can only come from a field trial.
 
 **Not production for life safety, and it must never be presented as such.** Before a real
 deployment the institution must: run a supervised field trial on the real cameras with a
