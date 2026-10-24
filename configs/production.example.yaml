@@ -20,7 +20,7 @@ cameras:
   - id: corridor-b-1
     source: "rtsp://copilot:${CAM_PASS}@10.20.0.11:554/stream1"
     zone: Corridor B
-    # fall-critical camera: the larger pose model caught 27/30 unseen UR-Fall falls vs 19/30 (RESULTS section 10)
+    # fall-critical camera: the larger pose model caught 23/30 unseen UR-Fall falls vs 19/30, and 9/11 vs 6/11 external falls (RESULTS sections 8-9)
     pose: {path: models/yolo11s-pose.onnx, imgsz: 640, sha256: 30bbb02f5277e3222028a97294235cafde5ad87da16353fa11da6f829c473a4d}
   - id: lab-a-1
     source: "rtsp://copilot:${CAM_PASS}@10.20.0.12:554/stream1"

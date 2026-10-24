@@ -16,6 +16,16 @@ recreates them. The edge runtime only loads the ONNX files.
 | Not evaluated (factors) | night / IR, top-down ceiling cameras, wheelchairs and mobility aids, children, very crowded scenes (> 50 people) |
 | Out of scope | face recognition, re-identification across cameras, emotion inference: tracks are local to one camera and are never linked to identity |
 
+## `yolo11s-pose.onnx` — larger pose model for fall-critical cameras
+
+| | |
+|---|---|
+| Source | Ultralytics YOLO11s-pose (COCO-pose), 9.9 M parameters, AGPL-3.0 |
+| Used by | `configs/profiles/fall_accurate.yaml`, or per camera via `cameras[].pose` |
+| Evidence | same cues and expert weights as the default: UR-Fall (never used in development) 23 / 30 falls vs 19 / 30 with YOLO11n-pose; external clips 9 / 11 vs 6 / 11, no false fall alarm on 7 minutes of walking footage |
+| Cost | ~3x the CPU of YOLO11n-pose (4.2 FPS for all three hazards on 2 cores at 640 px) |
+| Do not | combine it with fall weights re-fitted on one dataset: that learned a single-cue shortcut (17 false alarms, RESULTS section 8); `min_cues: 2` in the config now rejects such weights |
+
 ## `fire_smoke.onnx` — fire and smoke detector
 
 | | |

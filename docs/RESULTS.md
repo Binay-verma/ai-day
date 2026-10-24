@@ -30,7 +30,7 @@ development (§8). An independent audit of every claim is in
 | Fire (images, leakage-free) | mAP@0.5, Home-fire test / DBA-Fire scene hold-out | **0.564 / 0.651** (start checkpoint 0.371 / 0.356) | ≥ 0.60 | ⚠️ DBA met, Home-fire not |
 | Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.76 (Home-fire) at **15.5 %** FPR (CI 12.3–19.4) | ≥ 0.85 at ≤ 10 % | ❌ |
 | Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **15 / 17** (CI 0.66–0.97), median time-to-alert 2.7 s; **0** false alarms in 4.7 min (one-sided 95 % bound ≈ 38 / h) | — | ⚠️ development set |
-| Falls, unseen dataset (§10) | UR-Fall, frozen system: falls detected / alerts on daily-activity clips | **27 / 30** with YOLO11s-pose (19 / 30 default); 0 / 5 | — | ✅ with the fall profile |
+| Falls, unseen dataset (§9) | UR-Fall, frozen system: falls detected / alerts on daily-activity clips | **23 / 30** with the YOLO11s-pose profile (19 / 30 default); 0 / 5 | — | ⚠️ only 5 negative clips |
 | External check (§8) | frozen system, unseen sources: fall recall / false alarms in 7.2 min | default 6 / 11, fall profile **9 / 11**; 1 false alarm (crowd, uncalibrated camera), 0 false fall alarms | — | ⚠️ honest gap |
 | Saliency | Eigen-CAM deletion AUC vs random / centre controls (40 images) | 0.148 vs 0.350 / 0.115: beats random (p < 0.001), **not** the centre control | better than both | ❌ |
 | Edge | full 3-hazard pipeline, 2 cores | **12.0 FPS** at 416 px (production config); 7.8 INT8-640; 6.6 FP32-640 | ≥ 8 FPS | ⚠️ met at 416 px only |
@@ -267,7 +267,7 @@ worst case. (These sources were used only for this check; after it, one configur
 rejected - see below - so for the fall profile they are no longer completely unseen.)
 
 **Correction (2026-10-24).** UR-Fall videos store depth and RGB side by side; the first run fed
-the whole double frame to the models. With only the RGB half (as in §10) the numbers below are
+the whole double frame to the models. With only the RGB half (as in §9) the numbers below are
 the corrected first runs of each configuration.
 
 | | Default (`campus.yaml`, YOLO11n-pose) | Fall profile (YOLO11s-pose, expert weights) | *Rejected: YOLO11s-pose with GMDCSA-fitted weights* |
@@ -293,7 +293,7 @@ about four in five, and no camera was calibrated. Every alert is explained in te
 can check at a glance, which is how the bad profile was caught. Field validation on the real
 campus cameras is required before any claim about deployed accuracy.
 
-## 10. Second fall dataset: UR Fall Detection (frozen system, never used in development)
+## 9. Second fall dataset: UR Fall Detection (frozen system, never used in development)
 
 UR Fall Detection (Kwolek & Kepski 2014), camera 0, 30 fall clips and the 5 daily-activity
 clips that are mirrored on GitHub (`benchmarks/eval_urfall.py`). Only the RGB half of UR's
@@ -321,14 +321,14 @@ plus one fall from a chair that ends sitting up (`fall-20`) and one that ends wi
 raised (`fall-04`). Camera placement that sees the whole floor (OPERATIONS.md, commissioning
 step 2) matters as much as the model.
 
-## 11. Privacy filter verification
+## 10. Privacy filter verification
 
 See [PRIVACY.md](PRIVACY.md#verified-not-assumed-does-the-face-filter-actually-work). An
 independent face detector (YuNet) found **0 of 184** faces after the default filter (6
 videos, 70 frames). The original Gaussian head blur let it find 26 / 184 (14 %); this
 benchmark found that bug and the filter was changed to coarse pixelation.
 
-## 12. Calibration of the stated confidence (falls, YOLO11s-pose, leave-one-subject-out)
+## 11. Calibration of the stated confidence (falls, YOLO11s-pose, leave-one-subject-out)
 
 `benchmarks/eval_calibration.py`, 160 videos, video-level confidence = peak smoothed
 probability, model re-fitted without the held-out subject.
@@ -342,9 +342,11 @@ The stated confidence is off by about 8 percentage points on average, and temper
 scaling barely helps, so it is not applied; the console shows the confidence together with
 the alert line and the ALARM/VERIFY routing rather than as a stand-alone probability.
 
-ROBUSTNESS_SECTION
+## 12. Corruption robustness
 
-## 14. Fire detector operating point and hard-negative mining (not adopted)
+ROBUSTNESS_BODY
+
+## 13. Fire detector operating point and hard-negative mining (not adopted)
 
 `benchmarks/eval_fire_roc.py`: image score = highest fire/smoke confidence; positives =
 leakage-free Home-fire test images (1,285), negatives = DeepQuest neutral (400).
@@ -369,7 +371,7 @@ positive indoor fire data or a larger model - and the system-level answer stays 
 ledger, where a single detection of warm light does not reach the alert line without
 corroboration (FURG: 0 false alarms, §4.2).
 
-## 15. What did not work (kept so nobody repeats it)
+## 14. What did not work (kept so nobody repeats it)
 
 `benchmarks/results/experiments/README.md`. On GMDCSA24 (LOSO, YOLO11s-pose):
 
@@ -378,10 +380,10 @@ corroboration (FURG: 0 false alarms, §4.2).
 | Monotone GAM shape functions instead of straight-line cue weights (explanations stay exact) | F1 0.863 vs 0.886; best of 8 settings 0.872 |
 | One-Euro key-point smoothing before the fall cues | F1 0.859–0.882 vs 0.886 |
 
-Both point the same way: the fall model is limited by what the pose model sees, which §10
+Both point the same way: the fall model is limited by what the pose model sees, which §9
 confirms on independent data.
 
-## 16. Reproduce
+## 15. Reproduce
 
 ```bash
 python benchmarks/extract_fall_features.py --out data/gmdcsa24_lowconf.pkl                 # ~35 min, 2 cores
