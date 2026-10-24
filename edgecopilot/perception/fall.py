@@ -44,6 +44,7 @@ class FallState:
     hip_hist: list = field(default_factory=list)  # [(t, y)] for smoothed velocity
     hip_long: list = field(default_factory=list)  # [(t, y)] last few seconds, for the hip drop of a transition
     entry_hip_drop: float = 0.0
+    hd_hist: list = field(default_factory=list)  # [(t, 1-s hip drop)] for the fastest drop just before a transition
 
 
 def _mid(kp: np.ndarray, a: int, b: int) -> Optional[np.ndarray]:
@@ -125,6 +126,9 @@ class FallFeatureExtractor:
         st.vy_hist.append((t, vy))
         st.vy_hist = [p for p in st.vy_hist if t - p[0] <= self.descent_window_s]
         recent_peak = max([v for (ts, v) in st.vy_hist if t - ts <= self.entry_window_s] + [0.0])
+        st.hd_hist.append((t, hip_drop_now))
+        st.hd_hist = [p for p in st.hd_hist if t - p[0] <= self.descent_window_s]
+        recent_hd = max(v for (ts, v) in st.hd_hist if t - ts <= self.entry_window_s)  # fastest 1-s hip drop just before
         # torso rotation speed (deg/s): falls rotate the body fast, lying down is slow
         st.ang_hist.append((t, float(min(ang, 90.0))))
         st.ang_hist = [p for p in st.ang_hist if t - p[0] <= 1.0]
@@ -142,11 +146,11 @@ class FallFeatureExtractor:
                 st.low_since = t  # transition to a low posture: remember how fast it happened
                 st.entry_descent = recent_peak
                 st.entry_tilt = recent_tilt
-                st.entry_hip_drop = hip_drop_now
+                st.entry_hip_drop = recent_hd
             elif t - st.low_since <= self.entry_window_s:
                 st.entry_descent = max(st.entry_descent, recent_peak)
                 st.entry_tilt = max(st.entry_tilt, recent_tilt)
-                st.entry_hip_drop = max(st.entry_hip_drop, hip_drop_now)
+                st.entry_hip_drop = max(st.entry_hip_drop, recent_hd)
             if speed < self.still_speed:
                 if st.lying_since is None:
                     st.lying_since = t
@@ -173,7 +177,8 @@ class FallFeatureExtractor:
             "aspect_ratio": float(w / max(h, 1.0)),
             "ground_time": float(ground_time),
             # diagnostic (not a model cue unless configured): hip drop of the transition into the low posture
-            "hip_drop": float(st.entry_hip_drop if st.low_since is not None else hip_drop_now),
+            # fastest 1-s hip drop: of the transition while low, else within the last descent_window_s (same memory as descent)
+            "hip_drop": float(st.entry_hip_drop if st.low_since is not None else max(v for (_, v) in st.hd_hist)),
         }
         # a transition is only measurable if we saw the person in a higher posture first
         trans_rel = 1.0 if st.seen_high else 0.2

@@ -51,12 +51,12 @@
    "alerts": [
     [
      "fall",
-     7.6,
+     7.93,
      "VERIFY"
     ]
    ],
    "onset_s": 4.9,
-   "delay_s": 2.7,
+   "delay_s": 3.03,
    "seconds": 7.1
   },
   {
@@ -66,12 +66,12 @@
    "alerts": [
     [
      "fall",
-     5.5,
+     5.77,
      "VERIFY"
     ]
    ],
    "onset_s": 0.43333333333333335,
-   "delay_s": 5.07,
+   "delay_s": 5.33,
    "seconds": 3.2
   },
   {
@@ -351,12 +351,12 @@
    "alerts": [
     [
      "fall",
-     2.53,
+     2.6,
      "VERIFY"
     ]
    ],
    "onset_s": 1.4666666666666666,
-   "delay_s": 1.07,
+   "delay_s": 1.13,
    "seconds": 2.8
   },
   {

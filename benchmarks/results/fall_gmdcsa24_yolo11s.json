@@ -6,17 +6,17 @@
   "expert": {
     "overall": {
       "n": 160,
-      "tp": 58,
+      "tp": 59,
       "fp": 2,
-      "fn": 21,
+      "fn": 20,
       "tn": 79,
-      "accuracy": 0.85625,
-      "precision": 0.9666666666666667,
-      "recall": 0.7341772151898734,
-      "f1": 0.8345323741007195,
+      "accuracy": 0.8625,
+      "precision": 0.9672131147540983,
+      "recall": 0.7468354430379747,
+      "f1": 0.8428571428571427,
       "specificity": 0.9753086419753086,
-      "delay_median_s": 1.0583819548872182,
-      "delay_p90_s": 2.0083638878033407
+      "delay_median_s": 1.071608473407789,
+      "delay_p90_s": 2.053529019224709
     },
     "per_subject": {
       "1": {
@@ -30,7 +30,7 @@
         "recall": 0.875,
         "f1": 0.9333333333333333,
         "specificity": 1.0,
-        "delay_median_s": 1.0570471865939357,
+        "delay_median_s": 1.0600000515148589,
         "delay_p90_s": 1.2843625333333333
       },
       "2": {
@@ -45,21 +45,21 @@
         "f1": 0.888888888888889,
         "specificity": 1.0,
         "delay_median_s": 1.084144778629203,
-        "delay_p90_s": 2.2896217996357016
+        "delay_p90_s": 2.303011482695811
       },
       "3": {
         "n": 43,
-        "tp": 14,
+        "tp": 15,
         "fp": 0,
-        "fn": 7,
+        "fn": 6,
         "tn": 22,
-        "accuracy": 0.8372093023255814,
+        "accuracy": 0.8604651162790697,
         "precision": 1.0,
-        "recall": 0.6666666666666666,
-        "f1": 0.8,
+        "recall": 0.7142857142857143,
+        "f1": 0.8333333333333333,
         "specificity": 1.0,
-        "delay_median_s": 1.1680532636853953,
-        "delay_p90_s": 1.4978814174589454
+        "delay_median_s": 1.2106895705521474,
+        "delay_p90_s": 1.483567164670535
       },
       "4": {
         "n": 37,
@@ -72,7 +72,7 @@
         "recall": 0.5882352941176471,
         "f1": 0.6896551724137931,
         "specificity": 0.9,
-        "delay_median_s": 0.6854418439716312,
+        "delay_median_s": 0.7121159420289853,
         "delay_p90_s": 2.6322228733191793
       }
     },
@@ -125,13 +125,6 @@
         "pred": false,
         "delay": null,
         "desc": "Falling backward on the bed"
-      },
-      {
-        "video": "S3/Fall/02.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Falling on the bed (forward)"
       },
       {
         "video": "S3/Fall/06.mp4",
@@ -243,28 +236,28 @@
   "loso_fit": {
     "overall": {
       "n": 160,
-      "tp": 70,
-      "fp": 8,
-      "fn": 9,
-      "tn": 73,
-      "accuracy": 0.89375,
-      "precision": 0.8974358974358975,
-      "recall": 0.8860759493670886,
-      "f1": 0.8917197452229298,
-      "specificity": 0.9012345679012346,
-      "delay_median_s": 0.8750402203856753,
-      "delay_p90_s": 1.6751195307752096
+      "tp": 71,
+      "fp": 7,
+      "fn": 8,
+      "tn": 74,
+      "accuracy": 0.90625,
+      "precision": 0.9102564102564102,
+      "recall": 0.8987341772151899,
+      "f1": 0.9044585987261147,
+      "specificity": 0.9135802469135802,
+      "delay_median_s": 0.8712507633587786,
+      "delay_p90_s": 1.7663187459505536
     },
     "folds": {
       "test_subject_1": {
-        "bias": -3.3303541340035854,
+        "bias": -3.3424361570646273,
         "weights": {
-          "torso_angle": 0.04748791286311077,
-          "descent_speed": 2.24218200443908,
-          "hip_drop": 3.2229940877152563,
-          "tilt_rate": 0.0054557554001948595,
+          "torso_angle": 0.04755496729784954,
+          "descent_speed": 2.205977873256698,
+          "hip_drop": 3.305899004277598,
+          "tilt_rate": 0.005916144597620089,
           "height_drop": 0.0,
-          "aspect_ratio": 0.6847570332231816,
+          "aspect_ratio": 0.7203105281912813,
           "ground_time": 0.0
         },
         "loso": {
@@ -279,9 +272,9 @@
           "f1": 0.875,
           "specificity": 0.875,
           "delay_median_s": 0.8068034826440599,
-          "delay_p90_s": 1.152411
+          "delay_p90_s": 1.1346075193370169
         },
-        "conformal_tau_logit": 0.5650192244094705,
+        "conformal_tau_logit": 0.6709848619263472,
         "conformal": {
           "n": 32,
           "tp": 14,
@@ -293,36 +286,36 @@
           "recall": 0.875,
           "f1": 0.9032258064516129,
           "specificity": 0.9375,
-          "delay_median_s": 0.8406238438920074,
+          "delay_median_s": 0.837686949932972,
           "delay_p90_s": 1.2407048
         }
       },
       "test_subject_2": {
-        "bias": -2.880537952359705,
+        "bias": -2.9145318308717605,
         "weights": {
-          "torso_angle": 0.04373533025783134,
-          "descent_speed": 2.670860900710936,
-          "hip_drop": 4.067058741390808,
-          "tilt_rate": 0.007128722126894726,
+          "torso_angle": 0.04427823260467099,
+          "descent_speed": 2.496554802974815,
+          "hip_drop": 4.466982056093096,
+          "tilt_rate": 0.007496993861928577,
           "height_drop": 0.0,
-          "aspect_ratio": 0.338945380310256,
+          "aspect_ratio": 0.3648349700230822,
           "ground_time": 0.0
         },
         "loso": {
           "n": 48,
-          "tp": 23,
+          "tp": 24,
           "fp": 1,
-          "fn": 2,
+          "fn": 1,
           "tn": 22,
-          "accuracy": 0.9375,
-          "precision": 0.9583333333333334,
-          "recall": 0.92,
-          "f1": 0.9387755102040817,
+          "accuracy": 0.9583333333333334,
+          "precision": 0.96,
+          "recall": 0.96,
+          "f1": 0.96,
           "specificity": 0.9565217391304348,
-          "delay_median_s": 0.9220647887323947,
-          "delay_p90_s": 1.8766251399113314
+          "delay_median_s": 0.9416822222222225,
+          "delay_p90_s": 1.9876521373337455
         },
-        "conformal_tau_logit": 1.311931447012117,
+        "conformal_tau_logit": 1.3810157733760255,
         "conformal": {
           "n": 48,
           "tp": 19,
@@ -335,18 +328,18 @@
           "f1": 0.8444444444444444,
           "specificity": 0.9565217391304348,
           "delay_median_s": 0.9409022222222221,
-          "delay_p90_s": 2.039495696289905
+          "delay_p90_s": 2.0735413684210524
         }
       },
       "test_subject_3": {
-        "bias": -2.784482426666771,
+        "bias": -2.7862119731913184,
         "weights": {
-          "torso_angle": 0.038183415954422886,
-          "descent_speed": 1.9646978652354679,
-          "hip_drop": 4.867652293414975,
-          "tilt_rate": 0.0051459017705014825,
+          "torso_angle": 0.03836563012987281,
+          "descent_speed": 1.986279940865923,
+          "hip_drop": 4.931260426160757,
+          "tilt_rate": 0.005796934917509938,
           "height_drop": 0.0,
-          "aspect_ratio": 0.453670611796598,
+          "aspect_ratio": 0.49492139808950053,
           "ground_time": 0.0
         },
         "loso": {
@@ -360,10 +353,10 @@
           "recall": 0.9523809523809523,
           "f1": 0.9302325581395349,
           "specificity": 0.9090909090909091,
-          "delay_median_s": 0.9464972006751944,
+          "delay_median_s": 0.9800103240347744,
           "delay_p90_s": 1.364616179775281
         },
-        "conformal_tau_logit": 0.20027178903297072,
+        "conformal_tau_logit": 0.3223938178879038,
         "conformal": {
           "n": 43,
           "tp": 20,
@@ -375,49 +368,49 @@
           "recall": 0.9523809523809523,
           "f1": 0.909090909090909,
           "specificity": 0.8636363636363636,
-          "delay_median_s": 0.9168699098862643,
-          "delay_p90_s": 1.364616179775281
+          "delay_median_s": 0.964078952132909,
+          "delay_p90_s": 1.3221190300389822
         }
       },
       "test_subject_4": {
-        "bias": -2.5224771166378357,
+        "bias": -2.5328090488499404,
         "weights": {
-          "torso_angle": 0.034839758131196295,
-          "descent_speed": 2.5552227778298624,
-          "hip_drop": 5.259264885970484,
-          "tilt_rate": 0.008039229763623732,
+          "torso_angle": 0.03478082782911662,
+          "descent_speed": 2.640175186229628,
+          "hip_drop": 4.831284745396706,
+          "tilt_rate": 0.008509800647234224,
           "height_drop": 0.0,
-          "aspect_ratio": 0.5651951471777472,
+          "aspect_ratio": 0.617906081127912,
           "ground_time": 0.0
         },
         "loso": {
           "n": 37,
           "tp": 13,
-          "fp": 3,
+          "fp": 2,
           "fn": 4,
-          "tn": 17,
-          "accuracy": 0.8108108108108109,
-          "precision": 0.8125,
+          "tn": 18,
+          "accuracy": 0.8378378378378378,
+          "precision": 0.8666666666666667,
           "recall": 0.7647058823529411,
-          "f1": 0.787878787878788,
-          "specificity": 0.85,
-          "delay_median_s": 0.5490279041805401,
-          "delay_p90_s": 1.8984619159577651
+          "f1": 0.8125,
+          "specificity": 0.9,
+          "delay_median_s": 0.58254504254532,
+          "delay_p90_s": 1.8825624223506419
         },
-        "conformal_tau_logit": 0.6415147605893006,
+        "conformal_tau_logit": 0.7437143030641784,
         "conformal": {
           "n": 37,
-          "tp": 12,
+          "tp": 11,
           "fp": 2,
-          "fn": 5,
+          "fn": 6,
           "tn": 18,
-          "accuracy": 0.8108108108108109,
-          "precision": 0.8571428571428571,
-          "recall": 0.7058823529411765,
-          "f1": 0.7741935483870968,
+          "accuracy": 0.7837837837837838,
+          "precision": 0.8461538461538461,
+          "recall": 0.6470588235294118,
+          "f1": 0.7333333333333334,
           "specificity": 0.9,
-          "delay_median_s": 0.6450821256038646,
-          "delay_p90_s": 2.008685350318471
+          "delay_median_s": 0.5995008112296052,
+          "delay_p90_s": 2.04616756209901
         }
       }
     },
@@ -449,13 +442,6 @@
         "pred": true,
         "delay": null,
         "desc": "From sleeping left side on the bed (Face towards the ceiling) to sitting on the bed"
-      },
-      {
-        "video": "S2/Fall/13.mp4",
-        "label": 1,
-        "pred": false,
-        "delay": null,
-        "desc": "Falling backward (side view)"
       },
       {
         "video": "S2/Fall/14.mp4",
@@ -528,13 +514,6 @@
         "desc": "Doing exercise (push-up); view 1"
       },
       {
-        "video": "S4/ADL/06.mp4",
-        "label": 0,
-        "pred": true,
-        "delay": null,
-        "desc": "Doing exercise (push-up); view 2"
-      },
-      {
         "video": "S4/ADL/10.mp4",
         "label": 0,
         "pred": true,
@@ -547,22 +526,22 @@
     "overall": {
       "n": 160,
       "tp": 60,
-      "fp": 2,
+      "fp": 3,
       "fn": 19,
-      "tn": 79,
-      "accuracy": 0.86875,
-      "precision": 0.967741935483871,
+      "tn": 78,
+      "accuracy": 0.8625,
+      "precision": 0.9523809523809523,
       "recall": 0.759493670886076,
-      "f1": 0.851063829787234,
-      "specificity": 0.9753086419753086,
-      "delay_median_s": 0.9585048661800482,
-      "delay_p90_s": 1.8403872226383688
+      "f1": 0.8450704225352113,
+      "specificity": 0.9629629629629629,
+      "delay_median_s": 0.8891985185185187,
+      "delay_p90_s": 1.6299203787705236
     },
     "bias_shift_per_fold": {
-      "test_subject_1": 1.75,
-      "test_subject_2": 1.75,
-      "test_subject_3": 0.5,
-      "test_subject_4": 1.75
+      "test_subject_1": 2.0,
+      "test_subject_2": 2.0,
+      "test_subject_3": 0.75,
+      "test_subject_4": 2.0
     },
     "errors": [
       {
@@ -615,11 +594,11 @@
         "desc": "Falling backward on the bed"
       },
       {
-        "video": "S3/Fall/02.mp4",
-        "label": 1,
-        "pred": false,
+        "video": "S2/ADL/22.mp4",
+        "label": 0,
+        "pred": true,
         "delay": null,
-        "desc": "Falling on the bed (forward)"
+        "desc": "Exercising (Push-up) and sitting"
       },
       {
         "video": "S3/Fall/06.mp4",
@@ -655,6 +634,13 @@
         "pred": false,
         "delay": null,
         "desc": "Reading newspaper then falling Backward on the bed"
+      },
+      {
+        "video": "S3/Fall/19.mp4",
+        "label": 1,
+        "pred": false,
+        "delay": null,
+        "desc": "Falling on the floor from the standing position"
       },
       {
         "video": "S4/Fall/02.mp4",
@@ -718,17 +704,17 @@
     "alpha": 0.1,
     "overall": {
       "n": 160,
-      "tp": 65,
+      "tp": 64,
       "fp": 7,
-      "fn": 14,
+      "fn": 15,
       "tn": 74,
-      "accuracy": 0.86875,
-      "precision": 0.9027777777777778,
-      "recall": 0.8227848101265823,
-      "f1": 0.8609271523178809,
+      "accuracy": 0.8625,
+      "precision": 0.9014084507042254,
+      "recall": 0.810126582278481,
+      "f1": 0.8533333333333334,
       "specificity": 0.9135802469135802,
-      "delay_median_s": 0.8762809368408109,
-      "delay_p90_s": 1.644067098343565
+      "delay_median_s": 0.8832862385321101,
+      "delay_p90_s": 1.6661368114599013
     },
     "empirical_far": 0.08641975308641975
   }

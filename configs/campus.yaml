@@ -43,7 +43,7 @@ hazards:
     gate:
       - name: fall_motion_gate
         cues: [descent_speed, hip_drop]
-        min_contribution: 0.5
+        min_contribution: 0.3     # hip drop measured within 1 s; chosen on GMDCSA24 + simulated lie-downs
         unless: {cue: ground_time, at_least: 60}   # lying motionless this long matters even without a seen fall
         phrase: "no fast, uncontrolled descent was seen (lying down, not falling)"
       - name: fall_posture_gate                    # a fast drop that does not end lying down (crouching, occlusion); 0.75 chosen on GMDCSA24 only (1.0 and 1.5 each lost a fall there)

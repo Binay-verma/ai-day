@@ -17,14 +17,14 @@ development (§8). An independent audit of every claim is in
 
 | Area | Metric (protocol) | Result | Plan target | Status |
 |---|---|---|---|---|
-| Explanations | attribution exactness, max abs error (74 real alerts) | **8.9e-16** | < 1e-9 | ✅ |
+| Explanations | attribution exactness, max abs error (75 real alerts) | **1.3e-15** | < 1e-9 | ✅ |
 | Explanations | unsupported-claim rate of template text | **0 %** (≈ 12 claims / explanation) | 0 % | ✅ by construction |
-| Explanations | verifier catches injected narrator errors (8 error types) | **100 %** (574 / 574; CI 99.3–100) | ≥ 95 % | ✅ synthetic errors |
-| Explanations | verifier false rejects on meaning-preserving paraphrases | **0.7 %** (3 / 436; CI 0.2–2.0) | ≤ 5 % | ✅ |
-| Explanations | counterfactual validity / alerts with a single-cue counterfactual | **100 %** of 330 / 74 of 74 | 100 % | ✅ |
-| Falls (GMDCSA24) | video F1, shipped YOLO11n-pose, expert weights + fall evidence gate (§2.1) | **0.875** (CI 0.81–0.93), precision 0.969; was 0.814 before the gate | ≥ 0.90 | ❌ close (development set) |
+| Explanations | verifier catches injected narrator errors (8 error types) | **100 %** (576 / 576; CI 99.3–100) | ≥ 95 % | ✅ synthetic errors |
+| Explanations | verifier false rejects on meaning-preserving paraphrases | **0.5 %** (2 / 443; CI 0.1–1.6) | ≤ 5 % | ✅ |
+| Explanations | counterfactual validity / alerts with a single-cue counterfactual | **100 %** of 330 / 75 of 75 | 100 % | ✅ |
+| Falls (GMDCSA24) | video F1, shipped YOLO11n-pose, expert weights + fall evidence gate (§2.1) | **0.883** (CI 0.82–0.93), precision 0.970; was 0.814 before the gate | ≥ 0.90 | ❌ close (development set) |
 | Falls vs lying down | false fall alarms on GMDCSA24's deliberate lie-down clips (bed/floor), default / accurate profile | **0 / 1** (was 6 / 7 before the gate) | — | ✅ development set |
-| Falls (GMDCSA24) | same, YOLO11s-pose with expert weights + gate (`configs/profiles/fall_accurate.yaml`) / with weights re-fitted per fold | 0.835 (CI 0.76–0.90, precision 0.967) / 0.892 (CI 0.83–0.94) | ≥ 0.90 | ❌ not met (the re-fitted weights do not transfer, §8) |
+| Falls (GMDCSA24) | same, YOLO11s-pose with expert weights + gate (`configs/profiles/fall_accurate.yaml`) / with weights re-fitted per fold | 0.843 (CI 0.77–0.90, precision 0.967) / 0.904 (CI 0.85–0.95) | ≥ 0.90 | ❌ not met with the shipped weights; the per-fold re-fit reaches it but its weights do not transfer (§8) |
 | Calibration | fall false-alarm rate vs budget α = 0.1, held-out subjects | 0.11 (9 / 81, CI 0.06–0.20) with 11n; 0.086 (7 / 81, CI 0.04–0.17) with 11s | ≤ α + 1 % | ⚠️ point estimate only |
 | Crowd (UMN) | dispersal events detected, per-camera conformal α = 0.01 | **10 / 11** (CI 0.62–0.98), 0 false alarms in 200 s of normal video (≤ 66 / h upper bound) | all, ≤ 1 FA / clip | ⚠️ development set |
 | Crowd (UMN) | frame AUC, standard / label-artefact-tolerant | 0.81 (CI 0.72–0.96) / 0.91 (CI 0.85–0.97) | ≥ 0.90 | ⚠️ tolerant labels post hoc |
@@ -32,7 +32,7 @@ development (§8). An independent audit of every claim is in
 | Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.76 (Home-fire) at **15.5 %** FPR (CI 12.3–19.4) | ≥ 0.85 at ≤ 10 % | ❌ |
 | Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **15 / 17** (CI 0.66–0.97), median time-to-alert 2.7 s; **0** false alarms in 4.7 min (one-sided 95 % bound ≈ 38 / h) | — | ⚠️ development set |
 | Falls, unseen dataset (§9) | UR-Fall: falls detected / alerts on daily-activity clips | **24 / 30** with the YOLO11s-pose profile, 23 / 30 default (were 23 and 19 before the gate); 0 / 5 | — | ⚠️ only 5 negative clips; gate added after the first run |
-| External check (§8) | unseen sources: fall recall / false alarms in 7.2 min | default 8 / 11 (was 6), fall profile **9 / 11**; 1 false alarm (crowd, uncalibrated camera), 0 false fall alarms | — | ⚠️ honest gap; gate added after the first run |
+| External check (§8) | unseen sources: fall recall / false alarms in 7.2 min | default 8 / 11 (was 6), fall profile **10 / 11** (was 9); 1 false alarm (crowd, uncalibrated camera), 0 false fall alarms | — | ⚠️ honest gap; gate added after the first run |
 | Robustness (§12) | fire mAP kept under 8 corruptions x 3 severities (rPC) / mean person recall | 0.69 / 0.83; collapse in severe noise, flat contrast and darkness, now raised as a low-visibility trouble alert | — | ⚠️ needs IR at night |
 | Saliency | Eigen-CAM deletion AUC vs random / centre controls (40 images) | 0.148 vs 0.350 / 0.115: beats random (p < 0.001), **not** the centre control | better than both | ❌ |
 | Edge | full 3-hazard pipeline, 2 cores | **12.0 FPS** at 416 px (production config); 7.8 INT8-640; 6.6 FP32-640 | ≥ 8 FPS | ⚠️ met at 416 px only |
@@ -108,7 +108,7 @@ the accurate profile) were deliberate lie-downs on a bed.
 
 | Requirement | Cues that must together contribute | Minimum | If not met, the explanation says |
 |---|---|---|---|
-| `fall_motion_gate`: an uncontrolled descent was seen | `descent_speed` + new `hip_drop` (how far the hips fell during the transition, in standing body-heights) | 0.5 log-odds | "no fast, uncontrolled descent was seen (lying down, not falling)" |
+| `fall_motion_gate`: an uncontrolled descent was seen | `descent_speed` + new `hip_drop` (the fastest 1-second drop of the hips during the transition, in standing body-heights) | 0.3 log-odds | "no fast, uncontrolled descent was seen (lying down, not falling)" |
 | `fall_posture_gate`: the person ended up lying | `torso_angle` + `aspect_ratio` + `height_drop` | 0.75 log-odds | "the person did not end up lying down (no fall posture)" |
 
 If a requirement fails, the score is capped 0.5 log-odds below the alert line by that rule
@@ -122,9 +122,9 @@ happened before the camera started) - an unwitnessed long lie matters regardless
 | Pose model | | Precision | Recall | F1 (95 % CI) | False alarms | of which lie-downs | Falls onto the floor | Falls onto a bed |
 |---|---|---|---|---|---|---|---|---|
 | YOLO11n-pose (default) | before | 0.894 | 0.747 | 0.814 (0.74–0.88) | 7 | 6 | 50 / 65 | 9 / 14 |
-| | **with gate** | **0.969** | **0.797** | **0.875 (0.81–0.93)** | **2** | **0** | **56 / 65** | 7 / 14 |
+| | **with gate** | **0.970** | **0.810** | **0.883 (0.82–0.93)** | **2** | **0** | **57 / 65** | 7 / 14 |
 | YOLO11s-pose (profile) | before | 0.887 | 0.797 | 0.840 (0.77–0.90) | 8 | 7 | 55 / 65 | 8 / 14 |
-| | **with gate** | **0.967** | 0.734 | 0.835 (0.76–0.90) | **2** | 1 | 53 / 65 | 5 / 14 |
+| | **with gate** | **0.967** | 0.747 | 0.843 (0.77–0.90) | **2** | 1 | 53 / 65 | 6 / 14 |
 
 Recall *rose* for the default model: the hip-drop cue adds real evidence to genuine falls.
 The remaining false alarms are push-ups (a fast, real descent to a horizontal posture) and one
@@ -138,7 +138,24 @@ discount for that case (descent speed did); it now has the same one. Cost on GMD
 each (table above includes it), one push-up false alarm fewer with YOLO11n-pose. Every time a gate
 holds a would-be alert below the line, a `hazard_held` entry with the reason and the score
 without the gate is written to the audit trail (and the session export), so a quiet lie-down
-leaves evidence instead of nothing. The inherent limit is **falling onto a bed from
+leaves evidence instead of nothing.
+
+**Third webcam test: lying down on the floor from standing.** Lying down on the floor in 2-3 s
+still alarmed. The hip-drop cue measured how *far* the hips went down over 3 s, and a
+controlled lie-down from standing drops them as far as a fall. It now measures the fastest drop
+within any 1 s (a speed), looked up over the 2 s before the low posture is reached and kept as
+long as descent speed is (3 s). A first version (last 1 s only, minimum 0.5) cost falls on every
+benchmark (UR-Fall 23 → 21, external 8 → 5 with the default model), so it was not shipped; the
+look-back, the 3 s memory and the minimum of 0.3 were then chosen on GMDCSA24 and on simulated
+lie-downs (controlled 2-6 s lie-downs on the floor or onto a bed must be held, a 0.5-1 s fall
+must alarm; regression test `test_lying_down_on_the_floor_from_standing_is_not_a_fall_but_a_fast_drop_is`).
+The final version loses nothing anywhere: GMDCSA24 63 → 64 falls (YOLO11n) and 58 → 59
+(YOLO11s) with the same 2 false alarms each; UR-Fall 23 / 24 unchanged; external 8 / 11 unchanged
+and 9 → 10 / 11 with the profile. The UR-Fall and external clips were looked at while finding
+why the first version lost falls (fall-06, fall-23), so this change too is disclosed as not a
+first run.
+
+The inherent limit is **falling onto a bed from
 sitting on it**: physically it is the same movement as lying back onto the bed, and about half
 of those 14 clips are now not alerted. Thresholds were chosen on GMDCSA24 only (the posture
 minimum: 0.75 lost nothing there, 1.0 and 1.5 each lost a fall).
@@ -232,18 +249,18 @@ weight, citation cut-off, people-in-view gating for rapid exit), so these are
 development-set numbers, and 4.7 minutes of non-fire video is far too little to claim a
 false-alarm rate.
 
-## 5. Explanation quality (74 real alerts from the fall and crowd benchmarks)
+## 5. Explanation quality (75 real alerts from the fall and crowd benchmarks)
 
 | Check | Result |
 |---|---|
-| Attribution exactness \|bias + Σ contributions − logit\| | max 8.9e-16 |
-| Deletion test (set a cue to its reference → logit changes by exactly its contribution, plus the named gate term when the deletion makes a fall evidence gate fire: 21 of 504 deletions) | max error 1.8e-15 |
+| Attribution exactness \|bias + Σ contributions − logit\| | max 1.3e-15 |
+| Deletion test (set a cue to its reference → logit changes by exactly its contribution, plus the named gate term when the deletion makes a fall evidence gate fire: 14 of 511 deletions) | max error 1.8e-15 |
 | Counterfactual validity (re-scored counterfactual flips the decision) | 100 % of 330 |
-| Counterfactual plausibility (needed value inside the 5–95 % range seen on normal data) | 81 % |
+| Counterfactual plausibility (needed value inside the 5–95 % range seen on normal data) | 85 % |
 | Template unsupported-claim rate | 0 % (by construction: the template is generated from the ledger it is checked against) |
 | Verifier detection: number drift / false cause / wrong hazard / invented sensor / confidence inflation | 100 % / 100 % / 100 % / 100 % / 100 % |
 | Verifier detection, audit attacks: value swapped between cues / hazard drift / synonym false cause | 100 % / 100 % / 100 % |
-| Verifier false rejects on meaning-preserving paraphrases (incl. reordered sentences) | 0.7 % (3 / 436) |
+| Verifier false rejects on meaning-preserving paraphrases (incl. reordered sentences) | 0.5 % (2 / 443) |
 | Explanation + counterfactuals + verification time | ~1 ms p50 |
 
 The verifier is what would make an optional on-device LLM narrator safe: its text would be
@@ -330,10 +347,10 @@ the corrected first runs of each configuration.
 
 | | Default (`campus.yaml`, YOLO11n-pose) | Fall profile (YOLO11s-pose, expert weights) | *Rejected: YOLO11s-pose with GMDCSA-fitted weights* |
 |---|---|---|---|
-| Falls detected | 6 / 11 (CI 0.28–0.79); **8 / 11** with the fall evidence gate | **9 / 11** (CI 0.52–0.95), unchanged with the gate | *9 / 11* |
+| Falls detected | 6 / 11 (CI 0.28–0.79); **8 / 11** with the fall evidence gate | 9 / 11 (CI 0.52–0.95); **10 / 11** with the gate | *9 / 11* |
 | False fall alarms on 7.2 min of normal video | 0 | **0** | ***17*** |
 | Other false alarms | 1 crowd | 1 crowd | 1 crowd |
-| Explanations grounded | 7 / 7 (9 / 9 with the gate) | 10 / 10 | 28 / 28 |
+| Explanations grounded | 7 / 7 (9 / 9 with the gate) | 10 / 10 (12 / 12 with the gate) | 28 / 28 |
 
 **What the false alarms were.** The crowd alert in every column is the same: a group walking
 towards the camera in a short clip, read as abnormal crowd movement ("100 % of the people in
@@ -349,7 +366,7 @@ rejects any fall model in which one cue can reach the alert line (`min_cues: 2`)
 only) raised 8 / 11 falls but added one false fall alarm with the default model: a shopper in a
 store aisle read as "the torso rotating 500 deg/s, a rapid descent of 2.1 body-heights/s" while
 still upright (VERIFY, 65 %). That prompted the posture requirement (the person must end up
-lying), whose threshold was then set on GMDCSA24 alone. Final: default 8 / 11, profile 9 / 11,
+lying), whose threshold was then set on GMDCSA24 alone. Final (after the third webcam fix, §2.1): default 8 / 11, profile 10 / 11,
 no false fall alarm with either. Because this change was made after seeing these clips, the gate
 rows are not first runs.
 
@@ -371,13 +388,13 @@ Nothing was tuned on these clips; each configuration was run once.
 |---|---|---|---|---|
 | `campus.yaml` (YOLO11n-pose, default), first run | 19 / 30 (63 %, CI 46–78) | 1 / 18 | 1.9 s | 0 / 5 |
 | `profiles/fall_accurate.yaml` (YOLO11s-pose, expert weights), first run | 23 / 30 (77 %, CI 59–88) | 3 / 20 | 2.2 s | 0 / 5 |
-| `campus.yaml` + fall evidence gate (§2.1, shipped) | **23 / 30** (77 %, CI 59–88) | **12 / 11** | 1.5 s | 0 / 5 |
+| `campus.yaml` + fall evidence gate (§2.1, shipped) | **23 / 30** (77 %, CI 59–88) | **11 / 12** | 1.5 s | 0 / 5 |
 | **`profiles/fall_accurate.yaml` + fall evidence gate (shipped)** | **24 / 30 (80 %, CI 63–90)** | **14 / 10** | **1.2 s** | 0 / 5 |
 | *rejected: YOLO11s-pose, GMDCSA-fitted weights* | *27 / 30* | *19 / 8* | *0.9 s* | *0 / 5 - but 17 false fall alarms on walking footage (§8)* |
 
 The evidence gate *helped* here, although it was built to remove false alarms: the hip-drop cue
 adds evidence to real falls, so more of them clear the line, sooner and with ALARM rather than
-VERIFY (default: 1 → 12 ALARMs). The gate was added after the first runs, so its rows are not
+VERIFY (default: 1 → 11 ALARMs). The gate was added after the first runs, so its rows are not
 first runs (§2.1 disclosure). Before the gate, the larger pose model added 4 falls (+13 points of recall) on independent data. The fitted
 weights look even better here (27 / 30, faster, more ALARMs) - and this is the trap: UR-Fall
 has only 5 negative clips, so it cannot show false alarms; the external walking footage (§8)
@@ -408,12 +425,12 @@ probability, model re-fitted without the held-out subject.
 
 | | ECE (15 bins) | Brier |
 |---|---|---|
-| as shipped (with the fall evidence gate) | 0.107 | 0.109 |
-| temperature-scaled on training subjects | 0.109 | 0.109 |
+| as shipped (with the fall evidence gate) | 0.095 | 0.110 |
+| temperature-scaled on training subjects | 0.090 | 0.110 |
 | *before the gate, as shipped* | *0.085* | *0.111* |
 
-The stated confidence is off by about 11 percentage points on average. The evidence gate
-worsened ECE (0.085 → 0.107; Brier about the same): a held clip's score is capped just below
+The stated confidence is off by about 10 percentage points on average. The evidence gate
+worsened ECE slightly (0.085 → 0.095; Brier the same): a held clip's score is capped just below
 the line (~48 %), whether or not it was a fall, which puts mass in one mid bin. Temperature
 scaling barely helps, so it is not applied; the console shows the confidence together with
 the alert line and the ALARM/VERIFY routing rather than as a stand-alone probability.

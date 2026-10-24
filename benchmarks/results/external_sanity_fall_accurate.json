@@ -1,10 +1,10 @@
 {
  "summary": {
   "protocol": "frozen system (configs/profiles/fall_accurate.yaml as shipped), sources never used in development; fall clips followed by the last frame held 4.0 s; 15.0 fps",
-  "fall_recall": "9/11",
+  "fall_recall": "10/11",
   "fall_recall_wilson95": [
-   0.523,
-   0.949
+   0.623,
+   0.984
   ],
   "normal_minutes": 7.2,
   "false_alarms_all_hazards": 1,
@@ -13,7 +13,7 @@
    0.1,
    46.2
   ],
-  "alerts_grounded": "10/10"
+  "alerts_grounded": "12/12"
  },
  "falls": [
   {
@@ -23,19 +23,36 @@
    "alerts": [
     {
      "hazard": "fall",
-     "t": 7.75,
-     "prob": 0.613,
+     "t": 7.6,
+     "prob": 0.612,
      "mode": "VERIFY",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 75 deg from vertical, no movement on the ground for 4.0 s and a horizontal body shape (width/height 1.6). It would not have fired if tilt rate had been below 109.01 deg/s (observed 111.76 deg/s). Confidence 61% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 75 deg from vertical, no movement on the ground for 3.8 s and a horizontal body shape (width/height 1.6). It would not have fired if tilt rate had been below 109.25 deg/s (observed 111.76 deg/s). Confidence 61% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   },
   {
    "clip": "fall_extras/cauca_sample/FallForwardS1.avi",
    "seconds": 9.4,
-   "detected": false,
-   "alerts": []
+   "detected": true,
+   "alerts": [
+    {
+     "hazard": "fall",
+     "t": 8.5,
+     "prob": 0.697,
+     "mode": "VERIFY",
+     "grounded": true,
+     "text": "Fall detected (person#2) in External test. Alert raised due to the torso rotating 500 deg/s, torso tilted 178 deg from vertical and a rapid descent of 0.5 body-heights/s. It would not have fired if descent speed had been below 0.29 body-heights/s (observed 0.51 body-heights/s). Confidence 70% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#2; Do not move the person until trained help arrives."
+    },
+    {
+     "hazard": "fall",
+     "t": 9.05,
+     "prob": 0.99,
+     "mode": "ALARM",
+     "grounded": true,
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 103 deg from vertical, a rapid descent of 1.7 body-heights/s and the hips dropping 0.80 body-heights. It would not have fired if torso angle had been below 18.98 deg (observed 102.68 deg). Confidence 99% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+    }
+   ]
   },
   {
    "clip": "fall_extras/cauca_sample/FallLeftS1.avi",
@@ -44,11 +61,11 @@
    "alerts": [
     {
      "hazard": "fall",
-     "t": 2.55,
-     "prob": 0.778,
+     "t": 2.6,
+     "prob": 0.695,
      "mode": "VERIFY",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 127 deg from vertical, the hips dropping 0.79 body-heights and the torso rotating 138 deg/s. It would not have fired if tilt rate had been below 94.65 deg/s (observed 138.41 deg/s). Confidence 78% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 124 deg from vertical, the hips dropping 0.67 body-heights and the torso rotating 138 deg/s. It would not have fired if tilt rate had been below 117.07 deg/s (observed 138.41 deg/s). Confidence 70% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   },
@@ -60,10 +77,10 @@
     {
      "hazard": "fall",
      "t": 3.5,
-     "prob": 0.629,
+     "prob": 0.614,
      "mode": "VERIFY",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to a horizontal body shape (width/height 2.7), torso tilted 77 deg from vertical and body height dropped by 71%. It would not have fired if tilt rate had been below 83.85 deg/s (observed 90.51 deg/s). Confidence 63% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to a horizontal body shape (width/height 2.7), torso tilted 77 deg from vertical and body height dropped by 71%. It would not have fired if tilt rate had been below 87.25 deg/s (observed 90.51 deg/s). Confidence 61% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   },
@@ -75,10 +92,10 @@
     {
      "hazard": "fall",
      "t": 5.55,
-     "prob": 0.9,
+     "prob": 0.899,
      "mode": "ALARM",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to a rapid descent of 1.6 body-heights/s, torso tilted 69 deg from vertical and the hips dropping 0.64 body-heights. It would not have fired if tilt rate had been below 12.55 deg/s (observed 107.59 deg/s). Confidence 90% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to a rapid descent of 1.6 body-heights/s, torso tilted 69 deg from vertical and the hips dropping 0.64 body-heights. It would not have fired if tilt rate had been below 12.76 deg/s (observed 107.59 deg/s). Confidence 90% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   },
@@ -89,11 +106,11 @@
    "alerts": [
     {
      "hazard": "fall",
-     "t": 5.09,
-     "prob": 0.719,
-     "mode": "VERIFY",
+     "t": 5.25,
+     "prob": 0.876,
+     "mode": "ALARM",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 86 deg from vertical, the torso rotating 164 deg/s and a horizontal body shape (width/height 1.7). It would not have fired if tilt rate had been below 137.11 deg/s (observed 164.15 deg/s). Confidence 72% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 86 deg from vertical, a horizontal body shape (width/height 2.4) and the torso rotating 164 deg/s. It would not have fired if tilt rate had been below 85.94 deg/s (observed 164.15 deg/s). Confidence 88% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   },
@@ -108,7 +125,7 @@
      "prob": 0.807,
      "mode": "ALARM",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 76 deg from vertical, a horizontal body shape (width/height 2.3) and the torso rotating 156 deg/s. It would not have fired if tilt rate had been below 101.04 deg/s (observed 155.85 deg/s). Confidence 81% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 76 deg from vertical, a horizontal body shape (width/height 2.3) and the torso rotating 156 deg/s. It would not have fired if tilt rate had been below 101.11 deg/s (observed 155.85 deg/s). Confidence 81% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   },
@@ -119,11 +136,11 @@
    "alerts": [
     {
      "hazard": "fall",
-     "t": 2.13,
-     "prob": 0.745,
+     "t": 2.07,
+     "prob": 0.683,
      "mode": "VERIFY",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 176 deg from vertical, a rapid descent of 1.3 body-heights/s and the torso rotating 146 deg/s. It would not have fired if tilt rate had been below 112.24 deg/s (observed 145.96 deg/s). Confidence 75% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to torso tilted 177 deg from vertical, a rapid descent of 1.3 body-heights/s and the torso rotating 146 deg/s. It would not have fired if tilt rate had been below 127.63 deg/s (observed 145.96 deg/s). Confidence 68% (threshold 60%). Please verify before escalating: score only just above the alert line. Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   },
@@ -141,10 +158,10 @@
     {
      "hazard": "fall",
      "t": 1.93,
-     "prob": 0.856,
+     "prob": 0.85,
      "mode": "ALARM",
      "grounded": true,
-     "text": "Fall detected (person#1) in External test. Alert raised due to the hips dropping 0.71 body-heights, a rapid descent of 1.5 body-heights/s and torso tilted 87 deg from vertical. It would not have fired if descent speed had been below 0.81 body-heights/s (observed 1.50 body-heights/s). Confidence 86% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
+     "text": "Fall detected (person#1) in External test. Alert raised due to a rapid descent of 1.5 body-heights/s, the hips dropping 0.70 body-heights and torso tilted 87 deg from vertical. It would not have fired if descent speed had been below 0.83 body-heights/s (observed 1.50 body-heights/s). Confidence 85% (threshold 60%). Recommended: Send the first-aid team to External test for person#1; Do not move the person until trained help arrives."
     }
    ]
   },

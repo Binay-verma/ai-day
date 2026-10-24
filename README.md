@@ -76,16 +76,16 @@ image benchmark and the frozen-system external check are not.
 
 | Area | Result |
 |---|---|
-| Explanation exactness | per-cue contributions sum to the score with max error **8.9e-16** (74 real alerts) |
-| Grounded text | **0 %** unsupported claims; verifier catches **100 %** of 574 injected narrator errors (8 types) at **0.7 %** false rejects |
+| Explanation exactness | per-cue contributions sum to the score with max error **1.3e-15** (75 real alerts) |
+| Grounded text | **0 %** unsupported claims; verifier catches **100 %** of 576 injected narrator errors (8 types) at **0.5 %** false rejects |
 | Counterfactuals | **100 %** valid (330); explanation + verification ≈ 1 ms |
-| Falls (GMDCSA24, leave-one-subject-out) | F1 **0.875** default (precision 0.969), **0.835** with the YOLO11s-pose profile. Target 0.90: not met |
+| Falls (GMDCSA24, leave-one-subject-out) | F1 **0.883** default (precision 0.970), **0.843** with the YOLO11s-pose profile. Target 0.90: not met |
 | Falling vs lying down | fall evidence gate (uncontrolled descent **and** lying posture required): false alarms on deliberate lie-downs **6 → 0**, shown on the gauge as an exact ledger term |
 | Falls, second dataset never used in development (UR-Fall) | **24/30** with the YOLO11s-pose profile (23/30 default), 0/5 alarms on daily activities |
 | Abnormal crowd movement (UMN) | **10/11** dispersal events, 0 false alarms in 200 s of normal video, with per-camera conformal calibration |
 | Fire/smoke detector (leakage-free split) | mAP@0.5 **0.56** Home-fire / **0.65** DBA-Fire scenes (start checkpoint 0.37 / 0.36); 15.5 % false positives on neutral images, so it is one cue among several, never the alarm on its own |
 | Fire, system level (FURG videos) | **15/17** fire videos detected (median 2.7 s), **0** false alarms in 4.7 min of non-fire video incl. moving cameras |
-| External check (frozen system, unseen footage) | **9/11** falls with the fall profile (8/11 default); 1 false alarm in 7.2 min (crowd, uncalibrated camera), 0 false fall alarms |
+| External check (frozen system, unseen footage) | **10/11** falls with the fall profile (8/11 default); 1 false alarm in 7.2 min (crowd, uncalibrated camera), 0 false fall alarms |
 | Robustness (night, noise, blur, fog, JPEG) | fire detector keeps 69 % of its accuracy, person detection 83 % recall on average; the conditions where it collapses now raise a **low-visibility** trouble alert |
 | Privacy filter, verified | an independent face detector finds **0 of 184** faces after the filter |
 | Edge speed (all 3 hazards at once) | **12.0 FPS** with the 416 px production models; 7.8 INT8-640; 6.6 FP32-640 (the audit's safety fixes cost ~40 % at 640 px) |
