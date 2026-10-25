@@ -1,7 +1,8 @@
 // Operator console. All server data is inserted with textContent / DOM APIs (never innerHTML),
 // so names, notes and explanation text cannot inject markup (CSP also forbids inline script).
 "use strict";
-const HZ = {fall: "Fall", fire_smoke: "Smoke / fire", crowd: "Crowd", intrusion: "Restricted area", camera_fault: "Camera fault"};
+const HZ = {fall: "Fall", fire_smoke: "Smoke / fire", crowd: "Crowd", intrusion: "Restricted area", camera_fault: "Camera fault",
+            exit_blocked: "Exit unsafe", crowd_toward_hazard: "Crowd heading into danger"};
 const $ = s => document.querySelector(s);
 const el = (tag, props = {}, ...kids) => {
   const e = document.createElement(tag);
@@ -167,12 +168,20 @@ function card(a) {
   tr.classList.add(tri === "VERIFY" ? "verify" : "alarm");
   node.querySelector(".ledger").append(ledger(a));
   node.querySelector(".cf").textContent = ex.counterfactual || "";
-  setupWhatIf(node.querySelector(".whatif"), a);
+  if (["fall", "fire_smoke", "crowd", "intrusion"].includes(a.hazard)) setupWhatIf(node.querySelector(".whatif"), a);
+  else node.querySelector(".whatif").hidden = true;  // site advisories and trouble signals have no score model to re-run
   const acts = node.querySelector(".acts");
   for (const r of a.recommendations || []) acts.append(el("li", {}, el("label", {}, el("input", {type: "checkbox"}), el("span", {class: r.priority === 1 ? "p1" : "", textContent: r.text}))));
   const ver = node.querySelector(".verified");
-  ver.textContent = `Explanation checked against the evidence: ${Math.round((v.groundedness ?? 1) * 100)}% of ${v.n_claims ?? 0} claims supported`;
-  ver.classList.toggle("bad", (v.groundedness ?? 1) < 1);
+  const advisory = ["exit_blocked", "crowd_toward_hazard", "camera_fault", "self_test"].includes(a.hazard);
+  if (advisory) {
+    // site advisories and trouble signals are built from live camera measurements, not from a score model
+    node.querySelector(".ledger").hidden = true;
+    ver.textContent = "Built from live camera measurements: every number above comes from the camera named.";
+  } else {
+    ver.textContent = `Explanation checked against the evidence: ${Math.round((v.groundedness ?? 1) * 100)}% of ${v.n_claims ?? 0} claims supported`;
+    ver.classList.toggle("bad", (v.groundedness ?? 1) < 1);
+  }
   const head = node.querySelector(".head");
   head.addEventListener("click", () => { node.classList.toggle("closed"); head.setAttribute("aria-expanded", !node.classList.contains("closed")); });
   node.querySelector(".report").href = `/api/alerts/${encodeURIComponent(a.id)}/report.html`;
@@ -203,11 +212,26 @@ function card(a) {
   api(`/api/alerts/${encodeURIComponent(a.id)}`).then(full => {
     if (full.snapshot_jpg_b64) node.querySelector(".snap").src = "data:image/jpeg;base64," + full.snapshot_jpg_b64;
     if (full.evidence_jpg_b64) node.querySelector(".evid").src = "data:image/jpeg;base64," + full.evidence_jpg_b64;
+    if (!full.snapshot_jpg_b64 && !full.evidence_jpg_b64) node.querySelector(".ev").hidden = true;
     if (full.track_record) node.querySelector(".trackrec").textContent = full.track_record.text;
     if (full.has_clip && canAct) { const c = node.querySelector(".clip"); c.hidden = false; c.href = `/api/alerts/${encodeURIComponent(a.id)}/clip.mp4`; }
   }).catch(() => {});
   if (a.status !== "open") node.classList.add("done", "closed");
   return node;
+}
+
+// Exit safety (site.exits): clear / congested / unsafe, with the camera evidence
+function renderExits(ex) {
+  const box = $("#exits");
+  if (!box) return;
+  const names = Object.keys(ex);
+  if (!names.length) return;
+  box.replaceChildren(...names.map(n => {
+    const e = ex[n];
+    return el("div", {class: "exit " + e.state.replace(" ", "-"), title: e.reason || (e.cameras || []).join(", ")},
+      el("span", {class: "xname", textContent: n}), el("b", {textContent: e.state}),
+      e.reason ? el("span", {class: "small xwhy", textContent: e.reason}) : el("span"));
+  }));
 }
 
 // Natural-language search of the incident store (deterministic on the server; cites alert ids)
@@ -302,6 +326,7 @@ function connect() {
       updateState(m.camera, m.state);
     }
     else if (m.type === "alert") { upsertAlert(m.alert, true); announce(m.alert); }
+    else if (m.type === "site") renderExits(m.exits || {});
     else if (m.type === "alert_update") { const a = alerts.get(m.id); if (a) { a.status = m.status; a.operator = m.operator; a._node = null; renderQueue(); } updateRing(); }
     else if (["camera_fault", "camera_paused", "camera_resumed"].includes(m.type)) api("/api/cameras").then(renderCams).catch(() => {});
   };
@@ -339,5 +364,15 @@ async function boot() {
   setInterval(() => api("/api/cameras").then(renderCams).catch(() => {}), 10000);
   $("#handover").hidden = !(role === "operator" || role === "admin");
   refreshSelfTest(); setInterval(refreshSelfTest, 60000);
+  const site = () => api("/api/site").then(r => renderExits(r.exits || {})).catch(() => {});
+  const sd = $("#sitedemo");
+  if (sd && !me.auth) {
+    sd.hidden = false;
+    sd.addEventListener("click", async () => {
+      try { const r = await api("/api/demo/site_scenario", {method: "POST"}); renderExits(r.exits || {}); }
+      catch (e) { alert("Scenario failed: " + e.message); }
+    });
+  }
+  site(); setInterval(site, 10000);
 }
 boot();

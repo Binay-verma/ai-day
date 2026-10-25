@@ -13,7 +13,7 @@ from __future__ import annotations
 import ast
 import operator
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 from ..xai.fusion import Assessment
 
@@ -102,6 +102,8 @@ class Recommender:
         self.zones = zones
         self.playbooks = playbooks
         self.contacts = contacts or {}
+        # site-wide exit safety (set by the service): zone -> ([exits to use], [(exit to avoid, reason)])
+        self.route_fn: Optional[Callable[[str], Tuple[List[str], List[Tuple[str, str]]]]] = None
 
     @classmethod
     def from_config(cls, cfg: dict) -> Recommender:
@@ -119,9 +121,17 @@ class Recommender:
         z = self.zones.get(zone_name) or Zone(name=zone_name)
         # an offline sensor (reliability 0) contributes nothing to the score, and must not trigger actions either
         vals = {c.name: c.value for c in a.cues if c.reliability > 0}
+        exits: List[str] = list(z.exits)
+        avoid: List[Tuple[str, str]] = []
+        if self.route_fn is not None and z.exits:
+            exits, avoid = self.route_fn(zone_name)
+        if avoid and not exits:
+            exit_text = "a safe route chosen with the warden (every listed exit reports a hazard)"
+        else:
+            exit_text = " / ".join(exits) or "the nearest exit"
         fmt = {
-            "zone": z.name, "exits": " / ".join(z.exits) or "the nearest exit",
-            "exit": z.exits[0] if z.exits else "the nearest exit",
+            "zone": z.name, "exits": exit_text,
+            "exit": exits[0] if exits else ("a safe route chosen with the warden" if avoid else "the nearest exit"),
             "aed": z.aed or "the nearest AED", "extinguisher": z.extinguisher or "the nearest extinguisher",
             "first_aid": z.first_aid or "the first-aid team", "assembly_point": z.assembly_point or "the assembly point",
             "warden": z.warden or "the zone warden", "subject": a.subject,
@@ -129,6 +139,7 @@ class Recommender:
         }
         actions: List[Action] = []
         escalate = False
+        routes_people = False
         for step in self.playbooks.get(a.hazard, []):
             if self._cond(step.get("when"), vals, a):
                 try:
@@ -136,6 +147,14 @@ class Recommender:
                 except KeyError:
                     text = step["do"]
                 actions.append(Action(text, int(step.get("priority", 2)), step.get("when") or "standard procedure"))
+                routes_people |= "{exit" in step["do"]
                 escalate |= bool(step.get("escalate", False))
+        if routes_people and avoid:
+            # say which exit not to use, and why (the evidence comes from the camera that watches it)
+            for e, why in avoid:
+                actions.append(Action(f"Do NOT send people to {e}: {why}", 1, "exit unsafe"))
+            if not exits:
+                actions.append(Action(f"Every listed exit of {z.name} reports a hazard: move people away from it with the warden "
+                                      "and wait for the fire service's instructions", 1, "no safe exit"))
         actions.sort(key=lambda x: x.priority)
         return {"severity": severity(a, escalate), "actions": [a_.__dict__ for a_ in actions]}

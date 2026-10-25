@@ -31,6 +31,7 @@ from typing import Callable, Deque, Dict, List, Optional, Tuple, Union
 import cv2
 import numpy as np
 
+from .perception.exits import flow_summary
 from .privacy import anonymize
 
 log = logging.getLogger("edgecopilot.cameras")
@@ -370,6 +371,7 @@ class CameraWorker:
             self.state = {"t": round(t, 2), "people": len(res.people), "motion": round(res.motion, 4),
                           "ran_detector": res.ran_detector, "timings": {k: round(v, 1) for k, v in res.timings.items()},
                           "fps": round(h.fps, 1), "gauges": gauges, "sensors": {z: v for z, v in cop.sensors.status(wall).items() if z == cop.zone or (self.is_file and z == "default")},
-                          "scene_change": res.scene_change}
+                          "scene_change": res.scene_change,
+                          "flows": flow_summary(res.headings, cop.edges) if getattr(cop, "edges", None) else {}}
         if self.on_frame:
             self.on_frame(self.cam_id, self.latest_jpg, self.state)

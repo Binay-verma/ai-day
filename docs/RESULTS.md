@@ -22,6 +22,8 @@ development (§8). An independent audit of every claim is in
 | Explanations | verifier catches injected narrator errors (8 error types) | **100 %** (576 / 576; CI 99.3–100) | ≥ 95 % | ✅ synthetic errors |
 | Explanations | verifier false rejects on meaning-preserving paraphrases | **0.5 %** (2 / 443; CI 0.1–1.6) | ≤ 5 % | ✅ |
 | Explanations | counterfactual validity / alerts with a single-cue counterfactual | **100 %** of 330 / 75 of 75 | 100 % | ✅ |
+| Falls, went down and left the view (§16) | extra falls caught, GMDCSA24 / UR-Fall / external, YOLO11n and YOLO11s | +1 / +1 / 0 and +1 / +3 / 0; **no new false alarm** anywhere | — | ✅ |
+| Exit heading (§16) | edge a person leaves by, predicted 2 s ahead (UMN + walking footage, n = 97) | **80 %** (CI 71-87) vs 59 % for the nearest edge | — | ✅ |
 | Falls (GMDCSA24) | video F1, shipped YOLO11n-pose, expert weights + fall evidence gate (§2.1) | **0.883** (CI 0.82–0.93), precision 0.970; was 0.814 before the gate | ≥ 0.90 | ❌ close (development set) |
 | Falls vs lying down | false fall alarms on GMDCSA24's deliberate lie-down clips (bed/floor), default / accurate profile | **0 / 1** (was 6 / 7 before the gate) | — | ✅ development set |
 | Falls (GMDCSA24) | same, YOLO11s-pose with expert weights + gate (`configs/profiles/fall_accurate.yaml`) / with weights re-fitted per fold | 0.843 (CI 0.77–0.90, precision 0.967) / 0.904 (CI 0.85–0.95) | ≥ 0.90 | ❌ not met with the shipped weights; the per-fold re-fit reaches it but its weights do not transfer (§8) |
@@ -31,7 +33,7 @@ development (§8). An independent audit of every claim is in
 | Fire (images, leakage-free) | mAP@0.5, Home-fire test / DBA-Fire scene hold-out | **0.564 / 0.651** (start checkpoint 0.371 / 0.356) | ≥ 0.60 | ⚠️ DBA met, Home-fire not |
 | Fire (images, leakage-free) | image recall @ ≤ 10 % FPR on neutral negatives | recall 0.76 (Home-fire) at **15.5 %** FPR (CI 12.3–19.4) | ≥ 0.85 at ≤ 10 % | ❌ |
 | Fire (video, FURG) | fire videos detected / false alarms on non-fire video | **15 / 17** (CI 0.66–0.97), median time-to-alert 2.7 s; **0** false alarms in 4.7 min (one-sided 95 % bound ≈ 38 / h) | — | ⚠️ development set |
-| Falls, unseen dataset (§9) | UR-Fall: falls detected / alerts on daily-activity clips | **24 / 30** with the YOLO11s-pose profile, 23 / 30 default (were 23 and 19 before the gate); 0 / 5 | — | ⚠️ only 5 negative clips; gate added after the first run |
+| Falls, unseen dataset (§9) | UR-Fall: falls detected / alerts on daily-activity clips | **27 / 30** with the YOLO11s-pose profile, 24 / 30 default (19 and 23 at the first run); 0 / 5 | — | ⚠️ only 5 negative clips; gate and left-view rule added after the first run |
 | External check (§8) | unseen sources: fall recall / false alarms in 7.2 min | default 8 / 11 (was 6), fall profile **10 / 11** (was 9); 1 false alarm (crowd, uncalibrated camera), 0 false fall alarms | — | ⚠️ honest gap; gate added after the first run |
 | Robustness (§12) | fire mAP kept under 8 corruptions x 3 severities (rPC) / mean person recall | 0.69 / 0.83; collapse in severe noise, flat contrast and darkness, now raised as a low-visibility trouble alert | — | ⚠️ needs IR at night |
 | Saliency | Eigen-CAM deletion AUC vs random / centre controls (40 images) | 0.148 vs 0.350 / 0.115: beats random (p < 0.001), **not** the centre control | better than both | ❌ |
@@ -389,7 +391,9 @@ Nothing was tuned on these clips; each configuration was run once.
 | `campus.yaml` (YOLO11n-pose, default), first run | 19 / 30 (63 %, CI 46–78) | 1 / 18 | 1.9 s | 0 / 5 |
 | `profiles/fall_accurate.yaml` (YOLO11s-pose, expert weights), first run | 23 / 30 (77 %, CI 59–88) | 3 / 20 | 2.2 s | 0 / 5 |
 | `campus.yaml` + fall evidence gate (§2.1, shipped) | **23 / 30** (77 %, CI 59–88) | **11 / 12** | 1.5 s | 0 / 5 |
-| **`profiles/fall_accurate.yaml` + fall evidence gate (shipped)** | **24 / 30 (80 %, CI 63–90)** | **14 / 10** | **1.2 s** | 0 / 5 |
+| `profiles/fall_accurate.yaml` + fall evidence gate | 24 / 30 (80 %, CI 63–90) | 14 / 10 | 1.2 s | 0 / 5 |
+| `campus.yaml` + gate + went-down-and-left-the-view (§16, shipped) | **24 / 30** (80 %, CI 63–90) | 11 / 13 | 1.5 s | 0 / 5 |
+| **`profiles/fall_accurate.yaml` + gate + left-view (shipped)** | **27 / 30 (90 %, CI 74–97)** | **14 / 13** | **1.1 s** | 0 / 5 |
 | *rejected: YOLO11s-pose, GMDCSA-fitted weights* | *27 / 30* | *19 / 8* | *0.9 s* | *0 / 5 - but 17 false fall alarms on walking footage (§8)* |
 
 The evidence gate *helped* here, although it was built to remove false alarms: the hip-drop cue
@@ -409,7 +413,8 @@ plus one fall from a chair that ends sitting up (`fall-20`) and one that ends wi
 raised (`fall-04`). Camera placement that sees the whole floor (OPERATIONS.md, commissioning
 step 2) matters as much as the model. With the gate the profile misses 6: `fall-19`, `-20`, `-21`, `-27`
 remain, `fall-01`, `-04`, `-05` are now found, and `fall-06` and `-11` are newly missed (their
-descent was not fast enough to pass the motion requirement before the person was down).
+descent was not fast enough to pass the motion requirement before the person was down). With the went-down-and-left-the-view rule (§16) the profile misses only 3 (`fall-06`, `-11`,
+`-20`): `fall-19`, `-21` and `-27` are now raised as VERIFY "possible fall out of view" alerts.
 
 ## 10. Privacy filter verification
 
@@ -527,5 +532,72 @@ python benchmarks/eval_privacy.py
 python benchmarks/eval_calibration.py
 python benchmarks/eval_robustness.py
 python benchmarks/eval_fire_roc.py
+python benchmarks/extract_walk_dets.py && python benchmarks/eval_exits.py      # §16 heading prediction
+python benchmarks/eval_left_view.py && python benchmarks/eval_left_view.py --cache data/gmdcsa24_s_lowconf.pkl --out benchmarks/results/left_view_gmdcsa24_yolo11s.json
 python benchmarks/bench_latency.py
 ```
+
+## 16. Site awareness: exits, headings, "went down and left the view"
+
+Four cross-camera features were built for emergencies, without identity or person re-identification;
+each was kept only if its numbers held up. Raw outputs: `benchmarks/results/exits.json`,
+`benchmarks/results/left_view_*.json`.
+
+**Shared building block: where people leave the view, and where they are heading**
+(`perception/exits.py`, `benchmarks/eval_exits.py`). Ground truth is the edge through which each
+track actually left; the prediction is made 0.5-3 s earlier. Three predictors were compared on UMN;
+the blended one (direction of motion weighted by speed, minus distance to the edge) was chosen on UMN
+and then checked on walking footage (Intel / OpenCV sample videos, detections cached by
+`extract_walk_dets.py`).
+
+| Ahead of the exit | Heading predictor, UMN (dispersals) | Walking footage | Pooled (n) | "Nearest edge" baseline, pooled |
+|---|---|---|---|---|
+| 0.5 s | 84 % | 100 % | **88 %** (113) | 88 % |
+| 1 s | 81 % | 89 % | **83 %** (104), CI 74-89 | 76 % |
+| 2 s | 77 % | 88 % | **80 %** (97), CI 71-87 | 59 %, CI 49-68 |
+| 3 s | 78 % | 75 % | **77 %** (87), CI 67-85 | 59 % |
+
+### Kept: 3. Went down and left the view
+A person who was going down leaves the camera's view at an edge before the fall can be confirmed (it
+rolls or crawls out of the picture, or ends up cut off at the bottom). Rule, chosen on GMDCSA24 only:
+left through an edge, low posture when last seen, an uncontrolled descent seen in the last 1.5 s (the
+same evidence the fall motion gate needs), fall score >= 10 % before the gates, and no fall alert yet
+for that person. Always VERIFY, names the place beyond that edge (`cameras[].edges`), and the ledger is
+unchanged (a zero-weight `left_view` rule term).
+
+| Data (pipeline replay) | Without | With | False alarms |
+|---|---|---|---|
+| GMDCSA24, YOLO11n, clips as recorded | 64 / 79 (F1 0.883) | **65 / 79 (F1 0.890)** | 2 -> 2 |
+| GMDCSA24, YOLO11s, clips as recorded | 59 / 79 (F1 0.843) | **60 / 79 (F1 0.851)** | 2 -> 2 |
+| GMDCSA24, person stays visible 4 s, YOLO11n / YOLO11s | 67 / 60 | **68 / 62** (F1 0.913 / 0.867) | 2 -> 2 |
+| UR-Fall (held out for this rule), YOLO11n / YOLO11s | 23 / 24 of 30 | **24 / 27 of 30** | 0 / 5 ADL clips |
+| External clips (held out), YOLO11n / YOLO11s | 8 / 10 of 11 | 8 / 10 of 11 (unchanged) | 0 false fall alarms in 7.2 min |
+
+The UR-Fall falls it recovers (fall-13; fall-19, -21, -27) are the documented weak case of §9: the
+person ends up at the bottom edge, partly out of view. A first version that removed every detection
+at the end of each clip looked much better (F1 0.914) because it made people lying near the edge
+"leave"; that protocol was unrealistic and discarded. Cost: 0.4 ms per frame with 20 people in view.
+
+### Kept: 1. Safe-exit guidance and 2. Crowd heading into danger
+`site.py`. When smoke / fire reaches the alert line on a camera that watches an exit
+(`site.exits.<name>.cameras`), the exit is marked unsafe (for `hazard_ttl_s` after the hazard clears);
+recommendations route people to the exits still safe and add "Do NOT send people to <exit>: smoke /
+fire seen by camera <id> (<score>, alert line <line>)"; if no listed exit is safe, they say so. An
+"Exit unsafe" advisory names the new routes per zone. When at least 3 people are heading (predictor
+above) for an unsafe exit or a zone with active fire / smoke, a CRITICAL "Crowd heading into danger"
+alert names the place, the evidence and the safe alternative. This is decision logic on top of measured
+inputs, so it is checked by scenario tests rather than a dataset (`tests/test_site.py`, 17 scenarios:
+blocked exit, time-to-live, no safe exit, fall alerts not mentioning exits, rate limits, fewer than 3
+people, a crowd too far away, a zone instead of an exit, the API, review and search of the advisories,
+and that every routed recommendation still passes the explanation verifier). A labelled demo scenario
+(`--demo`, **Site scenario** button) drives the real logic on one laptop. Limit: no multi-camera site
+footage was available, so the end-to-end chain (camera -> exit -> crowd) has not been measured on real
+video.
+
+### Discarded: 4. Exit flow, capacity and time-to-clear
+Counting people leaving through each exit (to estimate flow per minute, capacity and time to clear a
+zone) could not be validated. On UMN the detector finds only 2-6 of the 12-15 people present at
+dispersal onset (320x240, motion blur), so 17 exits were counted against 54 people counted by hand in
+the outdoor clips (mean error 7.4 people per clip), and the plaza clips end ~1.3 s after onset. The
+counting code is kept for the benchmark only; no flow, capacity or time-to-clear number is shown to
+operators.

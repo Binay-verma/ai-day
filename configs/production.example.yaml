@@ -20,8 +20,15 @@ cameras:
   - id: corridor-b-1
     source: "rtsp://copilot:${CAM_PASS}@10.20.0.11:554/stream1"
     zone: Corridor B
-    # fall-critical camera: the larger pose model caught 23/30 unseen UR-Fall falls vs 19/30, and 9/11 vs 6/11 external falls (RESULTS sections 8-9)
+    # fall-critical camera: the larger pose model caught 24/30 UR-Fall falls vs 23/30, and 10/11 vs 8/11 external falls (RESULTS sections 8-9)
     pose: {path: models/yolo11s-pose.onnx, imgsz: 640, sha256: 30bbb02f5277e3222028a97294235cafde5ad87da16353fa11da6f829c473a4d}
+    # where people leaving each image edge go (exit names from zones[].exits, or neighbouring zones):
+    # used to say "check Lab Block A" when a falling person leaves the view, and to see a crowd heading into a hazard
+    edges: {left: West stairwell, right: East stairwell, bottom: Lab Block A}
+  - id: corridor-b-east
+    source: "rtsp://copilot:${CAM_PASS}@10.20.0.14:554/stream1"
+    zone: Corridor B
+    hazards: {fall: false, crowd: false}   # watches the East stairwell door for smoke
   - id: lab-a-1
     source: "rtsp://copilot:${CAM_PASS}@10.20.0.12:554/stream1"
     zone: Lab Block A
@@ -30,6 +37,16 @@ cameras:
       - {name: Chemical store, polygon: [[0.62, 0.35], [0.98, 0.35], [0.98, 0.95], [0.62, 0.95]]}
       - {name: Lab floor, polygon: [[0.05, 0.40], [0.60, 0.40], [0.60, 0.98], [0.05, 0.98]], hours: "20:00-07:00"}
   - {id: audi-1, source: "rtsp://copilot:${CAM_PASS}@10.20.0.13:554/stream1", zone: Auditorium, stride: 2}
+
+# Site map: which camera watches which exit. When smoke / fire reaches the alert line on a camera that
+# watches an exit, that exit is marked unsafe for hazard_ttl_s and every recommendation routes people to
+# the exits that are still safe (RESULTS section 16).
+site:
+  exits:
+    East stairwell: {cameras: [corridor-b-east]}
+    # an exit with no camera is shown as "not watched" and is never assumed unsafe
+  hazard_ttl_s: 120
+  crowd_toward_hazard: {min_people: 3, cooldown_s: 60, max_eta_s: 20}
 
 server:
   host: 0.0.0.0             # behind an HTTPS reverse proxy

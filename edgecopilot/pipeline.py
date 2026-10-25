@@ -22,13 +22,14 @@ from .copilot.recommender import Recommender
 from .io.sensors import SensorHub
 from .perception.crowd import CrowdFeatureExtractor
 from .perception.detector import Detection, DetectorOutput, OnnxYolo
+from .perception.exits import ExitEvent, ExitMonitor, Heading
 from .perception.fall import FallFeatureExtractor
 from .perception.smoke import SmokeCueExtractor
 from .perception.tracker import Tracker, iou_matrix
 from .privacy import anonymize, draw_skeleton
 from .xai.calibration import ConformalGate
 from .xai.counterfactual import explain_decision
-from .xai.fusion import Assessment, HazardModel, Hysteresis
+from .xai.fusion import Assessment, Cue, HazardModel, Hysteresis
 from .xai.nlg import explain, numbers_in, verify
 from .xai.saliency import box_renormalize, eigencam, overlay, skeleton_saliency
 from .xai.triage import triage
@@ -65,6 +66,8 @@ class FrameResult:
     scene_change: bool = False
     privacy_people: List[Detection] = field(default_factory=list)  # every person detection, for anonymisation
     values: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    headings: List[Heading] = field(default_factory=list)        # where moving people are heading (image edges)
+    exits: List[ExitEvent] = field(default_factory=list)          # tracks that left the view this frame
 
 
 class Copilot:
@@ -72,8 +75,9 @@ class Copilot:
                  sensors: Optional[SensorHub] = None, event_log: Optional[EventLog] = None,
                  pose_model: Optional[OnnxYolo] = None, fire_model: Optional[OnnxYolo] = None,
                  enable: Optional[Dict[str, bool]] = None, regions: Optional[List[dict]] = None,
-                 masks: Optional[List[List[List[float]]]] = None):
+                 masks: Optional[List[List[List[float]]]] = None, edges: Optional[Dict[str, str]] = None):
         self.cfg = cfg
+        self.edges = dict(edges or {})  # image edge -> the place it leads to (exit or neighbouring zone)
         self.masks = [np.asarray(m, np.float32) for m in (masks or [])]
         self._mask_cache: Optional[Tuple[Tuple[int, int], np.ndarray]] = None
         self.root = root
@@ -120,6 +124,14 @@ class Copilot:
         self.events = event_log or EventLog()
         self.tracker = Tracker(high_thr=rt.get("track_high_conf", 0.35))
         self.fall_fx = FallFeatureExtractor()
+        self.exit_mon = ExitMonitor()
+        self._exit_last_t: Optional[float] = None
+        self.exit_gap_s = 1.0
+        lv = rt.get("left_view", {}) or {}
+        self.left_view = {"enabled": bool(lv.get("enabled", True)), "min_prob": float(lv.get("min_prob", 0.10)),
+                          "min_motion": float(lv.get("min_motion", 0.3))}
+        self._fall_last: Dict[int, tuple] = {}     # track id -> (assessment, t) of its latest fall score
+        self._fall_motion: Dict[int, list] = {}    # track id -> [(t, uncontrolled-descent evidence)] last 1.5 s
         self.crowd_fx = CrowdFeatureExtractor()
         self.smoke_fx = SmokeCueExtractor()
         self.listeners: List[Callable[[Alert], None]] = []
@@ -234,6 +246,9 @@ class Copilot:
 
     def _reset_scene(self) -> None:
         self.tracker.reset()
+        self.exit_mon.reset()
+        self._fall_last.clear()
+        self._fall_motion.clear()
         self.fall_fx.reset()
         if self.zone_rules is not None:
             self.zone_rules.reset()
@@ -357,6 +372,19 @@ class Copilot:
                 a = self.models["fall"].assess(f"person#{tr.track_id}", t, vals, rel, zone_key=self.zone)
                 assessments.append(self.hyst.update(f"fall:{tr.track_id}", a))
                 values_all[a.subject] = vals
+                self._fall_last[tr.track_id] = (a, t)
+                mot = self._fall_motion.setdefault(tr.track_id, [])
+                mot.append((t, sum(c.contribution for c in a.cues if c.name in ("descent_speed", "hip_drop"))))
+                self._fall_motion[tr.track_id] = [m for m in mot if t - m[0] <= 1.5]
+        # 3a) who left the view, and where everyone is heading (geometry only, no identity).
+        # After a gap in the frames (reconnect, stall) tracks die of old age, not because people left.
+        if self._exit_last_t is not None and t - self._exit_last_t > self.exit_gap_s:
+            self.exit_mon.reset()
+        self._exit_last_t = t
+        fall_state = self._fall_state(t) if self.enable["fall"] else {}
+        exit_events = self.exit_mon.update(self.tracker.tracks, frame.shape, fall_state)
+        headings = self.exit_mon.headings(self.tracker.tracks, frame.shape)
+        if self.enable["fall"]:
             self.fall_fx.prune(set(self.tracker.tracks))
             self.hyst.prune("fall:", {f"fall:{i}" for i in self.tracker.tracks}, t)
         timings["fall"] = (time.perf_counter() - t0) * 1e3
@@ -477,6 +505,13 @@ class Copilot:
                     al.status = "resolved"
                 self._closed[key] = (al, t)
                 self._notify_status(al, "cleared")
+        for ev in exit_events:
+            al = self._left_view_alert(ev, frame, people, hazards, timings, t)
+            if al is not None:
+                new_alerts.append(al)
+        for tid in [i for i in self._fall_last if i not in self.tracker.tracks]:
+            self._fall_last.pop(tid, None)
+            self._fall_motion.pop(tid, None)
         # tracks that disappeared close their fall alerts (and start the re-alert cooldown)
         for key in [k for k in self.active if k.startswith("fall:")]:
             tid = int(key.split("#")[-1])
@@ -498,7 +533,7 @@ class Copilot:
         timings["total"] = (time.perf_counter() - t_all) * 1e3
         self._last_frame = frame
         res = FrameResult(t, people, hazards, assessments, new_alerts, timings, run_heavy, motion, scene_change,
-                          values=values_all, privacy_people=self._privacy_people)
+                          values=values_all, privacy_people=self._privacy_people, headings=headings, exits=exit_events)
         self.last_result = res
         return res
 
@@ -551,6 +586,79 @@ class Copilot:
             explain_ms=explain_ms, peak_prob=a.prob, triage=tri,
             peak_ema=a.ema_logit if a.ema_logit is not None else a.logit,
         )
+
+    # ------------------------------------------------- went down and left the view
+    def _fall_state(self, t: float) -> Dict[int, dict]:
+        out = {}
+        for tid, (a, ta) in self._fall_last.items():
+            if t - ta > 0.5:
+                continue
+            st = self.fall_fx.state.get(tid)
+            gate = next((c for c in a.cues if c.source == "rule"), None)
+            ungated = a.logit - (gate.contribution if gate is not None else 0.0)
+            out[tid] = {"low": bool(st is not None and st.low_since is not None),
+                        "prob": float(1.0 / (1.0 + np.exp(-max(min(ungated, 50.0), -50.0)))),
+                        "cues": [{"name": c.name, "c": c.contribution} for c in a.cues]}
+        return out
+
+    def _left_view_alert(self, ev: ExitEvent, frame, people, hazards, timings, t: float) -> Optional[Alert]:
+        """A person who was going down left the camera's view at an edge before the fall could be confirmed.
+
+        Rule (chosen on GMDCSA24 only, RESULTS section 16): left through an image edge, in a low posture when
+        last seen, an uncontrolled descent seen in the last 1.5 s (same evidence the fall motion gate needs),
+        and a fall score of at least ``min_prob`` before the gates. Always VERIFY: the fall was not confirmed.
+        """
+        lv = self.left_view
+        if not (lv["enabled"] and self.enable["fall"]) or ev.edge is None or not ev.low:
+            return None
+        key = f"fall:person#{ev.track_id}"
+        if key in self.active or key in self._closed:
+            return None  # this person already has a fall alert
+        last = self._fall_last.get(ev.track_id)
+        motion = max([m for _, m in self._fall_motion.get(ev.track_id, [])], default=-1e9)
+        if last is None or motion < lv["min_motion"] or ev.fall_prob < lv["min_prob"]:
+            return None
+        a = last[0]
+        place = self.edges.get(ev.edge, "")
+        where = place or f"the area beyond the {ev.edge} edge of this camera's view"
+        rule = Cue("left_view", 1.0, "", 0.0, 1.0, f"leaving the view at the {ev.edge} edge while going down", "rule")
+        a2 = Assessment(a.hazard, a.subject, a.t, a.bias, a.logit, a.prob, a.threshold, list(a.cues) + [rule],
+                        gated=a.gated, active=a.active, onset=a.onset, ema_logit=a.ema_logit)
+        model = self.models["fall"]
+        rec = self.recommender.recommend(a2, self.zone)
+        actions = [{"text": f"Check {where} now: {a.subject} went down and left this camera's view there", "priority": 1,
+                    "because": "left the view while going down"}] + list(rec["actions"])
+        rec_texts = [x["text"] for x in actions[:3]]
+        pos = [c for c in a2.top_cues(3) if c.source != "rule"]
+        reasons = ", ".join(c.phrase for c in pos) or "a fast descent"
+        headline = f"Possible fall out of view ({a.subject}) in {self.zone}"
+        because = (f"{a.subject} was going down ({reasons}) and left the view at the {ev.edge} edge before the fall "
+                   f"could be confirmed on this camera.")
+        conf = f"Fall score {round(ev.fall_prob * 100)}% when last seen (alert line {round(a.threshold * 100)}%)."
+        verify_text = "Please verify before escalating: the person left the camera's view; the fall was not confirmed."
+        text = " ".join([headline + ".", because, f"Check {where}.", conf, verify_text, "Recommended: " + "; ".join(rec_texts) + "."])
+        ver = verify(text, a2, model, self.zone, extra_numbers=numbers_in(rec_texts) + [round(ev.fall_prob * 100)],
+                     recommendations=rec_texts)
+        tri = {"mode": "VERIFY", "margin_logit": a.logit - a.logit_threshold, "conflict_ratio": 0.0,
+               "reasons": ["the person left the view before the fall could be confirmed"], "conflicting_cues": []}
+        safe = anonymize(frame, self._privacy_people, self.privacy, pose_available=self.pose is not None)
+        x1, y1, x2, y2 = (int(v) for v in ev.box[:4])
+        cv2.rectangle(safe, (x1, y1), (x2, y2), (0, 140, 255), 2)
+        alert = Alert(hazard="fall", subject=a.subject, zone=self.zone, t_video=ev.t, prob=float(ev.fall_prob),
+                      severity="HIGH",
+                      explanation={"headline": headline, "because": because, "counterfactual": f"Check {where}.",
+                                   "recommendations": rec_texts, "confidence_text": conf, "text": text,
+                                   "cited_cues": [c.name for c in pos] + ["left_view"], "verify_text": verify_text},
+                      decision=explain_decision(a, model), verification=ver.to_dict(), recommendations=actions,
+                      cues=[c.to_dict() for c in sorted(a2.cues, key=lambda c: -c.contribution)],
+                      snapshot_jpg_b64=_jpg_b64(safe), evidence_jpg_b64=_jpg_b64(safe),
+                      processing_ms=sum(v for k, v in timings.items() if k != "total"), explain_ms=0.0,
+                      peak_prob=float(ev.fall_prob), triage=tri, peak_ema=a.logit)
+        self._closed[key] = (alert, t)  # stays open for the operator; blocks a duplicate if the track id is reused
+        self.events.add(alert)
+        for cb in self.listeners:
+            cb(alert)
+        return alert
 
     # ---------------------------------------------------------- feedback loop
     def _check_long_lie(self, a: Assessment, al: Alert) -> bool:

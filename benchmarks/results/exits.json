@@ -1,0 +1,447 @@
+{
+ "dataset": "UMN (11 clips)",
+ "horizons": {
+  "0.5": {
+   "exits_scored": 86,
+   "heading_accuracy": 0.6162790697674418,
+   "heading_ci95": [
+    0.511,
+    0.712
+   ],
+   "no_heading_share": 0.23255813953488372,
+   "nearest_edge_accuracy": 0.8837209302325582,
+   "nearest_ci95": [
+    0.799,
+    0.936
+   ],
+   "clip_majority_oracle_accuracy": 0.7209302325581395
+  },
+  "1.0": {
+   "exits_scored": 77,
+   "heading_accuracy": 0.5064935064935064,
+   "heading_ci95": [
+    0.397,
+    0.615
+   ],
+   "no_heading_share": 0.36363636363636365,
+   "nearest_edge_accuracy": 0.8051948051948052,
+   "nearest_ci95": [
+    0.703,
+    0.878
+   ],
+   "clip_majority_oracle_accuracy": 0.7012987012987013
+  },
+  "2.0": {
+   "exits_scored": 71,
+   "heading_accuracy": 0.38028169014084506,
+   "heading_ci95": [
+    0.276,
+    0.497
+   ],
+   "no_heading_share": 0.4788732394366197,
+   "nearest_edge_accuracy": 0.6901408450704225,
+   "nearest_ci95": [
+    0.575,
+    0.786
+   ],
+   "clip_majority_oracle_accuracy": 0.704225352112676
+  }
+ },
+ "counting": [
+  {
+   "clip": 0,
+   "outdoor": true,
+   "exits_at_edges_after_onset": 11,
+   "vanished_inside_after_onset": 3,
+   "hand_count": 15
+  },
+  {
+   "clip": 1,
+   "outdoor": true,
+   "exits_at_edges_after_onset": 5,
+   "vanished_inside_after_onset": 0,
+   "hand_count": 14
+  },
+  {
+   "clip": 2,
+   "outdoor": false,
+   "exits_at_edges_after_onset": 2,
+   "vanished_inside_after_onset": 4,
+   "hand_count": null
+  },
+  {
+   "clip": 3,
+   "outdoor": false,
+   "exits_at_edges_after_onset": 7,
+   "vanished_inside_after_onset": 0,
+   "hand_count": null
+  },
+  {
+   "clip": 4,
+   "outdoor": false,
+   "exits_at_edges_after_onset": 4,
+   "vanished_inside_after_onset": 5,
+   "hand_count": null
+  },
+  {
+   "clip": 5,
+   "outdoor": false,
+   "exits_at_edges_after_onset": 8,
+   "vanished_inside_after_onset": 0,
+   "hand_count": null
+  },
+  {
+   "clip": 6,
+   "outdoor": false,
+   "exits_at_edges_after_onset": 5,
+   "vanished_inside_after_onset": 5,
+   "hand_count": null
+  },
+  {
+   "clip": 7,
+   "outdoor": false,
+   "exits_at_edges_after_onset": 5,
+   "vanished_inside_after_onset": 3,
+   "hand_count": null
+  },
+  {
+   "clip": 8,
+   "outdoor": true,
+   "exits_at_edges_after_onset": 1,
+   "vanished_inside_after_onset": 1,
+   "hand_count": 12
+  },
+  {
+   "clip": 9,
+   "outdoor": true,
+   "exits_at_edges_after_onset": 0,
+   "vanished_inside_after_onset": 0,
+   "hand_count": 6
+  },
+  {
+   "clip": 10,
+   "outdoor": true,
+   "exits_at_edges_after_onset": 0,
+   "vanished_inside_after_onset": 0,
+   "hand_count": 7
+  }
+ ],
+ "dispersal_direction": [
+  {
+   "clip": 0,
+   "predicted_top_edge": "right",
+   "actual_top_edge": "right",
+   "predicted": {
+    "right": 5,
+    "top": 1,
+    "bottom": 1,
+    "left": 4
+   },
+   "actual": {
+    "right": 6,
+    "left": 5
+   }
+  },
+  {
+   "clip": 1,
+   "predicted_top_edge": "right",
+   "actual_top_edge": "right",
+   "predicted": {
+    "left": 1,
+    "right": 4,
+    "bottom": 2
+   },
+   "actual": {
+    "right": 4,
+    "left": 1
+   }
+  },
+  {
+   "clip": 2,
+   "predicted_top_edge": "right",
+   "actual_top_edge": "bottom",
+   "predicted": {
+    "right": 3,
+    "bottom": 1,
+    "left": 1
+   },
+   "actual": {
+    "bottom": 1,
+    "left": 1
+   }
+  },
+  {
+   "clip": 3,
+   "predicted_top_edge": "bottom",
+   "actual_top_edge": "bottom",
+   "predicted": {
+    "bottom": 12,
+    "left": 1
+   },
+   "actual": {
+    "bottom": 7
+   }
+  },
+  {
+   "clip": 4,
+   "predicted_top_edge": "bottom",
+   "actual_top_edge": "bottom",
+   "predicted": {
+    "right": 2,
+    "bottom": 3,
+    "top": 3
+   },
+   "actual": {
+    "bottom": 4
+   }
+  },
+  {
+   "clip": 5,
+   "predicted_top_edge": "bottom",
+   "actual_top_edge": "bottom",
+   "predicted": {
+    "bottom": 7,
+    "left": 3
+   },
+   "actual": {
+    "bottom": 8
+   }
+  },
+  {
+   "clip": 6,
+   "predicted_top_edge": "bottom",
+   "actual_top_edge": "left",
+   "predicted": {
+    "left": 2,
+    "top": 1,
+    "bottom": 4,
+    "right": 1
+   },
+   "actual": {
+    "left": 3,
+    "bottom": 2
+   }
+  },
+  {
+   "clip": 7,
+   "predicted_top_edge": "bottom",
+   "actual_top_edge": "bottom",
+   "predicted": {
+    "left": 2,
+    "bottom": 3,
+    "right": 1
+   },
+   "actual": {
+    "bottom": 4,
+    "left": 1
+   }
+  },
+  {
+   "clip": 8,
+   "predicted_top_edge": "left",
+   "actual_top_edge": "right",
+   "predicted": {
+    "bottom": 2,
+    "left": 3
+   },
+   "actual": {
+    "right": 1
+   }
+  }
+ ],
+ "counting_outdoor_summary": {
+  "clips": 5,
+  "hand_total": 54,
+  "counted_total": 17,
+  "mean_abs_error_people": 7.4,
+  "mean_abs_pct_error": 0.7652380952380953
+ },
+ "dispersal_direction_summary": {
+  "clips": 9,
+  "top_edge_agree": 6
+ },
+ "prediction_umn": {
+  "0.5": {
+   "exits_scored": 86,
+   "predicted_accuracy": 0.8372093023255814,
+   "predicted_ci95": [
+    0.745,
+    0.9
+   ],
+   "nearest_edge_accuracy": 0.8837209302325582,
+   "nearest_ci95": [
+    0.799,
+    0.936
+   ]
+  },
+  "1.0": {
+   "exits_scored": 77,
+   "predicted_accuracy": 0.8051948051948052,
+   "predicted_ci95": [
+    0.703,
+    0.878
+   ],
+   "nearest_edge_accuracy": 0.8051948051948052,
+   "nearest_ci95": [
+    0.703,
+    0.878
+   ]
+  },
+  "2.0": {
+   "exits_scored": 71,
+   "predicted_accuracy": 0.7746478873239436,
+   "predicted_ci95": [
+    0.665,
+    0.856
+   ],
+   "nearest_edge_accuracy": 0.6901408450704225,
+   "nearest_ci95": [
+    0.575,
+    0.786
+   ]
+  },
+  "3.0": {
+   "exits_scored": 63,
+   "predicted_accuracy": 0.7777777777777778,
+   "predicted_ci95": [
+    0.661,
+    0.863
+   ],
+   "nearest_edge_accuracy": 0.7301587301587301,
+   "nearest_ci95": [
+    0.61,
+    0.824
+   ]
+  }
+ },
+ "prediction_walking": {
+  "0.5": {
+   "exits_scored": 27,
+   "predicted_accuracy": 1.0,
+   "predicted_ci95": [
+    0.875,
+    1.0
+   ],
+   "nearest_edge_accuracy": 0.8518518518518519,
+   "nearest_ci95": [
+    0.675,
+    0.941
+   ]
+  },
+  "1.0": {
+   "exits_scored": 27,
+   "predicted_accuracy": 0.8888888888888888,
+   "predicted_ci95": [
+    0.719,
+    0.961
+   ],
+   "nearest_edge_accuracy": 0.6296296296296297,
+   "nearest_ci95": [
+    0.442,
+    0.785
+   ]
+  },
+  "2.0": {
+   "exits_scored": 26,
+   "predicted_accuracy": 0.8846153846153846,
+   "predicted_ci95": [
+    0.71,
+    0.96
+   ],
+   "nearest_edge_accuracy": 0.3076923076923077,
+   "nearest_ci95": [
+    0.165,
+    0.5
+   ]
+  },
+  "3.0": {
+   "exits_scored": 24,
+   "predicted_accuracy": 0.75,
+   "predicted_ci95": [
+    0.551,
+    0.88
+   ],
+   "nearest_edge_accuracy": 0.20833333333333334,
+   "nearest_ci95": [
+    0.092,
+    0.405
+   ]
+  }
+ },
+ "walking_clips": {
+  "vtest.avi": {
+   "edge_exits": 9,
+   "vanished_inside": 17
+  },
+  "one-by-one-person-detection.mp4": {
+   "edge_exits": 6,
+   "vanished_inside": 0
+  },
+  "people-detection.mp4": {
+   "edge_exits": 7,
+   "vanished_inside": 0
+  },
+  "face-demographics-walking.mp4": {
+   "edge_exits": 7,
+   "vanished_inside": 0
+  },
+  "store-aisle-detection.mp4": {
+   "edge_exits": 2,
+   "vanished_inside": 1
+  }
+ },
+ "prediction_pooled": {
+  "0.5": {
+   "exits_scored": 113,
+   "predicted_accuracy": 0.8761061946902655,
+   "predicted_ci95": [
+    0.803,
+    0.925
+   ],
+   "nearest_edge_accuracy": 0.8761061946902655,
+   "nearest_ci95": [
+    0.803,
+    0.925
+   ]
+  },
+  "1.0": {
+   "exits_scored": 104,
+   "predicted_accuracy": 0.8269230769230769,
+   "predicted_ci95": [
+    0.743,
+    0.888
+   ],
+   "nearest_edge_accuracy": 0.7596153846153846,
+   "nearest_ci95": [
+    0.669,
+    0.832
+   ]
+  },
+  "2.0": {
+   "exits_scored": 97,
+   "predicted_accuracy": 0.8041237113402062,
+   "predicted_ci95": [
+    0.714,
+    0.871
+   ],
+   "nearest_edge_accuracy": 0.5876288659793815,
+   "nearest_ci95": [
+    0.488,
+    0.68
+   ]
+  },
+  "3.0": {
+   "exits_scored": 87,
+   "predicted_accuracy": 0.7701149425287356,
+   "predicted_ci95": [
+    0.671,
+    0.846
+   ],
+   "nearest_edge_accuracy": 0.5862068965517241,
+   "nearest_ci95": [
+    0.481,
+    0.684
+   ]
+  }
+ }
+}

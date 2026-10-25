@@ -122,7 +122,7 @@ commercial video-analytics products expose.
 
 **Accuracy: honest, not yet field-proven.** Falls: F1 0.81–0.84 on the development set (target
 0.90, not met), but on a second dataset never used in development the fall profile caught
-23 / 30 UR-Fall falls and 9 / 11 external falls with no false fall alarm on ordinary walking
+27 / 30 UR-Fall falls and 10 / 11 external falls with no false fall alarm on ordinary walking
 footage. Fire: the leakage-free image detector scores mAP 0.56–0.65 and finds only two thirds of
 fire images at a 10 % false-positive budget (the plan asked for 85 %); the fused fire branch,
 which needs corroboration, still caught 15 / 17 FURG fire videos with no false alarm. Crowd and

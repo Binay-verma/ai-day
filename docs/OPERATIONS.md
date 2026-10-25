@@ -34,6 +34,16 @@ Docker alternative: `docker compose up -d` (copilot + MQTT broker + Prometheus +
    anything the camera must not record: a neighbour's window, a washroom door, a staff screen.
    Masked areas are painted black before detection, recording, snapshots and the live view, so
    nothing inside them can raise an alert either; check the live view after adding one.
+10. Site map (recommended on multi-camera sites):
+   * `cameras[].edges: {left: <exit or zone>, right: ..., bottom: ...}`: where people leaving the
+     image through each edge end up. Walk out of each edge once and check the console names the
+     right place ("Check Lab Block A now" for a person who goes down and leaves the view).
+   * `site.exits.<exit>.cameras: [...]`: the cameras that see each exit door. Hold a smoke pen (with
+     the fire officer's permission) at the door camera and check that the console's **Exits** panel
+     turns the exit to UNSAFE, an "Exit unsafe" alert names the other exits, and a fire alert in that
+     zone now says "Trigger evacuation via <the other exit>" and "Do NOT send people to <that exit>".
+   * An exit stays unsafe for `site.hazard_ttl_s` (default 120 s) after its camera stops seeing smoke,
+     so evacuation guidance does not flip back and forth.
 9. Phone push (optional): put `ntfy` and/or `telegram` under `notifications:` (tokens in env
    vars, see `configs/production.example.yaml`), add them to an escalation level, then press
    `POST /api/notify/test` (admin) and check the phone shows the labelled test message.

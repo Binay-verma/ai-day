@@ -1,13 +1,13 @@
 {
  "summary": {
   "config": "configs/profiles/fall_accurate.yaml",
-  "fall_recall": "24/30",
+  "fall_recall": "27/30",
   "fall_recall_wilson95": [
-   0.627,
-   0.905
+   0.744,
+   0.965
   ],
   "alarm_mode": 14,
-  "median_delay_after_fall_onset_s": 1.17,
+  "median_delay_after_fall_onset_s": 1.13,
   "adl_clips": 5,
   "adl_clips_with_any_alert": 0,
   "adl_alerts": 0,
@@ -66,12 +66,17 @@
    "alerts": [
     [
      "fall",
+     2.27,
+     "VERIFY"
+    ],
+    [
+     "fall",
      5.77,
      "VERIFY"
     ]
    ],
    "onset_s": 0.43333333333333335,
-   "delay_s": 5.33,
+   "delay_s": 1.83,
    "seconds": 3.2
   },
   {
@@ -275,10 +280,16 @@
   {
    "clip": "fall-19",
    "fall": true,
-   "detected": false,
-   "alerts": [],
+   "detected": true,
+   "alerts": [
+    [
+     "fall",
+     1.73,
+     "VERIFY"
+    ]
+   ],
    "onset_s": 0.8,
-   "delay_s": null,
+   "delay_s": 0.93,
    "seconds": 3.3
   },
   {
@@ -293,10 +304,16 @@
   {
    "clip": "fall-21",
    "fall": true,
-   "detected": false,
-   "alerts": [],
+   "detected": true,
+   "alerts": [
+    [
+     "fall",
+     1.47,
+     "VERIFY"
+    ]
+   ],
    "onset_s": 0.6666666666666666,
-   "delay_s": null,
+   "delay_s": 0.8,
    "seconds": 1.8
   },
   {
@@ -377,10 +394,16 @@
   {
    "clip": "fall-27",
    "fall": true,
-   "detected": false,
-   "alerts": [],
+   "detected": true,
+   "alerts": [
+    [
+     "fall",
+     2.93,
+     "VERIFY"
+    ]
+   ],
    "onset_s": 1.6666666666666667,
-   "delay_s": null,
+   "delay_s": 1.27,
    "seconds": 3.0
   },
   {

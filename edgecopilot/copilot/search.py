@@ -21,9 +21,12 @@ HAZARD_WORDS = {
     "crowd": r"crowds?|crowding|overcrowd\w*|stampede|panic|dispersal|rush(?:ing)?",
     "intrusion": r"intrusions?|trespass\w*|restricted(?: area)?",
     "camera_fault": r"camera (?:faults?|problems?|trouble|issues?)|tamper\w*|blackouts?|lens covered|camera moved",
+    "exit_blocked": r"exits? (?:blocked|unsafe|alerts?)|blocked exits?|unsafe exits?",
+    "crowd_toward_hazard": r"heading (?:into|towards?) (?:danger|the fire|smoke|hazards?)|crowd towards? (?:danger|hazards?)",
 }
 HAZARD_LABEL = {"fall": "falls", "fire_smoke": "fire / smoke", "crowd": "crowd", "intrusion": "intrusion",
-                "camera_fault": "camera trouble", "self_test": "self-test"}
+                "camera_fault": "camera trouble", "self_test": "self-test", "exit_blocked": "unsafe exits",
+                "crowd_toward_hazard": "crowd heading into danger"}
 STATUS_WORDS = [("open", r"open|unacknowledged|unhandled|pending|unreviewed|not (?:yet )?(?:handled|reviewed)|active"),
                 ("confirmed", r"confirmed|real|genuine|true alarms?"),
                 ("dismissed", r"dismissed|false alarms?|false positives?|rejected"),

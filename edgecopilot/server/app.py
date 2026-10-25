@@ -403,6 +403,21 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
         q = parse_search(body.q, zones=list(service.cfg.get("zones", {})), cameras=list(service.cameras))
         return run_search(service.store, q)
 
+    @app.get("/api/site")
+    def site_status(p: Principal = Depends(viewer)):
+        """Exit safety right now (clear / congested / unsafe, with the camera evidence)."""
+        return {"exits": service.site.exit_status(), "hazard_ttl_s": service.site.ttl_s}
+
+    @app.post("/api/demo/site_scenario")
+    def demo_site_scenario(p: Principal = Depends(admin)):
+        """Loopback --demo mode only: scripted, labelled scenario (smoke at an exit, crowd heading for it)."""
+        if auth.enabled:
+            raise HTTPException(404, "only available in --demo mode")
+        try:
+            return service.site_scenario()
+        except ValueError as e:
+            raise HTTPException(409, str(e)) from e
+
     @app.get("/api/track_record")
     def track_record(p: Principal = Depends(viewer)):
         """Reviewed alerts per hazard and camera (confirmed vs dismissed, Wilson 95 % interval)."""

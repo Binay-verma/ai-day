@@ -38,6 +38,14 @@ class RuntimeCfg(_Strict):
     track_high_conf: float = Field(0.35, gt=0, lt=1)
     long_lie_s: float = Field(60, ge=0, le=3600, description="escalate a fall when the person is still down this long (0 = off)")
     self_test_minutes: float = Field(60, ge=0, le=1440, description="end-to-end self-test period (0 = off)")
+    left_view: LeftViewCfg = Field(default_factory=lambda: LeftViewCfg(),
+                                     description="VERIFY alert when a person going down leaves the view at an edge")
+
+
+class LeftViewCfg(_Strict):
+    enabled: bool = True
+    min_prob: float = Field(0.10, ge=0, le=1, description="fall score (before the evidence gates) when last seen")
+    min_motion: float = Field(0.3, ge=0, description="uncontrolled-descent evidence (log-odds) seen in the last 1.5 s")
 
 
 class ModelCfg(_Strict):
@@ -204,6 +212,8 @@ class CameraCfg(_Strict):
     loop: bool = False
     restricted: List[RegionCfg] = Field(default_factory=list, description="restricted-area rules (intrusion hazard)")
     pose: Optional[PoseOverrideCfg] = Field(None, description="per-camera pose model, e.g. YOLO11s-pose on fall-critical cameras")
+    edges: Dict[Literal["left", "right", "top", "bottom"], str] = Field(
+        default_factory=dict, description="where people leaving via each image edge go: an exit name or a zone")
     masks: List[List[List[float]]] = Field(default_factory=list, description="privacy masks: polygons [[x, y], ...] in 0..1, "
                                            "painted black before detection, recording, snapshots and the live view")
 
@@ -312,6 +322,23 @@ class MqttCfg(_Strict):
     tls: bool = False
 
 
+class SiteExitCfg(_Strict):
+    zone: str = Field("", description="zone the exit itself lies in (optional)")
+    cameras: List[str] = Field(default_factory=list, description="cameras that watch this exit")
+
+
+class CrowdTowardHazardCfg(_Strict):
+    min_people: int = Field(3, ge=1, le=1000)
+    cooldown_s: float = Field(60, ge=0, le=3600)
+    max_eta_s: float = Field(20, gt=0, le=600)
+
+
+class SiteCfg(_Strict):
+    exits: Dict[str, SiteExitCfg] = Field(default_factory=dict, description="exits named in zones[].exits, with who watches them")
+    hazard_ttl_s: float = Field(120, ge=0, le=3600, description="an exit stays unsafe this long after its hazard clears")
+    crowd_toward_hazard: CrowdTowardHazardCfg = Field(default_factory=lambda: CrowdTowardHazardCfg())
+
+
 class Config(_Strict):
     runtime: RuntimeCfg = Field(default_factory=lambda: RuntimeCfg())
     models: ModelsCfg
@@ -327,6 +354,7 @@ class Config(_Strict):
     storage: StorageCfg = Field(default_factory=lambda: StorageCfg())
     notifications: NotificationsCfg = Field(default_factory=lambda: NotificationsCfg())
     mqtt: Optional[MqttCfg] = None
+    site: SiteCfg = Field(default_factory=lambda: SiteCfg())
 
     @field_validator("hazards")
     @classmethod
@@ -402,6 +430,18 @@ class Config(_Strict):
             bad = set(d.zones) - set(self.zones)
             if bad:
                 errors.append(f"server.auth.sensor_devices[{d.id}]: unknown zone(s) {sorted(bad)}")
+        # 5b) site map: exits must be named in a zone, places on camera edges must exist
+        named_exits = {e for z in self.zones.values() for e in z.exits}
+        for name, ex in self.site.exits.items():
+            if name not in named_exits:
+                errors.append(f"site.exits[{name}]: not listed in any zone's exits")
+            if ex.zone and ex.zone not in self.zones:
+                errors.append(f"site.exits[{name}]: unknown zone {ex.zone!r}")
+        places = named_exits | set(self.zones)
+        for c in self.cameras:
+            for edge, place in c.edges.items():
+                if place not in places:
+                    errors.append(f"cameras[{c.id}].edges.{edge}: {place!r} is neither an exit nor a zone")
         # 6) auth on a non-loopback bind
         if self.server.host not in ("127.0.0.1", "localhost", "::1") and not self.server.auth.enabled:
             errors.append("server: authentication must be enabled when binding to a non-loopback address")

@@ -22,7 +22,7 @@ recreates them. The edge runtime only loads the ONNX files.
 |---|---|
 | Source | Ultralytics YOLO11s-pose (COCO-pose), 9.9 M parameters, AGPL-3.0 |
 | Used by | `configs/profiles/fall_accurate.yaml`, or per camera via `cameras[].pose` |
-| Evidence | same cues, expert weights and fall evidence gate as the default: UR-Fall 24 / 30 falls vs 23 / 30 with YOLO11n-pose; external clips 10 / 11 vs 8 / 11, no false fall alarm on 7 minutes of walking footage (RESULTS sections 2.1, 8, 9) |
+| Evidence | same cues, expert weights and fall evidence gate as the default: UR-Fall 27 / 30 falls vs 24 / 30 with YOLO11n-pose; external clips 10 / 11 vs 8 / 11, no false fall alarm on 7 minutes of walking footage (RESULTS sections 2.1, 8, 9) |
 | Cost | ~3x the CPU of YOLO11n-pose (4.2 FPS for all three hazards on 2 cores at 640 px) |
 | Do not | combine it with fall weights re-fitted on one dataset: that learned a single-cue shortcut (17 false alarms, RESULTS section 8); `min_cues: 2` in the config now rejects such weights |
 

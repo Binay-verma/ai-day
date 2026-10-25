@@ -81,7 +81,7 @@ image benchmark and the frozen-system external check are not.
 | Counterfactuals | **100 %** valid (330); explanation + verification ≈ 1 ms |
 | Falls (GMDCSA24, leave-one-subject-out) | F1 **0.883** default (precision 0.970), **0.843** with the YOLO11s-pose profile. Target 0.90: not met |
 | Falling vs lying down | fall evidence gate (uncontrolled descent **and** lying posture required): false alarms on deliberate lie-downs **6 → 0**, shown on the gauge as an exact ledger term |
-| Falls, second dataset never used in development (UR-Fall) | **24/30** with the YOLO11s-pose profile (23/30 default), 0/5 alarms on daily activities |
+| Falls, second dataset never used in development (UR-Fall) | **27/30** with the YOLO11s-pose profile (24/30 default), 0/5 alarms on daily activities |
 | Abnormal crowd movement (UMN) | **10/11** dispersal events, 0 false alarms in 200 s of normal video, with per-camera conformal calibration |
 | Fire/smoke detector (leakage-free split) | mAP@0.5 **0.56** Home-fire / **0.65** DBA-Fire scenes (start checkpoint 0.37 / 0.36); 15.5 % false positives on neutral images, so it is one cue among several, never the alarm on its own |
 | Fire, system level (FURG videos) | **15/17** fire videos detected (median 2.7 s), **0** false alarms in 4.7 min of non-fire video incl. moving cameras |
@@ -104,6 +104,7 @@ image benchmark and the frozen-system external check are not.
 | Notifications | webhook, Slack, Teams, email, MQTT and **phone push (ntfy, Telegram)** with retries and escalation; tokens scrubbed from every error; one-click test message (`POST /api/notify/test`); every fire message carries the decision-support disclaimer |
 | Evidence you can hand over | **signed evidence bundle** per alert (record, every ledger term, report, privacy-filtered media, its audit trail; SHA-256 manifest + HMAC signature), checked by `scripts/verify_evidence.py` or `POST /api/evidence/verify`, which name exactly which file was changed, removed or added |
 | Earned trust | **operator track record** on every alert: how many reviewed alerts of that hazard on that camera were confirmed, with a Wilson 95 % interval (`/api/track_record`) |
+| Site awareness | **safe-exit guidance**: smoke on a camera watching an exit marks it unsafe and every evacuation instruction routes to the exits still safe, saying which to avoid and why; **crowd heading into danger** (people moving towards an unsafe exit or zone, from a heading predictor measured at 80 % two seconds ahead); **went down and left the view** (VERIFY alert naming the place beyond that edge). No identity, no person re-identification |
 | Investigation | **natural-language search** of the incident store ("falls in Corridor B last night", "false alarms by camera this week"): a deterministic, allow-listed parser, never SQL; shows what it understood as chips and cites alert ids |
 | Operations | multi-camera workers with reconnect, frame dropping and clip buffer; Prometheus metrics, Alertmanager, SLO burn-rate and model-drift rules (dismissal rate, alert line at ceiling); Docker compose with Caddy TLS, Mosquitto, Prometheus, Grafana |
 | Supply chain | strict pydantic config schema with `extends:` overlays; SHA-256-pinned models (refused on mismatch); CycloneDX SBOM + ML-BOM; lockfile; CI with ruff, mypy, bandit, pip-audit, tests and SLSA provenance |

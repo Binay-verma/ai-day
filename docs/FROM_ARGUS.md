@@ -31,7 +31,7 @@ readings, so signing was not added).
 
 | Argus feature | Why not |
 |---|---|
-| Re-ID across cameras, next-camera prediction, trajectory forecasting | Security/tracking features; Argus's own results are research-grade (Re-ID precision 0.61 / recall 0.36, prediction not significant) and they add identity tracking that an emergency copilot does not need |
+| Re-ID across cameras, next-camera prediction, trajectory forecasting | Following a person across cameras is surveillance, and Argus's own results are research-grade (Re-ID precision 0.61 / recall 0.36). Instead, the emergency-relevant part was built without identity (RESULTS section 16): exit safety from the cameras that watch each exit, a measured heading predictor (where people are moving), "crowd heading into danger", and "went down and left the view". A per-exit flow count / time-to-clear estimate was built too but **discarded**: it could not be validated on the available footage |
 | Weapon and altercation detectors | Out of scope; Argus measured 8 % weapon recall on CCTV views and AUC 0.68 for altercation |
 | VLM explainer (Qwen2.5-VL) | Needs a GPU; here every sentence is generated from the exact ledger and checked by the verifier, which a VLM cannot guarantee |
 | ONVIF discovery, vendor RTSP templates, WebRTC restream, remote GPU nodes | Deployment conveniences for large sites; useful later, not decisive now |

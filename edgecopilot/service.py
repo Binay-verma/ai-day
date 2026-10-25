@@ -30,6 +30,7 @@ from .cameras import CameraWorker, ClipBuffer, redact
 from .copilot.events import EventLog
 from .io.sensors import SensorHub
 from .notify import Notifier
+from .site import SiteState
 from .track_record import TrackRecord
 from .pipeline import Copilot
 from .storage import Store
@@ -115,6 +116,7 @@ class EdgeService:
             except Exception as e:  # noqa: BLE001 - MQTT is optional, HTTP ingestion still works
                 log.error("MQTT disabled: %s", e)
         self.track_record = TrackRecord(self.store)
+        self.site = SiteState(cfg, {c["id"]: c["zone"] for c in cfg.get("cameras", []) or []})
         self.notifier = Notifier.from_config(
             cfg.get("notifications") or {}, self.is_open, self.store.audit,
             mqtt_publish=self.mqtt.publish if self.mqtt else None,
@@ -141,8 +143,10 @@ class EdgeService:
         hub = SensorHub(fallback_zone="default") if sensors_csv else self.sensors
         cop = Copilot(cfg, root=self.root, zone=cam["zone"], sensors=hub, event_log=EventLog(max_items=200),
                       enable=cam.get("hazards") or None, regions=cam.get("restricted") or None,
-                      masks=cam.get("masks") or None)
+                      masks=cam.get("masks") or None, edges=cam.get("edges") or None)
         cop.status_listeners.append(self._on_status)
+        cop.recommender.route_fn = self.site.route_advice   # recommendations route people to exits that are still safe
+        self.site.camera_zones[cam["id"]] = cam["zone"]
         st = self.cfg.get("storage", {})
         # ${VAR} in camera URLs is filled from the environment so credentials never sit in the config file
         source = os.path.expandvars(str(cam["source"]))
@@ -315,6 +319,105 @@ class EdgeService:
     def _on_frame(self, cam_id: str, jpg: bytes, state: dict) -> None:
         if self.listeners:
             self._broadcast({"type": "frame", "camera": cam_id, "jpg": jpg, "state": state})
+        try:
+            self._site_update(cam_id, state)
+        except Exception:  # noqa: BLE001 - site advice must never break a camera thread
+            log.exception("site update failed")
+
+    # ------------------------------------------------------- site awareness
+    def _site_update(self, cam_id: str, state: dict, demo: bool = False) -> None:
+        if not state or state.get("paused"):
+            return
+        for tr in self.site.observe(cam_id, state.get("gauges") or {}):
+            if tr["type"] == "exit_blocked":
+                self._exit_blocked_alert(cam_id, tr["exit"], tr["evidence"], demo=demo)
+            else:
+                self.store.audit("system", "system", "exit_clear", tr["exit"], {})
+                self._broadcast({"type": "site", "exits": self.site.exit_status()})
+        for c in self.site.crowd_toward_hazard(cam_id, state.get("flows") or {}):
+            self._crowd_toward_hazard_alert(c, demo=demo)
+
+    def site_scenario(self) -> dict:
+        """Demo mode only: a scripted, clearly labelled two-camera scenario that drives the REAL site logic -
+        smoke at a stairwell door, then a crowd in the corridor heading for it."""
+        zone = next(iter(self.copilots.values())).zone if self.copilots else "Corridor B"
+        exits = list(((self.cfg.get("zones") or {}).get(zone) or {}).get("exits") or [])
+        if len(exits) < 2:
+            raise ValueError(f"zone {zone!r} needs two exits in the zone map for this scenario")
+        door, corridor = "demo-exit-camera", "demo-corridor-camera"
+        from .site import ExitInfo
+        self.site.exits.setdefault(exits[0], ExitInfo(exits[0])).cameras.append(door)
+        self.site.camera_zones.update({door: zone, corridor: zone})
+        self._site_update(door, {"gauges": {"fire_smoke": {"prob": 0.82, "threshold": 0.6, "active": True}}}, demo=True)
+        self._site_update(corridor, {"gauges": {}, "flows": {exits[0]: {"people": 6, "eta_median_s": 5.0}}}, demo=True)
+        self.store.audit("system", "admin", "demo_site_scenario", zone, {"exit": exits[0]})
+        return {"zone": zone, "blocked_exit": exits[0], "safe_exits": exits[1:], "exits": self.site.exit_status()}
+
+    def _site_alert(self, cam_id: str, zone: str, hazard: str, subject: str, headline: str, because: str, actions: List[dict],
+                    evidence, severity: str = "HIGH", mode: str = "ALARM", extra_cues: Optional[List[dict]] = None,
+                    demo: bool = False) -> dict:
+        if demo:
+            headline = "DEMO SCENARIO - " + headline
+        ev_cue = {"name": "fire_smoke", "value": round(evidence.prob, 3), "unit": "", "contribution": 0.0, "reliability": 1.0,
+                  "phrase": f"smoke / fire score {evidence.prob:.0%} on camera {evidence.camera} (alert line {evidence.threshold:.0%})",
+                  "source": "camera"}
+        rec_texts = [a["text"] for a in actions[:3]]
+        text = f"{headline}. {because} Recommended: " + "; ".join(rec_texts) + "."
+        alert_id = uuid.uuid4().hex[:10]
+        rec = {"id": alert_id, "camera_id": cam_id, "zone": zone, "hazard": hazard, "subject": subject,
+               "t_video": 0.0, "wall_time": time.time(), "prob": float(evidence.prob), "peak_prob": float(evidence.prob),
+               "severity": severity, "triage": mode, "status": "open",
+               "explanation": {"headline": headline, "because": because, "text": text,
+                               "confidence_text": f"Based on camera {evidence.camera}: {evidence.prob:.0%} against an alert line of {evidence.threshold:.0%}.",
+                               "counterfactual": "It clears when no camera at that place reports smoke / fire for "
+                                                 f"{self.site.ttl_s:.0f} s."},
+               "decision": {}, "verification": {"groundedness": 1.0, "n_claims": 0}, "recommendations": actions,
+               "cues": [ev_cue] + list(extra_cues or []), "provenance": {**self.provenance, "demo": demo}}
+        try:
+            self.store.save_alert(rec)
+            self.store.audit("system", "admin", "alert_raised", alert_id, {"camera": cam_id, "hazard": hazard, "subject": subject})
+        except Exception:  # noqa: BLE001
+            log.exception("failed to persist site alert")
+        log.warning("SITE %s %s: %s", hazard, subject, headline, extra={"camera": cam_id, "alert_id": rec["id"], "event": "alert"})
+        self.notifier.alert(rec)
+        self._broadcast({"type": "alert", "alert": rec})
+        self._broadcast({"type": "site", "exits": self.site.exit_status()})
+        return rec
+
+    def _exit_blocked_alert(self, cam_id: str, exit_name: str, ev, demo: bool = False) -> dict:
+        zones = [z for z, zc in (self.cfg.get("zones") or {}).items() if exit_name in (zc.get("exits") or [])]
+        actions, parts = [], []
+        for z in zones:
+            use, _ = self.site.route_advice(z)
+            if use:
+                actions.append({"text": f"Redirect evacuation of {z} to {' / '.join(use)}", "priority": 1, "because": "exit unsafe"})
+                parts.append(f"{z}: use {' / '.join(use)}")
+            else:
+                actions.append({"text": f"No listed exit of {z} is safe: move people away from the hazard with the warden and "
+                                        "wait for the fire service's instructions", "priority": 1, "because": "no safe exit"})
+                parts.append(f"{z}: no safe listed exit")
+        actions.append({"text": f"Tell wardens and the PA operator not to use {exit_name}", "priority": 1, "because": "exit unsafe"})
+        headline = f"Exit unsafe: {exit_name}"
+        because = f"{exit_name} is unsafe: smoke / fire was seen by camera {ev.camera} ({ev.prob:.0%}, alert line {ev.threshold:.0%})."
+        if parts:
+            because += " Evacuation routes now: " + "; ".join(parts) + "."
+        return self._site_alert(cam_id, ev.zone, "exit_blocked", exit_name, headline, because, actions, ev, demo=demo)
+
+    def _crowd_toward_hazard_alert(self, c: dict, demo: bool = False) -> dict:
+        ev = c["evidence"]
+        eta = f", about {c['eta_s']:.0f} s away" if c.get("eta_s") is not None else ""
+        alt = " / ".join(c["alternatives"])
+        headline = f"Crowd heading into danger: {c['people']} people in {c['zone']} moving towards {c['place']}"
+        because = (f"{c['people']} people on camera {c['camera']} are moving towards {c['place']}{eta}, where smoke / fire was "
+                   f"seen by camera {ev.camera} ({ev.prob:.0%}, alert line {ev.threshold:.0%}).")
+        actions = [{"text": (f"PA announcement now: redirect people in {c['zone']} away from {c['place']}"
+                             + (f" to {alt}" if alt else "")), "priority": 1, "because": "crowd heading into a hazard"},
+                   {"text": f"Send the {c['zone']} warden to turn people back before {c['place']}", "priority": 1,
+                    "because": "crowd heading into a hazard"}]
+        flow_cue = {"name": "people_heading", "value": c["people"], "unit": "people", "contribution": 0.0, "reliability": 1.0,
+                    "phrase": f"{c['people']} people heading towards {c['place']}{eta}", "source": "vision"}
+        return self._site_alert(c["camera"], c["zone"], "crowd_toward_hazard", c["place"], headline, because, actions, ev,
+                                severity="CRITICAL", extra_cues=[flow_cue], demo=demo)
 
     def _on_alert(self, cam_id: str, al) -> None:
         rec = al.summary()

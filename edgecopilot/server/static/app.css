@@ -1,4 +1,4 @@
-:root{--intrusion:#b07cff;
+:root{--intrusion:#b07cff;--exit_blocked:#ff8a8a;--crowd_toward_hazard:#ff8a8a;
   --night:#1a2530; --panel:#223241; --panel-2:#2a3c4d; --line:#36495b;
   --text:#e8edf1; --muted:#9aacbb; --for:#f2a33a; --against:#56b8c4;
   --fall:#f2697a; --fire_smoke:#f2a33a; --crowd:#9b8cf2; --ok:#6fcf8e; --bad:#ff8a8a;
@@ -122,3 +122,12 @@ aside{min-width:0}
 .searchres .linkish{background:none;border:0;color:inherit;text-align:left;padding:2px 0;cursor:pointer;text-decoration:underline;font:inherit}
 .chip.static{cursor:default}
 .trackrec{font-size:12px;opacity:.85;margin:4px 0}
+
+/* exit safety panel */
+.exits{display:flex;flex-wrap:wrap;gap:8px}
+.exit{background:var(--panel);border-radius:6px;padding:6px 10px;border-left:5px solid var(--ok);display:flex;flex-direction:column;min-width:140px}
+.exit b{font-size:13px;text-transform:uppercase;letter-spacing:.03em}
+.exit.unsafe{border-left-color:var(--bad)}.exit.unsafe b{color:var(--bad)}
+.exit.congested{border-left-color:var(--for)}.exit.congested b{color:var(--for)}
+.exit.not-watched{border-left-color:var(--line);opacity:.8}
+.exit .xwhy{opacity:.85;max-width:260px}

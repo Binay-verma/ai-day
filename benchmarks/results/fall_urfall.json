@@ -1,10 +1,10 @@
 {
  "summary": {
   "config": "configs/campus.yaml",
-  "fall_recall": "23/30",
+  "fall_recall": "24/30",
   "fall_recall_wilson95": [
-   0.591,
-   0.882
+   0.627,
+   0.905
   ],
   "alarm_mode": 11,
   "median_delay_after_fall_onset_s": 1.47,
@@ -191,10 +191,16 @@
   {
    "clip": "fall-13",
    "fall": true,
-   "detected": false,
-   "alerts": [],
+   "detected": true,
+   "alerts": [
+    [
+     "fall",
+     2.4,
+     "VERIFY"
+    ]
+   ],
    "onset_s": 1.4333333333333333,
-   "delay_s": null,
+   "delay_s": 0.97,
    "seconds": 2.8
   },
   {

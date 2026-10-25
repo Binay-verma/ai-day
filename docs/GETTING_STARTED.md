@@ -134,6 +134,8 @@ Place the laptop 3–4 m away so it sees your **whole body and the floor**. Then
 | Camera trouble | Cover the lens ~5 s | "Camera blackout" trouble alert |
 | Not a fall | Lie down on the floor from standing at a normal pace (2-3 s) | No fall alert ("no fast, uncontrolled descent was seen") |
 | What if? | Open it on any alert, drag a slider | Score and decision update |
+| Went down and left the view | Drop quickly and roll / crawl out of the bottom or side of the picture within a second | "Possible fall out of view" (VERIFY) that says where to look; set `edges:` under the camera in the webcam config to name the place (e.g. `edges: {bottom: Lab Block A}`) |
+| Safe exits (demo) | Start with `--demo` and press **Site scenario** in the header | Labelled DEMO alerts: "Exit unsafe: East stairwell" (smoke on its door camera), then "Crowd heading into danger" with a PA instruction to use the West stairwell; the **Exits** panel shows East UNSAFE |
 | Search | Type "falls today" or "alerts by zone today" in the box above the alert list | A summary that cites alert ids, the understood filters as chips, and links to each alert |
 | Evidence bundle | On any alert press **Evidence bundle (signed)**, then run `python scripts/verify_evidence.py <file>.zip` | `INTACT`; change any byte in the zip and it reports which file |
 | Phone push | Install the free **ntfy** app, subscribe to a long random topic, add `notifications: {ntfy: {url: "https://ntfy.sh/<topic>", min_severity: MEDIUM}}` to the webcam config, restart | Fall / fire alerts arrive on the phone with the explanation; tap opens the console (on the same network) |
