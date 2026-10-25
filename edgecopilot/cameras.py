@@ -318,7 +318,7 @@ class CameraWorker:
         cop = self.copilot
         cop.sensors.advance(wall)
         if self.paused:
-            img = frame.copy()
+            img = cop.apply_masks(frame) if getattr(cop, "masks", None) else frame.copy()
             cv2.putText(img, f"AI ANALYSIS PAUSED by {self.paused_by}", (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 4, cv2.LINE_AA)
             cv2.putText(img, f"AI ANALYSIS PAUSED by {self.paused_by}", (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 200, 255), 2, cv2.LINE_AA)
             safe = anonymize(img, [], "raw" if cop.privacy == "raw" else "skeleton")

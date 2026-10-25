@@ -12,7 +12,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -71,8 +71,11 @@ class Copilot:
     def __init__(self, cfg: dict, root: str = ".", zone: str = "default",
                  sensors: Optional[SensorHub] = None, event_log: Optional[EventLog] = None,
                  pose_model: Optional[OnnxYolo] = None, fire_model: Optional[OnnxYolo] = None,
-                 enable: Optional[Dict[str, bool]] = None, regions: Optional[List[dict]] = None):
+                 enable: Optional[Dict[str, bool]] = None, regions: Optional[List[dict]] = None,
+                 masks: Optional[List[List[List[float]]]] = None):
         self.cfg = cfg
+        self.masks = [np.asarray(m, np.float32) for m in (masks or [])]
+        self._mask_cache: Optional[Tuple[Tuple[int, int], np.ndarray]] = None
         self.root = root
         self.zone = zone
         rt = cfg.get("runtime", {})
@@ -278,12 +281,27 @@ class Copilot:
             frame = cv2.copyMakeBorder(frame, 0, max(0, 64 - h), 0, max(0, 64 - w), cv2.BORDER_CONSTANT, value=(114, 114, 114))
         return np.ascontiguousarray(frame)
 
+    def apply_masks(self, frame: np.ndarray) -> np.ndarray:
+        """Privacy masks: paint the configured polygons black before anything else sees the frame
+        (detection, recording, snapshots, live view). Returns a copy; the caller's frame is untouched."""
+        h, w = frame.shape[:2]
+        if self._mask_cache is None or self._mask_cache[0] != (h, w):
+            m = np.zeros((h, w), np.uint8)
+            for poly in self.masks:
+                cv2.fillPoly(m, [np.round(poly * [w - 1, h - 1]).astype(np.int32)], 255)
+            self._mask_cache = ((h, w), m)
+        out = frame.copy()
+        out[self._mask_cache[1] > 0] = 0
+        return out
+
     def process(self, frame: np.ndarray, t: float, render: bool = False, wall_t: Optional[float] = None) -> FrameResult:
         """Process one frame. ``t`` must be monotonic (kinematics); ``wall_t`` (default ``t``) is the clock
         that sensor readings are stamped with."""
         timings: Dict[str, float] = {}
         t_all = time.perf_counter()
         frame = self.normalise_frame(frame, self.max_width)
+        if self.masks:
+            frame = self.apply_masks(frame)
         wall_t = t if wall_t is None else wall_t
         self._frame_idx += 1
 

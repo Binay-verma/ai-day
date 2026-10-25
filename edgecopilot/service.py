@@ -30,6 +30,7 @@ from .cameras import CameraWorker, ClipBuffer, redact
 from .copilot.events import EventLog
 from .io.sensors import SensorHub
 from .notify import Notifier
+from .track_record import TrackRecord
 from .pipeline import Copilot
 from .storage import Store
 
@@ -113,6 +114,7 @@ class EdgeService:
                 self.mqtt.start()
             except Exception as e:  # noqa: BLE001 - MQTT is optional, HTTP ingestion still works
                 log.error("MQTT disabled: %s", e)
+        self.track_record = TrackRecord(self.store)
         self.notifier = Notifier.from_config(
             cfg.get("notifications") or {}, self.is_open, self.store.audit,
             mqtt_publish=self.mqtt.publish if self.mqtt else None,
@@ -138,7 +140,8 @@ class EdgeService:
         # a recorded video with its own sensor CSV replays into a private hub (never mixes with live sensors)
         hub = SensorHub(fallback_zone="default") if sensors_csv else self.sensors
         cop = Copilot(cfg, root=self.root, zone=cam["zone"], sensors=hub, event_log=EventLog(max_items=200),
-                      enable=cam.get("hazards") or None, regions=cam.get("restricted") or None)
+                      enable=cam.get("hazards") or None, regions=cam.get("restricted") or None,
+                      masks=cam.get("masks") or None)
         cop.status_listeners.append(self._on_status)
         st = self.cfg.get("storage", {})
         # ${VAR} in camera URLs is filled from the environment so credentials never sit in the config file
@@ -477,6 +480,7 @@ class EdgeService:
             raise ValueError(f"alert already {a['status']} by {a.get('operator') or 'someone'}")
         status = "confirmed" if confirmed else "dismissed"
         self.store.update_alert(alert_id, status=status, operator=actor, operator_note=note[:500], ack_time=time.time())
+        self.track_record.invalidate()
         cop = self.copilots.get(a.get("camera_id") or "")
         out = {"id": alert_id, "status": status}
         if cop is not None and alert_id in cop.events.alerts and a["hazard"] in cop.models:

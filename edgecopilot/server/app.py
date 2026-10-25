@@ -40,6 +40,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from .. import __version__
 from ..config_schema import load_config_dict
 from ..copilot.qa import answer
+from ..copilot.search import parse as parse_search
+from ..copilot.search import run as run_search
+from ..evidence import build_bundle, verify_bundle
 from ..logging_setup import setup as setup_logging
 from ..security import AuthManager, Principal, RateLimiter, load_secret
 from ..service import EdgeService, utc_iso
@@ -49,6 +52,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 COOKIE = "ec_session"
 MAX_BODY = 64 * 1024
+MAX_EVIDENCE_BODY = 32 * 1024 * 1024  # only POST /api/evidence/verify (an uploaded evidence zip)
+LARGE_BODY_PATHS = {"/api/evidence/verify": MAX_EVIDENCE_BODY}
 log = logging.getLogger("edgecopilot.server")
 
 
@@ -84,6 +89,10 @@ class Sound(BaseModel):
     on: bool
 
 
+class Search(BaseModel):
+    q: str = Field(min_length=1, max_length=300)
+
+
 class Hold(BaseModel):
     hold: bool
 
@@ -116,8 +125,11 @@ class BodyLimit:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        limit = LARGE_BODY_PATHS.get(scope.get("path", ""), self.limit) if scope.get("method") == "POST" else self.limit
+        if limit > self.limit and not any(k in (b"authorization", b"cookie") for k, _ in scope.get("headers", [])):
+            limit = self.limit  # large uploads only for requests that at least carry credentials
         for k, v in scope.get("headers", []):
-            if k == b"content-length" and v.isdigit() and int(v) > self.limit:
+            if k == b"content-length" and v.isdigit() and int(v) > limit:
                 return await self._reject(send)
         # Buffer at most `limit` bytes ourselves (64 KB), then replay the body to the app.
         # A chunked/streamed body without Content-Length is cut off as soon as it exceeds the limit.
@@ -130,7 +142,7 @@ class BodyLimit:
                 continue
             body = msg.get("body", b"")
             seen += len(body)
-            if seen > self.limit:
+            if seen > limit:
                 return await self._reject(send)
             chunks.append(body)
             more = msg.get("more_body", False)
@@ -300,6 +312,14 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
     def self_test_run(body: SelfTest, p: Principal = Depends(admin)):
         return service.self_test(notify=body.notify, actor=p.username)
 
+    @app.post("/api/notify/test")
+    def notify_test(channel: str = "", p: Principal = Depends(admin)):
+        """Send a labelled test message to one channel (or all) now: check phone push before going live."""
+        n = service.notifier
+        if channel and channel not in n.channels:
+            raise HTTPException(404, f"no notification channel {channel!r}")
+        return {"results": n.test(channel)}
+
     @app.post("/api/console/sound")
     def console_sound(body: Sound, p: Principal = Depends(viewer)):
         """The console's audible alarm was switched on/off - muting is an auditable act."""
@@ -373,7 +393,20 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
             a[out] = base64.b64encode(data).decode() if data else ""
         a["has_clip"] = bool(a.pop("clip_path", None))
         a["time_utc"] = utc_iso(a.get("wall_time"))
+        if a.get("hazard") not in ("camera_fault", "self_test"):
+            a["track_record"] = service.track_record.record_for(a.get("hazard", ""), a.get("camera_id") or "")
         return a
+
+    @app.post("/api/search")
+    def search_alerts(body: Search, p: Principal = Depends(viewer)):
+        """Natural-language search of the incident store (deterministic, allow-listed, cites alert ids)."""
+        q = parse_search(body.q, zones=list(service.cfg.get("zones", {})), cameras=list(service.cameras))
+        return run_search(service.store, q)
+
+    @app.get("/api/track_record")
+    def track_record(p: Principal = Depends(viewer)):
+        """Reviewed alerts per hazard and camera (confirmed vs dismissed, Wilson 95 % interval)."""
+        return {"window_days": round(service.track_record.window_s / 86400), "rows": service.track_record.table()}
 
     @app.get("/api/alerts/{alert_id}/clip.mp4")
     def alert_clip(alert_id: str, p: Principal = Depends(operator)):
@@ -439,6 +472,33 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
             imgs[k] = base64.b64encode(data).decode() if data else ""
         service.store.audit(p.username, p.role, "report_exported", alert_id, {})
         return HTMLResponse(render_report(a, imgs, p.username))
+
+    @app.get("/api/alerts/{alert_id}/evidence.zip")
+    def evidence_bundle(alert_id: str, p: Principal = Depends(operator)):
+        """Signed evidence bundle: record, report, media, audit trail, SHA-256 manifest, HMAC signature."""
+        a = _alert_or_404(alert_id)
+        key = service.store.audit_key
+        if not key:
+            raise HTTPException(409, "no site secret configured: evidence bundles cannot be signed")
+        service.store.audit(p.username, p.role, "evidence_exported", alert_id, {})  # in the bundle's own audit trail
+        imgs = {}
+        for k in ("snapshot_path", "evidence_path"):
+            data = service.store.get_media(a[k]) if a.get(k) else None
+            imgs[k] = base64.b64encode(data).decode() if data else ""
+        blob = build_bundle(a, key=key, actor=p.username, get_media=service.store.get_media,
+                            audit_rows=service.store.audit_for(alert_id),
+                            audit_head=service.store.verify_audit_chain().get("head", ""),
+                            report_html=render_report(a, imgs, p.username))
+        return Response(blob, media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="evidence-{alert_id}.zip"'})
+
+    @app.post("/api/evidence/verify")
+    async def evidence_verify(request: Request, p: Principal = Depends(operator)):
+        """Upload an evidence bundle (raw zip body): every hash and the signature are re-checked."""
+        body = await request.body()
+        res = verify_bundle(body, service.store.audit_key)
+        service.store.audit(p.username, p.role, "evidence_verified", str(res.get("alert_id") or ""), {"ok": res["ok"], "problems": res["problems"][:10]})
+        return res
 
     @app.post("/api/alerts/{alert_id}/hold")
     def alert_hold(alert_id: str, body: Hold, p: Principal = Depends(admin)):

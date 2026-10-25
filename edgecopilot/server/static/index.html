@@ -52,6 +52,11 @@
   <aside>
     <div class="qhead"><h2>Alerts</h2>
       <label class="filter">Show <select id="filter"><option value="open">open</option><option value="all">all</option></select></label></div>
+    <form class="search" id="searchform" role="search">
+      <input id="searchq" maxlength="300" aria-label="Search alerts" placeholder="Search, e.g. falls in Corridor B last night">
+      <button class="btn small" type="submit">Search</button>
+    </form>
+    <div class="searchres" id="searchres" aria-live="polite" hidden></div>
     <div class="queue" id="queue"><div class="qempty" id="qempty">No alerts. Each alert will show what triggered it, what would have changed the decision, and what to do.</div></div>
   </aside>
 </main>
@@ -68,7 +73,8 @@ first responders and emergency services (112 / 108 / 101). Recommended actions a
       <ul class="acts"></ul>
       <div class="ev"><figure><img alt="Anonymised snapshot" class="snap"><figcaption>Snapshot (anonymised)</figcaption></figure><figure><img alt="Evidence heat map" class="evid"><figcaption>What the model relied on</figcaption></figure></div>
       <div class="verified"></div>
-      <div class="btns"><button class="btn confirm" data-c="1">Confirm emergency</button><button class="btn" data-c="0">Dismiss as false alarm</button><a class="btn link report" target="_blank" rel="noopener">Incident report</a><a class="btn link clip" target="_blank" rel="noopener" hidden>Clip</a></div>
+      <div class="trackrec" title="This site's own record: alerts operators reviewed, Wilson 95 % interval"></div>
+      <div class="btns"><button class="btn confirm" data-c="1">Confirm emergency</button><button class="btn" data-c="0">Dismiss as false alarm</button><a class="btn link report" target="_blank" rel="noopener">Incident report</a><a class="btn link evidence" title="Zip with the record, report, media and audit trail; SHA-256 manifest signed with the site key">Evidence bundle (signed)</a><a class="btn link clip" target="_blank" rel="noopener" hidden>Clip</a></div>
       <div class="ask"><input placeholder="Ask about this alert, e.g. what if the sensor is wrong?" aria-label="Ask the copilot" maxlength="300"><button class="btn askbtn">Ask</button></div>
       <div class="chips"></div>
       <div class="answer" aria-live="polite"></div>

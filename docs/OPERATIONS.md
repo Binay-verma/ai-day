@@ -30,6 +30,13 @@ Docker alternative: `docker compose up -d` (copilot + MQTT broker + Prometheus +
    coordinates, optional `hours: "20:00-07:00"` when presence is not allowed; see
    `configs/production.example.yaml`). Walk into each region once and check that an intrusion
    alert arrives after about 14 s of presence out of hours or 26 s otherwise (sooner with several people).
+8. Privacy masks (optional): add `masks:` polygons to the camera (0..1 image coordinates) for
+   anything the camera must not record: a neighbour's window, a washroom door, a staff screen.
+   Masked areas are painted black before detection, recording, snapshots and the live view, so
+   nothing inside them can raise an alert either; check the live view after adding one.
+9. Phone push (optional): put `ntfy` and/or `telegram` under `notifications:` (tokens in env
+   vars, see `configs/production.example.yaml`), add them to an escalation level, then press
+   `POST /api/notify/test` (admin) and check the phone shows the labelled test message.
 
 ## Time discipline (do this on every edge box)
 
@@ -93,7 +100,17 @@ If the campus firewall blocks NTP, use the campus NTP server instead. Check
 1. Read the explanation and the evidence ledger; **VERIFY** means look first, **ALARM** means act.
 2. Follow the recommended actions (they cite their trigger and the zone's AED / exits / wardens).
 3. Press **Confirm** or **Dismiss** — this is recorded with your name and tunes that camera.
-4. For confirmed incidents, export the **Incident report** for the safety committee.
+4. For confirmed incidents, export the **Incident report** for the safety committee, and the
+   **Evidence bundle (signed)** when the incident may go to an insurer, the police or an inquiry.
+   Anyone at the site can later check it: `python scripts/verify_evidence.py evidence-<id>.zip`
+   (or upload it to `POST /api/evidence/verify`) re-computes every SHA-256 and the signature and
+   names any file that was changed, removed or added. Keep the site secret (`data/.secret` or
+   `EDGECOPILOT_SECRET`) backed up: without it no bundle can be verified.
+5. Each alert shows the **operator track record** for that hazard on that camera ("operators
+   confirmed 9 of 11 ... 95 % CI 52-95 %"). A low record means look harder before acting, and is
+   a reason to re-commission the camera, not to ignore it.
+6. To look back ("falls in Corridor B last night", "false alarms by camera this week") use the
+   search box above the alert list; it shows what it understood and links every alert it counts.
 
 ## Failure modes and what to do
 

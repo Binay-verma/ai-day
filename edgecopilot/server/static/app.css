@@ -112,3 +112,13 @@ aside{min-width:0}
 .wi-val{text-align:right;font-variant-numeric:tabular-nums}
 .wi-out{margin:8px 0;font-weight:600}
 .wi-out.yes{color:var(--warn,#f0a030)} .wi-out.no{color:var(--ok,#3ccf7a)}
+
+/* natural-language search, track record, evidence link */
+.search{display:flex;gap:6px;margin:6px 0}
+.search input{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--line, #ccc);border-radius:6px;background:transparent;color:inherit}
+.searchres{border:1px solid var(--line, #ccc);border-radius:8px;padding:8px;margin-bottom:8px;font-size:13px}
+.searchres .ssum{margin-bottom:6px}
+.searchres .sresults{list-style:none;padding:0;margin:6px 0;max-height:220px;overflow:auto}
+.searchres .linkish{background:none;border:0;color:inherit;text-align:left;padding:2px 0;cursor:pointer;text-decoration:underline;font:inherit}
+.chip.static{cursor:default}
+.trackrec{font-size:12px;opacity:.85;margin:4px 0}

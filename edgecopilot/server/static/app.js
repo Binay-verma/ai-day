@@ -38,6 +38,7 @@ $("#loginform").addEventListener("submit", async ev => {
 });
 $("#logout").addEventListener("click", async () => { try { await api("/api/logout", {method: "POST"}); } catch (e) {} showLogin(); });
 $("#filter").addEventListener("change", () => renderQueue());
+setupSearch();
 $("#camsel").addEventListener("change", () => { currentCam = $("#camsel").value; $("#noframe").style.display = ""; });
 
 function meter(hz) {
@@ -175,6 +176,7 @@ function card(a) {
   const head = node.querySelector(".head");
   head.addEventListener("click", () => { node.classList.toggle("closed"); head.setAttribute("aria-expanded", !node.classList.contains("closed")); });
   node.querySelector(".report").href = `/api/alerts/${encodeURIComponent(a.id)}/report.html`;
+  node.querySelector(".evidence").href = `/api/alerts/${encodeURIComponent(a.id)}/evidence.zip`;
   const canAct = role === "operator" || role === "admin";
   node.querySelectorAll("[data-c]").forEach(b => {
     b.disabled = !canAct || a.status !== "open";
@@ -187,7 +189,7 @@ function card(a) {
       } catch (e) { node.querySelector(".answer").textContent = "Could not record: " + e.message; }
     });
   });
-  if (!canAct) node.querySelector(".report").hidden = true;
+  if (!canAct) { node.querySelector(".report").hidden = true; node.querySelector(".evidence").hidden = true; }
   const ask = async q => {
     if (!q) return;
     try { node.querySelector(".answer").textContent = (await api(`/api/alerts/${encodeURIComponent(a.id)}/ask`, {method: "POST", body: JSON.stringify({question: q})})).answer; }
@@ -201,10 +203,32 @@ function card(a) {
   api(`/api/alerts/${encodeURIComponent(a.id)}`).then(full => {
     if (full.snapshot_jpg_b64) node.querySelector(".snap").src = "data:image/jpeg;base64," + full.snapshot_jpg_b64;
     if (full.evidence_jpg_b64) node.querySelector(".evid").src = "data:image/jpeg;base64," + full.evidence_jpg_b64;
+    if (full.track_record) node.querySelector(".trackrec").textContent = full.track_record.text;
     if (full.has_clip && canAct) { const c = node.querySelector(".clip"); c.hidden = false; c.href = `/api/alerts/${encodeURIComponent(a.id)}/clip.mp4`; }
   }).catch(() => {});
   if (a.status !== "open") node.classList.add("done", "closed");
   return node;
+}
+
+// Natural-language search of the incident store (deterministic on the server; cites alert ids)
+function setupSearch() {
+  const form = $("#searchform"), out = $("#searchres");
+  if (!form) return;
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const q = $("#searchq").value.trim();
+    if (!q) { out.hidden = true; return; }
+    out.hidden = false; out.replaceChildren(el("div", {class: "small", textContent: "Searching..."}));
+    try {
+      const r = await api("/api/search", {method: "POST", body: JSON.stringify({q})});
+      const chips = el("div", {class: "chips"}, ...r.understood.map(c => el("span", {class: "chip static", textContent: c})));
+      const list = el("ul", {class: "sresults"}, ...r.alerts.map(a => el("li", {},
+        el("button", {class: "linkish", textContent: `${new Date((a.wall_time || 0) * 1000).toLocaleString()} · ${a.headline || a.hazard} · ${a.status}`,
+                      onclick: () => { $("#filter").value = "all"; renderQueue(); const n = document.getElementById("a-" + a.id); if (n) { n.classList.remove("closed"); n.scrollIntoView({behavior: "smooth"}); } }}))));
+      const close = el("button", {class: "btn small", textContent: "Close", onclick: () => { out.hidden = true; }});
+      out.replaceChildren(el("div", {class: "ssum", textContent: r.summary}), chips, list, close);
+    } catch (e) { out.replaceChildren(el("div", {textContent: e.message})); }
+  });
 }
 
 function renderQueue() {

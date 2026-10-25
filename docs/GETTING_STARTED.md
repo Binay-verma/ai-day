@@ -132,7 +132,11 @@ Place the laptop 3–4 m away so it sees your **whole body and the floor**. Then
 | Crowd | 3+ people walk in, then all run out of view at once (or uncomment the `zones` test lines in the webcam config) | Crowd measures abnormal *movement* (sudden dispersal, panic) and over-capacity, not a head count. 2 people standing in view correctly stays near 0 % (Corridor B holds 30) |
 | Fire | Hold a phone playing a fire video close to the camera | May raise smoke / fire; without the MQ-2 sensor it may stay VERIFY. **Never use a real flame indoors** |
 | Camera trouble | Cover the lens ~5 s | "Camera blackout" trouble alert |
+| Not a fall | Lie down on the floor from standing at a normal pace (2-3 s) | No fall alert ("no fast, uncontrolled descent was seen") |
 | What if? | Open it on any alert, drag a slider | Score and decision update |
+| Search | Type "falls today" or "alerts by zone today" in the box above the alert list | A summary that cites alert ids, the understood filters as chips, and links to each alert |
+| Evidence bundle | On any alert press **Evidence bundle (signed)**, then run `python scripts/verify_evidence.py <file>.zip` | `INTACT`; change any byte in the zip and it reports which file |
+| Phone push | Install the free **ntfy** app, subscribe to a long random topic, add `notifications: {ntfy: {url: "https://ntfy.sh/<topic>", min_severity: MEDIUM}}` to the webcam config, restart | Fall / fire alerts arrive on the phone with the explanation; tap opens the console (on the same network) |
 
 How it tells a fall from lying down: a fall alert needs *both* an uncontrolled descent (fast
 drop of the hips, measured in body-heights) *and* a lying posture at the end. Slowly lying down

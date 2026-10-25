@@ -54,8 +54,11 @@ notifications:
     security_slack: {url: "https://hooks.slack.com/services/REPLACE/ME", kind: slack, min_severity: MEDIUM}
     warden_teams: {url: "https://example.webhook.office.com/REPLACE", kind: teams, min_severity: HIGH}
   email: {host: smtp.campus.example, port: 587, sender: copilot@campus.example, to: [safety@campus.example], min_severity: HIGH}
+  # phone push for the first-aid team / wardens (install the ntfy or Telegram app; tokens come from env vars)
+  ntfy: {url: "https://ntfy.sh/REPLACE-with-a-long-random-topic", token_env: NTFY_TOKEN, min_severity: HIGH}
+  # telegram: {chat_id: "REPLACE", token_env: TELEGRAM_BOT_TOKEN, min_severity: HIGH}
   escalation:
-    - {after_s: 0, channels: [security_slack]}
+    - {after_s: 0, channels: [security_slack, ntfy]}
     - {after_s: 60, channels: [warden_teams, email]}
 
 mqtt:

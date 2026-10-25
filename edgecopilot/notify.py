@@ -1,5 +1,14 @@
-"""Alert delivery: webhooks (generic / Slack / Teams), e-mail, MQTT - with
-retries and time-based escalation.
+"""Alert delivery: webhooks (generic / Slack / Teams), phone push (ntfy, Telegram), e-mail, MQTT -
+with retries and time-based escalation.
+
+Phone push, so the first-aid team or warden gets the explained alert on their phone::
+
+    notifications:
+      ntfy:     {url: "https://ntfy.sh/<private-topic>", token_env: NTFY_TOKEN, min_severity: HIGH}
+      telegram: {token_env: TELEGRAM_BOT_TOKEN, chat_id: "123456789", min_severity: HIGH}
+
+Tokens are read from environment variables and scrubbed from every error message before it is
+logged or audited.
 
 Escalation policy (config ``notifications.escalation``)::
 
@@ -71,6 +80,77 @@ class WebhookChannel(Channel):
                 raise RuntimeError(f"HTTP {r.status}")
 
 
+NTFY_PRIORITY = {"CRITICAL": "5", "HIGH": "4", "MEDIUM": "3", "LOW": "2"}
+NTFY_TAGS = {"fall": "ambulance", "fire_smoke": "fire", "crowd": "busts_in_silhouette", "intrusion": "no_entry",
+             "camera_fault": "warning", "self_test": "warning"}
+
+
+class _ScrubbingChannel(Channel):
+    """Base for channels holding a secret: never let it reach logs or the audit trail."""
+
+    secrets: tuple = ()
+
+    def scrub(self, text: str) -> str:
+        for sec in self.secrets:
+            if sec:
+                text = text.replace(sec, "***")
+        return text
+
+    def _post(self, url: str, data: bytes, headers: Dict[str, str], timeout: float) -> None:
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")  # noqa: S310 - https enforced
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310  # nosec B310 - https enforced in __init__
+                if r.status >= 300:
+                    raise RuntimeError(f"HTTP {r.status}")
+        except Exception as e:  # noqa: BLE001 - re-raised without the secret
+            raise RuntimeError(self.scrub(f"{type(e).__name__}: {e}")) from None
+
+
+class NtfyChannel(_ScrubbingChannel):
+    """ntfy (https://ntfy.sh or self-hosted): free phone push with priority, tags and a tap-to-open link."""
+
+    def __init__(self, name: str, url: str, token_env: str = "", base_url: str = "", timeout: float = 5.0):  # nosec B107 - env var name, not a secret
+        if not url.startswith(("https://", "http://127.0.0.1", "http://localhost")):
+            raise ValueError(f"{name}: only https:// URLs (or localhost) are allowed")
+        self.name, self.url, self.base_url, self.timeout = name, url, base_url, timeout
+        self.token = os.environ.get(token_env, "") if token_env else ""
+        self.secrets = (self.token, url.rsplit("/", 1)[-1])  # the topic name is a capability too
+
+    def headers(self, alert: dict) -> Dict[str, str]:
+        exp = alert.get("explanation") or {}
+        h = {"Title": str(exp.get("headline") or alert.get("hazard") or "alert")[:200].encode("ascii", "replace").decode(),
+             "Priority": NTFY_PRIORITY.get(str(alert.get("severity")), "3"),
+             "Tags": NTFY_TAGS.get(str(alert.get("hazard")), "rotating_light"),
+             "Content-Type": "text/plain; charset=utf-8"}
+        if self.base_url:
+            h["Click"] = f"{self.base_url.rstrip('/')}/#alert-{alert.get('id')}"
+        if self.token:
+            h["Authorization"] = f"Bearer {self.token}"
+        return h
+
+    def send(self, alert: dict, text: str) -> None:
+        self._post(self.url, text.encode("utf-8"), self.headers(alert), self.timeout)
+
+
+class TelegramChannel(_ScrubbingChannel):
+    """Telegram Bot API sendMessage to a chat or group (the bot token stays in an environment variable)."""
+
+    api = "https://api.telegram.org"
+
+    def __init__(self, name: str, token_env: str, chat_id: str, timeout: float = 5.0):
+        self.name, self.chat_id, self.timeout = name, str(chat_id), timeout
+        self.token = os.environ.get(token_env, "")
+        self.secrets = (self.token,)
+        if not self.chat_id:
+            raise ValueError(f"{name}: chat_id is required")
+
+    def send(self, alert: dict, text: str) -> None:
+        if not self.token:
+            raise RuntimeError("Telegram bot token environment variable is empty")
+        data = json.dumps({"chat_id": self.chat_id, "text": text[:4000], "disable_web_page_preview": True}).encode()
+        self._post(f"{self.api}/bot{self.token}/sendMessage", data, {"Content-Type": "application/json"}, self.timeout)
+
+
 class EmailChannel(Channel):
     name = "email"
 
@@ -139,6 +219,14 @@ class Notifier:
             ch["email"] = EmailChannel(e["host"], e.get("port", 587), e["sender"], e["to"], e.get("user_env", "SMTP_USER"),
                                        e.get("password_env", "SMTP_PASSWORD"), e.get("starttls", True))
             min_sev["email"] = e.get("min_severity", "HIGH")
+        if ncfg.get("ntfy"):
+            n = ncfg["ntfy"]
+            ch["ntfy"] = NtfyChannel("ntfy", n["url"], n.get("token_env", ""), base_url)
+            min_sev["ntfy"] = n.get("min_severity", "HIGH")
+        if ncfg.get("telegram"):
+            tg = ncfg["telegram"]
+            ch["telegram"] = TelegramChannel("telegram", tg.get("token_env", "TELEGRAM_BOT_TOKEN"), tg["chat_id"])
+            min_sev["telegram"] = tg.get("min_severity", "HIGH")
         if ncfg.get("mqtt_topic") and mqtt_publish:
             ch["mqtt"] = MqttChannel(mqtt_publish, ncfg["mqtt_topic"])
         return cls(ch, ncfg.get("escalation") or [], is_open, audit, ncfg.get("max_retries", 5), base_url, min_sev)
@@ -156,6 +244,23 @@ class Notifier:
             for ch in lvl["channels"]:
                 if ch in self.channels:
                     self._push(now + lvl["after_s"], {"alert": alert, "channel": ch, "level": lvl_i, "attempt": 0})
+
+    def test(self, channel: str = "") -> List[dict]:
+        """Send a clearly labelled test message now (synchronously) to one or all channels."""
+        demo = {"id": "test", "hazard": "self_test", "severity": "HIGH", "triage": "TEST",
+                "explanation": {"headline": "Edge copilot test message", "because": "This is a test of the alert channel.",
+                                "confidence_text": ""}, "recommendations": [{"text": "No action needed"}]}
+        out = []
+        for name, ch in self.channels.items():
+            if channel and name != channel:
+                continue
+            try:
+                ch.send(demo, format_text(demo, self.base_url))
+                out.append({"channel": name, "ok": True})
+            except Exception as e:  # noqa: BLE001 - reported to the admin who asked
+                out.append({"channel": name, "ok": False, "error": str(e)[:200]})
+            self.audit("notifier", "admin", "notify_test", name, out[-1])
+        return out
 
     def stop(self, timeout: float = 2.0) -> None:
         with self._cv:

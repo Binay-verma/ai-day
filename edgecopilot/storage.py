@@ -256,6 +256,13 @@ class Store:
             names = [d[0] for d in cur.description]
             return [dict(zip(names, r)) for r in cur.fetchall()]
 
+    def audit_for(self, target: str, limit: int = 2000) -> List[Dict[str, Any]]:
+        """Audit entries about one target (an alert id), oldest first."""
+        with self.lock:
+            cur = self.conn.execute("SELECT * FROM audit WHERE target = ? ORDER BY seq LIMIT ?", (target, int(min(limit, 10000))))
+            names = [d[0] for d in cur.description]
+            return [dict(zip(names, r)) for r in cur.fetchall()]
+
     def verify_audit_chain(self) -> Dict[str, Any]:
         with self.lock:
             rows = self.conn.execute("SELECT seq, ts, actor, role, action, target, detail, prev_hash, hash "

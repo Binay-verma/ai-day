@@ -204,6 +204,16 @@ class CameraCfg(_Strict):
     loop: bool = False
     restricted: List[RegionCfg] = Field(default_factory=list, description="restricted-area rules (intrusion hazard)")
     pose: Optional[PoseOverrideCfg] = Field(None, description="per-camera pose model, e.g. YOLO11s-pose on fall-critical cameras")
+    masks: List[List[List[float]]] = Field(default_factory=list, description="privacy masks: polygons [[x, y], ...] in 0..1, "
+                                           "painted black before detection, recording, snapshots and the live view")
+
+    @field_validator("masks")
+    @classmethod
+    def _mask_unit(cls, v):
+        for poly in v:
+            if len(poly) < 3 or any(len(p) != 2 or not (0 <= p[0] <= 1 and 0 <= p[1] <= 1) for p in poly):
+                raise ValueError("each mask is >= 3 [x, y] points in 0..1")
+        return v
 
 
 class UserCfg(_Strict):
@@ -271,9 +281,23 @@ class EscalationLevel(_Strict):
     channels: List[str]
 
 
+class NtfyCfg(_Strict):
+    url: str
+    token_env: str = ""
+    min_severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] = "HIGH"
+
+
+class TelegramCfg(_Strict):
+    chat_id: str
+    token_env: str = "TELEGRAM_BOT_TOKEN"  # noqa: S105 - name of an env var, not a secret
+    min_severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] = "HIGH"
+
+
 class NotificationsCfg(_Strict):
     webhooks: Dict[str, WebhookCfg] = Field(default_factory=dict)
     email: Optional[EmailCfg] = None
+    ntfy: Optional[NtfyCfg] = None
+    telegram: Optional[TelegramCfg] = None
     mqtt_topic: Optional[str] = None
     escalation: List[EscalationLevel] = Field(default_factory=list)
     max_retries: int = Field(5, ge=0, le=20)
@@ -367,7 +391,8 @@ class Config(_Strict):
                 errors.append(f"cameras[{c.id}].hazards: unknown {sorted(bad)}")
         # 4) escalation channels exist
         chans = set(self.notifications.webhooks) | ({"email"} if self.notifications.email else set()) | \
-            ({"mqtt"} if self.notifications.mqtt_topic else set())
+            ({"mqtt"} if self.notifications.mqtt_topic else set()) | \
+            ({"ntfy"} if self.notifications.ntfy else set()) | ({"telegram"} if self.notifications.telegram else set())
         for i, lvl in enumerate(self.notifications.escalation):
             bad = set(lvl.channels) - chans
             if bad:
