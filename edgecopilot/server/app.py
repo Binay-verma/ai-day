@@ -328,7 +328,13 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
 
     @app.get("/api/me")
     def me(p: Principal = Depends(viewer)):
-        return {"username": p.username, "role": p.role, "auth": auth.enabled, "public_demo": bool(scfg.get("public_demo"))}
+        bc = scfg.get("browser_camera") or {}
+        return {"username": p.username, "role": p.role, "auth": auth.enabled, "public_demo": bool(scfg.get("public_demo")),
+                "browser_camera": {"enabled": bool(bc.get("enabled", True)) and int(bc.get("max_sessions", 2)) > 0
+                                   and p.can("operator"),
+                                   "max_minutes": float(bc.get("max_minutes", 0) or 0), "in_use": len(service.browser_cams),
+                                   "max_sessions": int(bc.get("max_sessions", 2)),
+                                   "width": int(bc.get("width", 640)), "max_fps": float(bc.get("max_fps", 10.0))}}
 
     # ------------------------------------------------------------ status
     @app.get("/api/status")
@@ -639,7 +645,116 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
         finally:
             clients.discard(c)
 
+    # ---------------------------------------------------- "Use my camera"
+    @app.websocket("/ws/camera")
+    async def ws_camera(sock: WebSocket):
+        """An operator's browser camera. Binary messages = 8-byte little-endian float64 capture time (s) + JPEG.
+
+        Each frame is analysed exactly like a hardware camera's, then the rendered (privacy-filtered) frame and
+        the live gauges are sent back to this socket only. One frame in flight: the browser sends the next one
+        after the reply, so it is paced by the server's real speed. Alerts go to the console as usual.
+        """
+        if not origin_ok(sock):
+            await sock.close(code=4403)
+            return
+        ip = sock.client.host if sock.client else "?"
+        if not limiter.allow(f"camws:{ip}", 5.0):
+            await sock.close(code=4429)
+            return
+        p = auth.verify(sock.cookies.get(COOKIE) or sock.query_params.get("token"))
+        await sock.accept()  # accept first so the browser receives the reason (a pre-accept close is just HTTP 403)
+
+        async def refuse(code: int, kind: str, detail: str) -> None:
+            await sock.send_text(json.dumps({"type": "error", "code": kind, "detail": detail}))
+            await sock.close(code=code)
+        if p is None:
+            return await refuse(4401, "login", "sign in first")
+        if not p.can("operator"):
+            return await refuse(4403, "role", "only operators can add a camera")
+        try:
+            w = service.add_browser_camera(p.username, p.role, ip)
+        except RuntimeError as e:
+            if str(e) == "busy":
+                return await refuse(4429, "busy", "every browser-camera slot is in use; try again in a few minutes")
+            return await refuse(4404, "disabled", str(e))
+        bc = scfg.get("browser_camera") or {}
+        min_dt = 1.0 / float(bc.get("max_fps", 10.0))
+        reason, bad, last = "closed by the browser", 0, 0.0
+        try:
+            await sock.send_text(json.dumps({"type": "ready", "camera": w.cam_id, "zone": w.copilot.zone,
+                                             "remaining_s": w.remaining_s(), "width": int(bc.get("width", 640)),
+                                             "max_fps": float(bc.get("max_fps", 10.0)), "privacy": cfg["runtime"]["privacy"]}))
+            while True:
+                rem = w.remaining_s()
+                try:
+                    msg = await asyncio.wait_for(sock.receive(), timeout=30.0 if rem is None else min(30.0, rem + 0.05))
+                except asyncio.TimeoutError:
+                    msg = None
+                if msg is not None and msg["type"] == "websocket.disconnect":
+                    break
+                if w.expired:
+                    reason = "time limit"
+                    await refuse(4408, "time_limit", "the session time limit was reached")
+                    break
+                if msg is None:
+                    reason = "no frames for 30 s"
+                    await refuse(4408, "idle", "no frames for 30 s (was the tab hidden?)")
+                    break
+                data = msg.get("bytes")
+                if data is None:
+                    if '"stop"' in (msg.get("text") or ""):
+                        reason = "stopped by the operator"
+                        await sock.close(code=1000)
+                        break
+                    continue
+                now = time.monotonic()
+                if now - last < 0.8 * min_dt:
+                    await sock.send_text('{"type":"skip"}')
+                    continue
+                last = now
+                frame, client_t = decode_camera_frame(data)
+                if frame is None:
+                    bad += 1
+                    if bad > 20:
+                        reason = "too many invalid frames"
+                        await refuse(1003, "bad_frame", "the frames could not be decoded")
+                        break
+                    await sock.send_text('{"type":"error","code":"bad_frame","detail":"frame could not be decoded"}')
+                    continue
+                jpg, state = await asyncio.to_thread(w.push, frame, client_t)
+                await sock.send_text(json.dumps({"type": "frame", "camera": w.cam_id, "state": state,
+                                                 "remaining_s": w.remaining_s(),
+                                                 "jpg": base64.b64encode(jpg).decode()}, default=str))
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        except Exception:  # noqa: BLE001
+            log.exception("browser camera socket failed")
+            reason = "server error"
+        finally:
+            service.remove_browser_camera(w.cam_id, p.username, p.role, reason)
+
     return app
+
+
+MAX_CAMERA_FRAME = 1_500_000  # bytes; a 1280-px JPEG is ~150-300 KB
+
+
+def decode_camera_frame(data: bytes):
+    """(BGR frame or None, capture time or None) from a browser-camera message. Rejects oversized,
+    malformed or absurdly sized images before they reach the pipeline."""
+    import struct
+
+    import cv2
+    import numpy as np
+    if not (16 < len(data) <= MAX_CAMERA_FRAME):
+        return None, None
+    (t,) = struct.unpack("<d", data[:8])
+    if data[8:10] != b"\xff\xd8":  # JPEG only
+        return None, None
+    img = cv2.imdecode(np.frombuffer(data, np.uint8, offset=8), cv2.IMREAD_COLOR)
+    if img is None or not (64 <= img.shape[0] <= 2160 and 64 <= img.shape[1] <= 3840):
+        return None, None
+    return img, (t if math.isfinite(t) and t >= 0 else None)
 
 
 def render_report(a: dict, imgs: dict, user: str) -> str:

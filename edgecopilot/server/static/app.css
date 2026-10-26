@@ -131,3 +131,16 @@ aside{min-width:0}
 .exit.congested{border-left-color:var(--for)}.exit.congested b{color:var(--for)}
 .exit.not-watched{border-left-color:var(--line);opacity:.8}
 .exit .xwhy{opacity:.85;max-width:260px}
+/* "Use my camera" */
+.btn.mycam[aria-pressed="true"]{background:var(--fall);border-color:var(--fall);color:#1a2530}
+.mycambar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;padding:8px 12px;border-radius:6px;
+  background:var(--panel);border-left:4px solid var(--against);font-size:14px}
+.mycambar.err{border-left-color:var(--bad)}
+.mycambar.live{border-left-color:var(--fall)}
+.mycambar .mcdot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.mycambar.live .mcdot{background:var(--fall);animation:mcpulse 1.6s ease-in-out infinite}
+.mycambar .mctext{flex:1 1 260px;color:var(--text)}
+.mycambar .mctime{font:600 14px var(--ui);color:var(--muted);font-variant-numeric:tabular-nums}
+@keyframes mcpulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.mycambar.live .mcdot{animation:none}}
+.mycambar .mctime.slow{color:var(--for)}

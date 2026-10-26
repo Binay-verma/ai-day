@@ -179,6 +179,8 @@ def flow_summary(headings: Iterable[Heading], edges_map: Dict[str, str]) -> Dict
         g["people"] += 1
         g["etas"].append(hd.eta_s)
     for g in out.values():
-        g["eta_median_s"] = float(np.median(g["etas"])) if g["etas"] else None
+        med = float(np.median(g["etas"])) if g["etas"] else float("inf")
+        # None = not approaching (median person not moving towards that edge); never Infinity, which is not JSON
+        g["eta_median_s"] = med if np.isfinite(med) else None
         del g["etas"]
     return out

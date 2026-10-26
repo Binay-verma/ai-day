@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from . import __version__
-from .cameras import CameraWorker, ClipBuffer, redact
+from .cameras import BrowserCamera, CameraWorker, ClipBuffer, redact
 from .copilot.events import EventLog
 from .io.sensors import SensorHub
 from .notify import Notifier
@@ -97,6 +97,7 @@ class EdgeService:
         # live sensors: only configured zones, never borrowed across rooms
         self.sensors = SensorHub(zones=list(cfg.get("zones", {})), fallback_zone=None)
         self.cameras: Dict[str, CameraWorker] = {}
+        self.browser_cams: Dict[str, BrowserCamera] = {}   # "Use my camera" sessions (not supervised cameras)
         self.copilots: Dict[str, Copilot] = {}
         self.listeners: List[Callable[[dict], None]] = []
         self.lock = threading.RLock()
@@ -161,6 +162,74 @@ class EdgeService:
             self.copilots[cam["id"]] = cop
         return w
 
+    # ------------------------------------------------- browser cameras
+    def add_browser_camera(self, owner: str, role: str = "operator", ip: str = "") -> BrowserCamera:
+        """Start a "Use my camera" session. Raises RuntimeError when disabled or every slot is taken.
+
+        The browser camera gets its own copilot (tracker, fall state, baselines) in the configured zone, but
+        shares the already-loaded detection models (onnxruntime sessions are safe to run from several threads)
+        so starting one costs no model load. It is not a supervised camera: no self-test, no liveness watchdog,
+        and it is left out of the camera list, the camera frame endpoint and the live video other people see.
+        """
+        bc = (self.cfg.get("server") or {}).get("browser_camera") or {}
+        if not bc.get("enabled", True):
+            raise RuntimeError("browser cameras are disabled on this server (server.browser_camera.enabled)")
+        with self.lock:
+            if len(self.browser_cams) >= int(bc.get("max_sessions", 2)):
+                raise RuntimeError("busy")
+            zone = bc.get("zone") or next((c.zone for c in self.copilots.values()), "") or \
+                next(iter(self.cfg.get("zones") or {"default": {}}))
+            cam_id = "browser-" + uuid.uuid4().hex[:6]
+            donor = next((c for c in self.copilots.values() if c.pose is not None), None)
+            ccfg = {**self.cfg, "runtime": {**self.cfg["runtime"], "fire_every": int(bc.get("fire_every", 3))}}
+            cop = Copilot(ccfg, root=self.root, zone=zone, sensors=self.sensors, event_log=EventLog(max_items=200),
+                          pose_model=donor.pose if donor else None, fire_model=donor.fire if donor else None,
+                          enable=dict(bc.get("hazards") or {"fall": True, "fire_smoke": True, "crowd": False}),
+                          edges=bc.get("edges") or None)
+            cop.status_listeners.append(self._on_status)
+            cop.recommender.route_fn = self.site.route_advice
+            self.site.camera_zones[cam_id] = zone
+            st = self.cfg.get("storage", {})
+            w = BrowserCamera(cam_id, cop, owner=owner, max_s=float(bc.get("max_minutes", 0) or 0) * 60,
+                              on_alert=self._on_alert, on_fault=self._on_fault, on_clip=self._on_clip,
+                              on_frame=self._on_private_frame,
+                              clip=ClipBuffer(st.get("clip_pre_s", 5.0), st.get("clip_post_s", 10.0)))
+            w.on_held = self._on_held
+            w.start()
+            self.browser_cams[cam_id] = w
+            self.copilots[cam_id] = cop
+            self._set_background_throttle(float(bc.get("background_fps", 2.0)))
+        self.store.audit(owner, role, "browser_camera_started", cam_id, {"zone": zone, "ip": ip})
+        return w
+
+    def remove_browser_camera(self, cam_id: str, actor: str = "system", role: str = "system", reason: str = "") -> None:
+        with self.lock:
+            w = self.browser_cams.pop(cam_id, None)
+            if w is None:
+                return
+            w.stop()
+            # the copilot stays reachable (bounded) so "What if?" and feedback still work on its alerts
+            ended = [k for k in self.copilots if k.startswith("browser-") and k not in self.browser_cams]
+            for k in ended[:-8]:
+                self.copilots.pop(k, None)
+            if not self.browser_cams:
+                self._set_background_throttle(0.0)
+        self.store.audit(actor, role, "browser_camera_stopped", cam_id,
+                         {"frames": w.health.frames, "seconds": round(time.time() - w.started_wall, 1), "reason": reason})
+
+    def _set_background_throttle(self, fps: float) -> None:
+        """Recorded demo files yield the CPU to a live browser camera (fall cues need ~15 FPS); live cameras never do."""
+        for w in self.cameras.values():
+            if w.is_file:
+                w.throttle_fps = fps
+
+    def _on_private_frame(self, cam_id: str, jpg: bytes, state: dict) -> None:
+        """A browser camera's frame: feeds site awareness, but the video itself goes back only to its owner."""
+        try:
+            self._site_update(cam_id, state)
+        except Exception:  # noqa: BLE001
+            log.exception("site update failed")
+
     def start(self) -> None:
         for w in self.cameras.values():
             w.start()
@@ -172,6 +241,8 @@ class EdgeService:
     def stop(self) -> None:
         for w in self.cameras.values():
             w.stop()
+        for cid in list(self.browser_cams):
+            self.remove_browser_camera(cid, reason="server stopping")
         self._retention_stop.set()
         self.notifier.stop()
         if self.mqtt:
@@ -498,7 +569,7 @@ class EdgeService:
         if now - self._fault_last.get(key, 0.0) < self.fault_cooldown_s:
             return  # already reported recently (reconnect loops must not flood operators)
         self._fault_last[key] = now
-        w = self.cameras.get(cam_id)
+        w = self.cameras.get(cam_id) or self.browser_cams.get(cam_id)
         zone = w.copilot.zone if w else ""
         text = FAULT_TEXT.get(kind, kind)
         rec = {"id": uuid.uuid4().hex[:10], "camera_id": cam_id, "zone": zone, "hazard": "camera_fault", "subject": kind,
@@ -545,6 +616,8 @@ class EdgeService:
         if a is None:
             return None
         cop = self.copilots.get(a.get("camera_id") or "")
+        if cop is None:  # camera gone (an ended browser session): every copilot scores with the same configured cues
+            cop = next((c for c in self.copilots.values() if a.get("hazard", "") in c.models), None)
         model = cop.models.get(a.get("hazard", "")) if cop else None
         if model is None:
             raise ValueError("no hazard model for this alert (trouble alerts have no ledger)")

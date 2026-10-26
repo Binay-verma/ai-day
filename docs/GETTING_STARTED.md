@@ -209,6 +209,31 @@ A Codespace stops after 30 minutes without activity in the editor: set **Default
 minutes at github.com/settings/codespaces, and before your slot open it and run step 4 again (the link stays
 the same for the same codespace). Stop it afterwards (Codespaces list -> Stop) to save free hours.
 
+### Live test with the judge's own camera ("Use my camera")
+
+On the cloud link the console has a **Use my camera** button (operators only, so it works for `judge`).
+The browser asks for camera permission, then sends frames (640 px, up to 10 per second, one at a time,
+so the rate follows the server's speed) to the server. The server runs them through exactly the same
+pipeline as a site camera. The annotated view comes back to that browser only, with faces blurred.
+Alerts appear in the normal alert list for everyone signed in, labelled with a `browser-...` camera id.
+
+* Try it: stand in view, lie down slowly (no alert, the gauge says "held below the line"), then drop
+  onto a mat or bed (fall ALARM, ~2 s after the fall).
+* Frame rate decides fall sensitivity: fall recall on GMDCSA24 is 86 % at 15 FPS and 81 % at ~11 FPS
+  (RESULTS §17). A 2-core Codespace gives ~11-12 FPS. For judging, pick a **4-core** machine: Codespaces
+  list -> **...** -> **Change machine type** -> 4-core. That uses free hours twice as fast, so 30 h a month.
+  The bar under the video shows the live FPS and warns below 13.
+* Limits (`server.browser_camera` in `configs/cloud_demo.yaml`): one browser camera at a time, and the
+  demo reel slows to 2 FPS while it is live. 15 minutes per session. A session also ends after 30 s
+  without frames (for example, a hidden tab). The browser camera runs fall and smoke/fire; crowd needs
+  many people.
+* Needs HTTPS or `localhost`. Browsers only allow cameras on secure pages, and the Codespaces link is
+  HTTPS. Works in Chrome, Edge, Firefox and Safari.
+* Started and stopped sessions are written to the audit log, with user, IP and frame count.
+
+The same button works locally (`python -m edgecopilot.server.app --demo`, then http://127.0.0.1:8000),
+which is handy when the laptop's camera index is unknown or OpenCV cannot open it.
+
 ### Paid alternative: Hugging Face Space (needs PRO, $9 / month)
 
 Hugging Face now requires PRO for Docker Spaces. With PRO, one command deploys a Space that stays up:

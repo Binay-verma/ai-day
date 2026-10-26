@@ -306,3 +306,14 @@ def test_scene_change_or_frame_gap_is_not_a_person_leaving():
     for j in range(1, 40):  # frames resume after a 5 s gap: the old track must not count as having left
         alerts += cop.process(frame, t + 5 + j / 15).new_alerts
     assert not [a for a in alerts if a.explanation["headline"].startswith("Possible fall out of view")]
+
+
+def test_flow_eta_is_json_safe_and_not_approaching_never_alerts():
+    import json
+    f = flow_summary([Heading(1, "right", float("inf"), 0.5), Heading(2, "right", float("inf"), 0.5)], {"right": "East stairwell"})
+    assert f["East stairwell"]["eta_median_s"] is None
+    json.loads(json.dumps(f, allow_nan=False))  # browsers reject Infinity in JSON
+    s = _site()
+    s.observe("cam2", FIRE, now=100.0)
+    assert s.crowd_toward_hazard("cam1", {"East stairwell": {"people": 5, "eta_median_s": None}}, now=101.0) == []
+    assert s.crowd_toward_hazard("cam1", {"East stairwell": {"people": 5, "eta_median_s": 4.0}}, now=102.0)

@@ -148,7 +148,7 @@ class SiteState:
             if f.get("people", 0) < self.min_people:
                 continue
             eta = f.get("eta_median_s")
-            if eta is not None and eta > self.max_eta_s:
+            if eta is None or eta > self.max_eta_s:  # None: not actually approaching that place
                 continue
             hz = self.zone_hazard(place, now)
             if hz is None:

@@ -31,6 +31,10 @@ server:
   max_ws_clients: 40
   rate_limit_per_min: 600
   public_demo: true
+  browser_camera:          # "Use my camera": judges can test with their own laptop camera
+    max_sessions: 1        # 2 vCPU: one live camera at ~15 FPS (the demo reel slows to 2 FPS meanwhile)
+    max_minutes: 15        # a session ends after 15 min (anyone can start a new one)
+    edges: {left: West stairwell, right: East stairwell}
   auth:
     enabled: true
     token_ttl_s: 14400

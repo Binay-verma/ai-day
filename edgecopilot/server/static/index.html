@@ -18,6 +18,7 @@
     <span class="pill" id="who">–</span>
     <span class="pill" id="selftest" title="Periodic end-to-end self-test (models, frames, alert chain)">Self-test –</span>
     <a class="btn small link" id="handover" href="/api/handover.html?hours=12" target="_blank" rel="noopener" hidden>Handover</a>
+    <button class="btn small mycam" id="mycam" hidden aria-pressed="false" title="Analyse this device's camera live, exactly like a site camera">Use my camera</button>
     <button class="btn small" id="sitedemo" hidden title="Demo mode only: smoke at a stairwell door, then a crowd heading for it (labelled DEMO SCENARIO)">Site scenario</button>
     <button class="btn small" id="sound" aria-pressed="false" title="Audible alarm for ALARM alerts and camera faults">Sound off</button>
     <button class="btn small" id="logout" hidden>Sign out</button>
@@ -37,6 +38,12 @@
 <main id="mainview" hidden>
   <section>
     <div class="feed"><img id="frame" alt="Live camera with detections"><div class="empty" id="noframe">Waiting for the camera stream</div></div>
+    <div class="mycambar" id="mycambar" role="status" aria-live="polite" hidden>
+      <span class="mcdot" aria-hidden="true"></span>
+      <span class="mctext" id="mycamtext"></span>
+      <span class="mctime" id="mycamtime"></span>
+      <button class="btn small" id="mycamstop" hidden>Stop my camera</button>
+    </div>
     <div class="camhealth" id="camhealth"></div>
     <div class="camctl" id="camctl" hidden>
       <label>Pause AI analysis for <select id="pausemin"><option>15</option><option selected>30</option><option>60</option><option>120</option></select> min</label>

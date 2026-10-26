@@ -40,7 +40,7 @@ $("#loginform").addEventListener("submit", async ev => {
 $("#logout").addEventListener("click", async () => { try { await api("/api/logout", {method: "POST"}); } catch (e) {} showLogin(); });
 $("#filter").addEventListener("change", () => renderQueue());
 setupSearch();
-$("#camsel").addEventListener("change", () => { currentCam = $("#camsel").value; $("#noframe").style.display = ""; });
+$("#camsel").addEventListener("change", () => { currentCam = $("#camsel").value; $("#noframe").style.display = ""; renderCams([...cams.values()]); });
 
 function meter(hz) {
   if (meters[hz]) return meters[hz];
@@ -54,6 +54,8 @@ function meter(hz) {
 function updateState(cam, s) {
   if (cam !== currentCam) return;
   $("#fps").textContent = s.fps ?? "–"; $("#ppl").textContent = s.people ?? "–";
+  // a camera only shows the hazards it analyses (a browser camera has no crowd branch)
+  for (const [hz, m] of Object.entries(meters)) m.hidden = !(s.gauges && hz in s.gauges);
   for (const [hz, g] of Object.entries(s.gauges || {})) {
     const m = meter(hz); m.classList.toggle("active", !!g.active);
     m.querySelector(".fill").style.width = (g.prob * 100).toFixed(1) + "%";
@@ -76,17 +78,21 @@ function updateState(cam, s) {
 
 function renderCams(list) {
   const sel = $("#camsel"), keep = currentCam;
-  for (const c of list) cams.set(c.id, c);
-  sel.replaceChildren(...[...cams.values()].map(c => el("option", {value: c.id, textContent: `${c.id} · ${c.zone}`})));
-  currentCam = keep && cams.has(keep) ? keep : (list[0] && list[0].id);
+  cams.clear();
+  for (const c of list) if (!c.browser) cams.set(c.id, c);
+  const opts = [...cams.values()].map(c => el("option", {value: c.id, textContent: `${c.id} · ${c.zone}`}));
+  if (myCam.id) opts.push(el("option", {value: myCam.id, textContent: `My camera · ${myCam.zone}`}));
+  sel.replaceChildren(...opts);
+  currentCam = keep && (cams.has(keep) || keep === myCam.id) ? keep : (list[0] && list[0].id);
   if (currentCam) sel.value = currentCam;
   const h = $("#camhealth"); h.replaceChildren();
   for (const c of cams.values()) {
     const st = c.health || {}, faults = Object.entries(st.faults || {}).filter(([, v]) => v).map(([k]) => k);
     h.append(el("span", {class: c.paused ? "paused" : (st.state === "live" && !faults.length ? "" : "bad"),
-      textContent: `${c.id}: ${c.paused ? "AI paused by " + c.paused_by : (st.state || "?")}${faults.length ? " · " + faults.join(", ") : ""}`}));
+      textContent: `${c.id}: ${c.paused ? "AI paused by " + c.paused_by : (st.state || "?")}${faults.length ? " · " + faults.join(", ") : ""}` +
+                   (c.throttled_fps ? ` · slowed to ${c.throttled_fps} FPS while a live camera is analysed` : "")}));
   }
-  $("#camctl").hidden = !(role === "operator" || role === "admin") || !currentCam;
+  $("#camctl").hidden = !(role === "operator" || role === "admin") || !currentCam || currentCam === myCam.id;
 }
 
 function ledger(a) {
@@ -344,6 +350,125 @@ $("#resumebtn").addEventListener("click", async () => {
   catch (e) { alert("Could not resume: " + e.message); }
 });
 
+// ---- "Use my camera": this device's camera, analysed on the server exactly like a site camera.
+// One frame in flight: the next frame is captured only after the server has answered the previous one,
+// so the frame rate adapts to the server's real speed. The annotated, privacy-filtered frame comes back
+// on this socket only (nobody else sees the live view); alerts arrive on the main feed like any camera's.
+const myCam = {ws: null, stream: null, video: null, canvas: null, id: null, zone: "", prevCam: null,
+               inflight: false, lastSend: 0, timer: null, watchdog: null, lastError: "", cfg: {}};
+function myCamBar(text, kind = "", showStop = false) {
+  const bar = $("#mycambar");
+  bar.hidden = !text; bar.className = "mycambar" + (kind ? " " + kind : "");
+  $("#mycamtext").textContent = text || ""; $("#mycamstop").hidden = !showStop;
+  if (!showStop) $("#mycamtime").textContent = "";
+}
+const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+function setupMyCam() {
+  const b = $("#mycam"), bc = (me && me.browser_camera) || {};
+  const can = bc.enabled && window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  b.hidden = !can;
+  if (!can || b.dataset.wired) return;
+  b.dataset.wired = "1";
+  b.addEventListener("click", () => myCam.ws || myCam.stream ? stopMyCam("Your camera is off.") : startMyCam());
+  $("#mycamstop").addEventListener("click", () => stopMyCam("Your camera is off."));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) scheduleFrame(); });
+}
+async function startMyCam() {
+  const bc = me.browser_camera || {};
+  myCam.cfg = bc; myCam.lastError = "";
+  $("#mycam").setAttribute("aria-pressed", "true"); $("#mycam").textContent = "Stop my camera";
+  myCamBar("Allow the camera when your browser asks. Frames are analysed on this server and faces are blurred; only you see your live view.");
+  try {
+    myCam.stream = await navigator.mediaDevices.getUserMedia({audio: false,
+      video: {width: {ideal: 1280}, height: {ideal: 720}, frameRate: {ideal: 15, max: 30}, facingMode: "user"}});
+  } catch (e) {
+    const why = e.name === "NotAllowedError" ? "Camera permission was refused. Allow the camera for this site (icon in the address bar) and try again."
+      : e.name === "NotFoundError" ? "No camera was found on this device."
+      : e.name === "NotReadableError" ? "The camera is busy in another app (close Zoom/Teams/Camera) and try again."
+      : "Could not open the camera: " + e.message;
+    stopMyCam(why, true); return;
+  }
+  const v = myCam.video = el("video", {muted: true, playsInline: true, autoplay: true});
+  v.srcObject = myCam.stream;
+  try { await v.play(); } catch (e) { /* autoplay of a muted stream is allowed; frames still arrive */ }
+  myCam.canvas = el("canvas");
+  myCamBar("Connecting to the analysis server...");
+  const ws = myCam.ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/camera");
+  ws.binaryType = "arraybuffer";
+  ws.onmessage = e => {
+    if (myCam.ws !== ws) return;
+    let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+    if (m.type === "ready") {
+      myCam.id = m.camera; myCam.zone = m.zone || ""; myCam.prevCam = currentCam; currentCam = m.camera;
+      myCam.cfg = {...bc, width: m.width || bc.width || 640, max_fps: m.max_fps || bc.max_fps || 10};
+      renderCams([...cams.values()]);
+      $("#noframe").style.display = ""; $("#noframe").textContent = "Starting your camera...";
+      myCamBar(`Your camera is live as a camera in ${myCam.zone}. Faces are ${m.privacy === "raw" ? "NOT blurred (privacy off)" : "blurred"}; ` +
+               "only you see this live view. Alerts it raises appear in the alert list for everyone signed in.", "live", true);
+      tickRemaining(m.remaining_s); scheduleFrame(0);
+    } else if (m.type === "frame") {
+      if (currentCam === myCam.id && m.jpg) { $("#frame").src = "data:image/jpeg;base64," + m.jpg; $("#noframe").style.display = "none"; }
+      updateState(m.camera, m.state || {});
+      tickRemaining(m.remaining_s, (m.state || {}).fps); frameDone();
+    } else if (m.type === "skip") frameDone();
+    else if (m.type === "error") { myCam.lastError = m.detail || m.code; if (m.code === "bad_frame") frameDone(); }
+  };
+  ws.onclose = ev => {
+    if (myCam.ws !== ws) return;
+    const why = myCam.lastError ? `Your camera stopped: ${myCam.lastError}.`
+      : ev.code === 1000 ? "Your camera is off." : "The connection to the server was lost; your camera is off.";
+    stopMyCam(why, ev.code !== 1000);
+  };
+}
+function tickRemaining(rem, fps) {
+  // the fall benchmarks run at 15 FPS; on GMDCSA24 recall is 86 % at 15 FPS, 81 % at ~11 FPS, 76 % at 7.5 FPS
+  const t = $("#mycamtime"), slow = fps != null && fps > 0 && fps < 13;
+  t.textContent = [fps ? `${fps} FPS${slow ? " (below 15: fast falls can be missed)" : ""}` : "", rem == null ? "" : "ends in " + mmss(rem)]
+    .filter(Boolean).join(" · ");
+  t.classList.toggle("slow", slow);
+  t.title = slow ? "Fall cues were validated at 15 FPS. A fast fall can happen between two frames when the server " +
+                   "is busy (fall recall on GMDCSA24: 86 % at 15 FPS, 81 % at ~11 FPS)." : "";
+}
+function frameDone() { myCam.inflight = false; clearTimeout(myCam.watchdog); scheduleFrame(); }
+function scheduleFrame(delay) {
+  clearTimeout(myCam.timer);
+  if (!myCam.ws || myCam.ws.readyState !== WebSocket.OPEN || myCam.inflight) return;
+  const period = 1000 / (myCam.cfg.max_fps || 10);
+  const wait = delay != null ? delay : Math.max(0, period - (performance.now() - myCam.lastSend));
+  myCam.timer = setTimeout(sendFrame, wait);
+}
+function sendFrame() {
+  const v = myCam.video, ws = myCam.ws;
+  if (!v || !ws || ws.readyState !== WebSocket.OPEN || myCam.inflight) return;
+  if (!v.videoWidth) { myCam.timer = setTimeout(sendFrame, 100); return; }
+  const w = Math.min(myCam.cfg.width || 640, v.videoWidth), h = Math.round(v.videoHeight * w / v.videoWidth);
+  const c = myCam.canvas; c.width = w; c.height = h;
+  c.getContext("2d").drawImage(v, 0, 0, w, h);
+  const t = performance.now() / 1000;   // capture time: keeps speed/descent cues right despite network jitter
+  myCam.inflight = true; myCam.lastSend = performance.now();
+  myCam.watchdog = setTimeout(() => { myCam.inflight = false; scheduleFrame(); }, 8000);  // a lost reply never stalls
+  c.toBlob(async blob => {
+    if (!blob || myCam.ws !== ws || ws.readyState !== WebSocket.OPEN) { myCam.inflight = false; return; }
+    const jpg = new Uint8Array(await blob.arrayBuffer()), out = new Uint8Array(8 + jpg.length);
+    new DataView(out.buffer).setFloat64(0, t, true); out.set(jpg, 8);
+    ws.send(out);
+  }, "image/jpeg", 0.75);
+}
+function stopMyCam(message, isError = false) {
+  const ws = myCam.ws;
+  myCam.ws = null; clearTimeout(myCam.timer); clearTimeout(myCam.watchdog); myCam.inflight = false;
+  if (ws && ws.readyState === WebSocket.OPEN) { try { ws.send(JSON.stringify({type: "stop"})); ws.close(1000); } catch (e) {} }
+  if (myCam.stream) myCam.stream.getTracks().forEach(tr => tr.stop());
+  myCam.stream = null; if (myCam.video) myCam.video.srcObject = null; myCam.video = null;
+  const wasMine = currentCam === myCam.id;
+  myCam.id = null;
+  if (wasMine) { currentCam = myCam.prevCam; $("#noframe").textContent = "Waiting for the camera stream"; $("#noframe").style.display = ""; }
+  renderCams([...cams.values()]);
+  $("#mycam").setAttribute("aria-pressed", "false"); $("#mycam").textContent = "Use my camera";
+  myCamBar(message, isError ? "err" : "");
+}
+window.addEventListener("pagehide", () => { if (myCam.ws) stopMyCam(""); });
+
 async function refreshSelfTest() {
   try {
     const r = await api("/api/selftest");
@@ -374,5 +499,6 @@ async function boot() {
     });
   }
   site(); setInterval(site, 10000);
+  setupMyCam();
 }
 boot();

@@ -535,6 +535,8 @@ python benchmarks/eval_fire_roc.py
 python benchmarks/extract_walk_dets.py && python benchmarks/eval_exits.py      # §16 heading prediction
 python benchmarks/eval_left_view.py && python benchmarks/eval_left_view.py --cache data/gmdcsa24_s_lowconf.pkl --out benchmarks/results/left_view_gmdcsa24_yolo11s.json
 python benchmarks/bench_latency.py
+python benchmarks/eval_frame_rate.py                                                     # §17 frame rate
+node tests/e2e/browser_camera.e2e.js http://127.0.0.1:7861 <pw> fakecam.y4m 72 out/     # §17 real browser
 ```
 
 ## 16. Site awareness: exits, headings, "went down and left the view"
@@ -601,3 +603,59 @@ dispersal onset (320x240, motion blur), so 17 exits were counted against 54 peop
 the outdoor clips (mean error 7.4 people per clip), and the plaza clips end ~1.3 s after onset. The
 counting code is kept for the benchmark only; no flow, capacity or time-to-clear number is shown to
 operators.
+
+## 17. "Use my camera" (browser camera) check
+
+On the hosted demo a judge can analyse their own laptop camera (`/ws/camera`, `BrowserCamera` in
+`cameras.py`). The browser sends JPEG frames with their capture time, one frame in flight, so the rate
+follows the server. Each frame goes through the same pipeline as a site camera. The annotated,
+privacy-filtered frame goes back to that browser only, and alerts go to the console as usual. Raw outputs:
+`benchmarks/results/browser_camera_e2e.json`, `benchmarks/results/frame_rate_gmdcsa24.json`.
+
+**End to end in a real browser.** Headless Chromium used a video file as its webcam: a GMDCSA24 clip of
+someone lying down on a bed, then one of a walk and a fall, each held still, looping every 33.8 s. It ran
+against the cloud-demo configuration on 2 vCPU, with the demo reel running
+(`tests/e2e/browser_camera.e2e.js`, `benchmarks/bench_browser_camera.py`).
+
+| Run | Frame rate | Falls alerted | Lie-downs alerted |
+|---|---|---|---|
+| Chromium; browser, its fake camera and server share 2 vCPU | 9.4 FPS | 2 of 2 (ALARM, VERIFY) | 0 of 2 |
+| Thin client, server-limited (one camera, demo reel slowed to 2 FPS) | **11.6 FPS** (round trip 78 ms median) | 2 of 2 (ALARM, VERIFY) | 0 of 2 |
+
+Each fall alert came about 2 s after the fall began. The first run found a real bug, now fixed. When
+people were not moving towards an edge, the heading summary carried an ETA of `Infinity`, which browsers
+reject as JSON, so those frames were dropped by the console. This affected the main live feed too.
+
+**Frame rate matters for falls.** In many GMDCSA24 falls the detector catches the fast part in only one
+or two frames, so dropping frames removes the evidence the motion gate needs. Production pipeline replay,
+rule on, 79 falls and 81 ADL clips (`benchmarks/eval_frame_rate.py`):
+
+| Frames kept | ~FPS | Falls alerted, clip / hold | False alarms, clip / hold |
+|---|---|---|---|
+| all | 15 | 65 / **68** (86 %) | 2 / 2 |
+| 3 of 4 | 11 | 60 / 64 (81 %) | 1 / 1 |
+| 1 of 2 | 7.5 | 53 / 60 (76 %) | 2 / 2 |
+| 1 of 3 | 5 | 50 / 59 (75 %) | 0 / 2 |
+
+So the browser camera is built for frame rate:
+* It runs fall and fire/smoke only. Crowd is abnormal movement of many people, which a laptop camera seeing
+  1-3 people cannot show, and its optical flow costs 16 of 73 ms per frame.
+* The fire detector runs on every 3rd frame.
+* The browser sends up to 15 FPS.
+* On the hosted demo, one session runs at a time, and recorded demo files slow to 2 FPS while it is live.
+  Live (RTSP) cameras are never slowed.
+
+On 2 vCPU that gives 11.6 FPS. A 4-core Codespace is recommended for judging. The console shows the frame
+rate and says when it is below 13 FPS that fast falls can be missed.
+
+**Tried, not adopted: counting frame-based evidence in seconds.** Three things are counted in frames:
+standing observations before motion evidence is fully trusted, the per-frame smoothing weight, and frames
+below the line before an alarm clears. Counting them in seconds below 14 FPS helped only at ~5 FPS
+(+6 falls, clip). At ~11 FPS it caught the same falls with one more false alarm. On the production
+benchmarks, where 29 of the 160 cached clips are stored at 7.5 FPS, the configured model was unchanged,
+but two research variants moved:
+
+* LOSO-fit, YOLO11s: 71 falls / 7 false alarms became 70 / 8.
+* Calibration error (ECE): 0.095 became 0.105.
+
+It was removed, and published results are byte-identical to before.

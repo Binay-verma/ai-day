@@ -96,6 +96,9 @@ image benchmark and the frozen-system external check are not.
 Free and live: open a GitHub Codespace on this repo and run `bash scripts/codespace_demo.sh` (public link,
 login on, `configs/cloud_demo.yaml`). With Hugging Face PRO: `python scripts/deploy_hf_space.py --space
 <hf-user>/edge-copilot`. Steps: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md#7b-host-it-on-the-cloud-for-the-judges).
+On the hosted link, **Use my camera** lets a judge test live with their own laptop camera: frames go
+through the same pipeline as a site camera, faces are blurred, and only that browser sees the live view.
+Results are in [RESULTS §17](docs/RESULTS.md#17-use-my-camera-browser-camera-check).
 
 ## Production features
 

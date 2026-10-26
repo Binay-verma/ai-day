@@ -249,6 +249,25 @@ class AuthCfg(_Strict):
     secret_env: str = "EDGECOPILOT_SECRET"  # noqa: S105 - name of an env var, not a secret
 
 
+class BrowserCameraCfg(_Strict):
+    """"Use my camera" in the console: an operator's browser camera analysed like any other camera."""
+    enabled: bool = True
+    max_sessions: int = Field(2, ge=0, le=16, description="browser cameras analysed at the same time (CPU bound)")
+    max_minutes: float = Field(0, ge=0, le=24 * 60, description="each session ends after this long; 0 = no limit")
+    max_fps: float = Field(15.0, gt=0, le=30, description="frames per second accepted from one browser (the fall "
+                                                          "benchmarks run at 15; below ~10 falls are missed more often)")
+    width: int = Field(640, ge=160, le=1280, description="the browser scales frames to this width before sending")
+    zone: str = Field("", description="zone the browser camera is treated as being in (default: the first camera's)")
+    # crowd = abnormal movement of many people: meaningless for a laptop camera that sees 1-3 people, and its
+    # optical flow costs ~16 of ~73 ms per frame, which the fall cues need as frame rate
+    hazards: Dict[str, bool] = Field(default_factory=lambda: {"fall": True, "fire_smoke": True, "crowd": False})
+    fire_every: int = Field(3, ge=1, le=10, description="run the fire/smoke detector on every n-th browser frame")
+    background_fps: float = Field(2.0, ge=0, le=30, description="while a browser camera is live, recorded demo files "
+                                                                  "are analysed at most this often (0 = no limit); "
+                                                                  "live cameras are never slowed down")
+    edges: Dict[str, str] = Field(default_factory=dict)
+
+
 class ServerCfg(_Strict):
     host: str = "127.0.0.1"
     port: int = Field(8000, ge=1, le=65535)
@@ -259,6 +278,7 @@ class ServerCfg(_Strict):
     public_demo: bool = Field(False, description="hosted demo on recorded footage: login stays on, the labelled site "
                                                  "scenario is allowed for operators, and the console says it is a demo")
     auth: AuthCfg = Field(default_factory=lambda: AuthCfg())
+    browser_camera: BrowserCameraCfg = Field(default_factory=lambda: BrowserCameraCfg())
 
 
 class StorageCfg(_Strict):
@@ -444,6 +464,16 @@ class Config(_Strict):
             for edge, place in c.edges.items():
                 if place not in places:
                     errors.append(f"cameras[{c.id}].edges.{edge}: {place!r} is neither an exit nor a zone")
+        bc = self.server.browser_camera
+        if bc.zone and bc.zone not in self.zones:
+            errors.append(f"server.browser_camera.zone {bc.zone!r} is not defined in zones")
+        if set(bc.hazards) - set(self.hazards):
+            errors.append(f"server.browser_camera.hazards: unknown {sorted(set(bc.hazards) - set(self.hazards))}")
+        for edge, place in bc.edges.items():
+            if edge not in ("left", "right", "top", "bottom"):
+                errors.append(f"server.browser_camera.edges: unknown edge {edge!r}")
+            elif place not in places:
+                errors.append(f"server.browser_camera.edges.{edge}: {place!r} is neither an exit nor a zone")
         # 6) auth on a non-loopback bind
         if self.server.host not in ("127.0.0.1", "localhost", "::1") and not self.server.auth.enabled:
             errors.append("server: authentication must be enabled when binding to a non-loopback address")

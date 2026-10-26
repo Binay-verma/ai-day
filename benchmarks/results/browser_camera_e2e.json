@@ -1,0 +1,71 @@
+{
+ "setup": "2 vCPU container, configs/cloud_demo.yaml via deploy/hf_space/start.py (demo reel running, slowed to 2 FPS while the browser camera is live), YOLO11n-pose 416 + fire 416, fake webcam = GMDCSA24 S2/ADL/03 (lie down on a bed) + S1/Fall/05 (walk, fall), 33.8 s loop",
+ "chromium_run": {
+  "seconds": 74.0,
+  "frames": 692,
+  "fps_mean": 9.4,
+  "note": "headless Chromium, its fake camera and the server shared the same 2 vCPU",
+  "alerts": [
+   {
+    "t_s": 21.1,
+    "hazard": "fall",
+    "triage": "ALARM",
+    "prob": 0.96
+   },
+   {
+    "t_s": 54.6,
+    "hazard": "fall",
+    "triage": "VERIFY",
+    "prob": 0.63
+   }
+  ],
+  "lie_downs": 2,
+  "alerts_on_lie_downs": 0,
+  "page_errors": 0
+ },
+ "first_chromium_run_before_fixes": {
+  "alerts": [
+   {
+    "t_s": 21.5,
+    "hazard": "fall",
+    "triage": "ALARM"
+   },
+   {
+    "t_s": 55.2,
+    "hazard": "fall",
+    "triage": "ALARM"
+   }
+  ],
+  "alerts_on_lie_downs": 0,
+  "bug_found": "frames whose flow ETA was Infinity were invalid JSON for browsers (fixed)"
+ },
+ "server_limited_run": {
+  "seconds": 70,
+  "frames": 812,
+  "fps": 11.59,
+  "rtt_median_ms": 78.0,
+  "rtt_p90_ms": 120.3,
+  "alerts": [
+   {
+    "t_s": 20.6,
+    "hazard": "fall",
+    "triage": "ALARM",
+    "prob": 0.86
+   },
+   {
+    "t_s": 54.5,
+    "hazard": "fall",
+    "triage": "VERIFY",
+    "prob": 0.74
+   }
+  ],
+  "alerts_on_lie_downs": 0
+ },
+ "pipeline_ms_per_frame_2vcpu": {
+  "pose": 36.0,
+  "crowd_optical_flow": 16.1,
+  "fire_every_2nd": 18.6,
+  "fire_every_3rd": 13.8,
+  "total_with_crowd": 72.7
+ }
+}

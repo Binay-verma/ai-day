@@ -189,6 +189,7 @@ class CameraWorker:
         self.latency_ms: Deque[float] = collections.deque(maxlen=300)
         self.paused_until = 0.0  # human override: analysis paused (stream still monitored)
         self.paused_by = ""
+        self.throttle_fps = 0.0  # > 0: a recorded file is analysed at most this often (live cameras never are)
         self.state: dict = {}
         self._lock = threading.Lock()
 
@@ -224,7 +225,8 @@ class CameraWorker:
             h.state = "stale"
         return {"id": self.cam_id, "zone": self.copilot.zone, "health": h.to_dict(), "state": self.state,
                 "paused": self.paused, "paused_until": self.paused_until if self.paused else None,
-                "paused_by": self.paused_by if self.paused else ""}
+                "paused_by": self.paused_by if self.paused else "",
+                "throttled_fps": self.throttle_fps if self.is_file and self.throttle_fps > 0 else None}
 
     def _open(self):
         cap = cv2.VideoCapture(self.source)
@@ -282,6 +284,8 @@ class CameraWorker:
                     lag = t - (time.perf_counter() - t0)
                     if lag > 0:
                         self.stop_ev.wait(lag)
+                if self.is_file and self.throttle_fps > 0 and time.perf_counter() - last < 1.0 / self.throttle_fps:
+                    continue  # demo reel yields the CPU to a live (browser) camera; playback keeps real time
                 try:
                     self._step(frame, t, wall)
                 except Exception as e:  # noqa: BLE001 - one bad frame must never kill a camera thread
@@ -332,7 +336,8 @@ class CameraWorker:
                 self.on_frame(self.cam_id, self.latest_jpg, self.state)
             return
         res = cop.process(frame, t, wall_t=wall)
-        if res.scene_change and not self.is_file and self.on_fault:
+        if res.scene_change and not self.is_file and not getattr(self, "external", False) and self.on_fault:
+            # (a browser camera is a hand-held laptop/phone: a moved view is normal there, not a fault)
             # a live camera's field of view changed (moved, knocked, re-aimed): calibration no longer applies
             self.on_fault(self.cam_id, "view_changed", f"camera {self.cam_id}: field of view changed - re-calibrate")
         self.latency_ms.append(res.timings.get("total", 0.0))
@@ -375,3 +380,83 @@ class CameraWorker:
                           "flows": flow_summary(res.headings, cop.edges) if getattr(cop, "edges", None) else {}}
         if self.on_frame:
             self.on_frame(self.cam_id, self.latest_jpg, self.state)
+
+
+class BrowserCamera(CameraWorker):
+    """A camera whose frames come from an operator's web browser (``getUserMedia``) over a WebSocket.
+
+    No thread and no capture device: :meth:`push` runs one frame through exactly the same path as a
+    hardware camera (tamper checks, the copilot, rendering, clip buffer, alerts), synchronously, so the
+    sender is paced by the server's real speed (one frame in flight). The rendered, privacy-filtered
+    frame goes back only to the browser that sent it; alerts go to the console like any other camera's.
+    """
+
+    external = True
+
+    def __init__(self, cam_id: str, copilot, owner: str, max_s: float = 0.0, **kw):
+        super().__init__(cam_id, "browser", copilot, realtime=True, **kw)
+        self.owner = owner
+        self.started_wall = time.time()
+        self.max_s = float(max_s)
+        self._t0_client: Optional[float] = None
+        self._last_t = -1.0
+
+    @property
+    def is_file(self) -> bool:
+        return False
+
+    def start(self) -> None:  # nothing to start: frames are pushed
+        self.health.state = "connecting"
+
+    def stop(self, timeout: float = 5.0) -> None:
+        self.stop_ev.set()
+        self.health.state = "stopped"
+
+    @property
+    def expired(self) -> bool:
+        return self.max_s > 0 and time.time() - self.started_wall > self.max_s
+
+    def remaining_s(self) -> Optional[float]:
+        return None if self.max_s <= 0 else max(0.0, self.max_s - (time.time() - self.started_wall))
+
+    def stream_time(self, client_t: Optional[float]) -> float:
+        """Seconds since the session started, from the browser's capture clock when it is sane.
+
+        Capture timestamps keep motion cues (descent speed, hip drop) right despite network jitter;
+        they must increase and may not run ahead of the server clock (a client cannot fast-forward time).
+        """
+        wall_t = time.time() - self.started_wall
+        t = wall_t
+        if client_t is not None and math.isfinite(client_t):
+            if self._t0_client is None:
+                self._t0_client = client_t - wall_t
+            t = min(client_t - self._t0_client, wall_t + 1.0)
+        if t <= self._last_t:
+            t = self._last_t + 1e-3
+        self._last_t = t
+        return t
+
+    def push(self, frame: np.ndarray, client_t: Optional[float] = None) -> Tuple[bytes, dict]:
+        if frame.ndim == 2:
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+        t = self.stream_time(client_t)
+        now = time.perf_counter()
+        prev = getattr(self, "_prev_perf", None)
+        self._prev_perf = now
+        try:
+            self._step(frame, t, time.time())
+        except Exception as e:  # noqa: BLE001 - one bad frame must never end the session
+            self.health.last_error = redact(f"{type(e).__name__}: {e}")[:300]
+            self.health.errors += 1
+            log.exception("browser camera %s: frame processing failed", self.cam_id)
+        if prev is not None:
+            self.health.fps = 0.8 * self.health.fps + 0.2 / max(now - prev, 1e-6)
+        with self._lock:
+            state = dict(self.state)
+            state["fps"] = round(self.health.fps, 1)
+            return self.latest_jpg, state
+
+    def status(self) -> dict:
+        d = super().status()
+        d.update({"browser": True, "owner": self.owner, "remaining_s": self.remaining_s()})
+        return d
