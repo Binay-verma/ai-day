@@ -186,6 +186,32 @@ python -m edgecopilot.server.app --config configs/production.example.yaml --sour
 
 ---
 
+## 7b. Host it on the cloud for the judges (free Hugging Face Space)
+
+The rubric's top level needs the prototype "deployed and accessible on the cloud". One command does it
+from your own computer (the models and demo video must already be in the project folder, step 4):
+
+```powershell
+pip install huggingface_hub
+hf auth login                 # paste a Hugging Face token with "write" access (huggingface.co/settings/tokens)
+python scripts/deploy_hf_space.py --space <your-hf-username>/edge-copilot
+```
+
+It asks for a judge password (at least 10 characters), creates a public Docker Space on the free CPU tier
+(2 vCPU, enough for ~7-12 FPS), stores the password and a server secret as **Space secrets** (never in
+the files), and uploads the code, the two 416 px models and the demo reel (~35 MB). The first build takes
+about 5 minutes (watch the Space's **Logs** tab). It prints two addresses:
+
+* `https://huggingface.co/spaces/<you>/edge-copilot` - the Space page (code, logs, settings)
+* `https://<you>-edge-copilot.hf.space` - **give this one to the judges** (log in as `judge`). Open the
+  app at this address, not inside the Space page: the page's frame blocks the login cookie.
+
+What judges see: the demo reel loops with live, explained fall / fire / crowd alerts, the **Site scenario**
+button, search, What-if and signed evidence bundles; the header says "public demo (recorded footage)".
+Re-run the same command to update the Space. A free Space sleeps after 48 h without visitors and wakes up
+(about a minute) on the next visit, so open it once before your slot. To run the same container elsewhere:
+`configs/cloud_demo.yaml` + `deploy/hf_space/Dockerfile` (port 7860, `DEMO_PASSWORD` secret).
+
 ## 8. Check that everything works (tests)
 
 ```bash

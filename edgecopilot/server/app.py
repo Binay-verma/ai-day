@@ -328,7 +328,7 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
 
     @app.get("/api/me")
     def me(p: Principal = Depends(viewer)):
-        return {"username": p.username, "role": p.role, "auth": auth.enabled}
+        return {"username": p.username, "role": p.role, "auth": auth.enabled, "public_demo": bool(scfg.get("public_demo"))}
 
     # ------------------------------------------------------------ status
     @app.get("/api/status")
@@ -409,10 +409,10 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
         return {"exits": service.site.exit_status(), "hazard_ttl_s": service.site.ttl_s}
 
     @app.post("/api/demo/site_scenario")
-    def demo_site_scenario(p: Principal = Depends(admin)):
-        """Loopback --demo mode only: scripted, labelled scenario (smoke at an exit, crowd heading for it)."""
-        if auth.enabled:
-            raise HTTPException(404, "only available in --demo mode")
+    def demo_site_scenario(p: Principal = Depends(operator)):
+        """--demo mode or a hosted public demo only: scripted, labelled scenario (smoke at an exit, crowd heading for it)."""
+        if auth.enabled and not scfg.get("public_demo"):
+            raise HTTPException(404, "only available in --demo mode or a public demo")
         try:
             return service.site_scenario()
         except ValueError as e:

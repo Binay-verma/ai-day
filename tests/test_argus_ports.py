@@ -296,3 +296,48 @@ def test_privacy_mask_config_is_validated():
     c["cameras"][0]["masks"] = [[[0.1, 0.1], [1.5, 0.1], [0.2, 0.3]]]
     with pytest.raises(ValueError):
         Config.model_validate(c)
+
+
+# ---------------------------------------------------------------- hosted public demo
+def test_public_demo_allows_the_labelled_scenario_with_login(env):  # noqa: F811
+    c, svc = env
+    o = {"Authorization": f"Bearer {login(c, 'asha', 'operator pass 1')}"}
+    assert c.post("/api/demo/site_scenario", headers=o).status_code == 404     # normal deployment: never
+    assert c.get("/api/me", headers=o).json()["public_demo"] is False
+
+
+def test_cloud_demo_config_and_start_script(tmp_path, monkeypatch):
+    import importlib.util
+    import os as _os
+    from edgecopilot.config_schema import load_validated
+    cfg = load_validated("configs/cloud_demo.yaml")
+    assert cfg.server.public_demo and cfg.server.auth.enabled and cfg.server.host == "0.0.0.0"
+    spec = importlib.util.spec_from_file_location("start", "deploy/hf_space/start.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    calls = {}
+    monkeypatch.setenv("DEMO_PASSWORD", "judge-pass-2026")
+    monkeypatch.setattr(mod.os, "execvp", lambda f, args: calls.setdefault("args", args))
+    monkeypatch.setattr(mod.os, "chdir", lambda _p: None)
+    mod.main()
+    runtime = _os.path.join(mod.ROOT, "configs", "_cloud_runtime.yaml")
+    try:
+        rc = load_validated(runtime)
+        assert [u.username for u in rc.server.auth.users] == ["judge"] and rc.server.public_demo
+        assert "--host" in calls["args"] and "0.0.0.0" in calls["args"]
+    finally:
+        _os.remove(runtime)
+
+
+def test_deploy_script_stages_only_what_the_space_needs(tmp_path):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("deploy", "scripts/deploy_hf_space.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.space_url("Binay-verma/edge_copilot") == "https://binay-verma-edge-copilot.hf.space"
+    if all(__import__("os").path.exists(p) for p in mod.NEEDED):
+        mod.stage(str(tmp_path / "s"))
+        files = {p.relative_to(tmp_path / "s").as_posix() for p in (tmp_path / "s").rglob("*") if p.is_file()}
+        assert {"Dockerfile", "README.md", "pyproject.toml", "deploy/hf_space/start.py", "configs/cloud_demo.yaml"} <= files
+        assert not any(f.endswith(".pt") or f.startswith("data/") for f in files)
+        assert (tmp_path / "s" / "README.md").read_text().startswith("---\ntitle:")

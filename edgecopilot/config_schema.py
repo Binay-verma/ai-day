@@ -256,6 +256,8 @@ class ServerCfg(_Strict):
     max_ws_clients: int = Field(20, ge=1, le=500)
     stream_fps: float = Field(5.0, gt=0, le=30)
     rate_limit_per_min: int = Field(240, ge=10)
+    public_demo: bool = Field(False, description="hosted demo on recorded footage: login stays on, the labelled site "
+                                                 "scenario is allowed for operators, and the console says it is a demo")
     auth: AuthCfg = Field(default_factory=lambda: AuthCfg())
 
 

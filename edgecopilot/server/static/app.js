@@ -357,7 +357,7 @@ async function refreshSelfTest() {
 async function boot() {
   try { me = await api("/api/me"); } catch (e) { return; }
   role = me.role;
-  $("#who").textContent = me.auth ? `${me.username} · ${me.role}` : "demo mode";
+  $("#who").textContent = me.auth ? `${me.username} · ${me.role}${me.public_demo ? " · public demo (recorded footage)" : ""}` : "demo mode";
   showMain();
   api("/api/status").then(s => { $("#priv").textContent = s.privacy; }).catch(() => {});
   connect();
@@ -366,7 +366,7 @@ async function boot() {
   refreshSelfTest(); setInterval(refreshSelfTest, 60000);
   const site = () => api("/api/site").then(r => renderExits(r.exits || {})).catch(() => {});
   const sd = $("#sitedemo");
-  if (sd && !me.auth) {
+  if (sd && (!me.auth || (me.public_demo && role !== "viewer"))) {
     sd.hidden = false;
     sd.addEventListener("click", async () => {
       try { const r = await api("/api/demo/site_scenario", {method: "POST"}); renderExits(r.exits || {}); }

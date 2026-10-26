@@ -91,6 +91,12 @@ image benchmark and the frozen-system external check are not.
 | Edge speed (all 3 hazards at once) | **12.0 FPS** with the 416 px production models; 7.8 INT8-640; 6.6 FP32-640 (the audit's safety fixes cost ~40 % at 640 px) |
 | Saliency honesty check | Eigen-CAM beats random but not a centre-bias control, so the ledger, not the heat map, is the explanation |
 
+## Hosted demo
+
+`python scripts/deploy_hf_space.py --space <hf-user>/edge-copilot` deploys the public demo (recorded
+reel, login on, `configs/cloud_demo.yaml`) to a free Hugging Face Space; see
+[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md#7b-host-it-on-the-cloud-for-the-judges-free-hugging-face-space).
+
 ## Production features
 
 | Area | What is in the box |

@@ -1,0 +1,39 @@
+# Hosted public demo (e.g. a Hugging Face Space): the recorded demo reel loops on one camera, login stays ON.
+# deploy/hf_space/start.py adds the judge accounts from environment secrets at start-up; see deploy/hf_space/README.md.
+extends: campus.yaml
+
+runtime:
+  threads: 2              # free CPU tier: 2 vCPU
+  long_lie_s: 20
+  privacy: blur
+
+models:
+  pose: {path: models/yolo11n-pose_416.onnx, imgsz: 416}
+  fire_smoke: {path: models/fire_smoke_416.onnx, imgsz: 416}
+
+cameras:
+  - id: demo-cam
+    source: demo/demo_campus.mp4
+    zone: Corridor B
+    loop: true
+    realtime: true
+    edges: {left: West stairwell, right: East stairwell, bottom: Lab Block A}
+
+site:
+  exits:
+    East stairwell: {cameras: []}
+    West stairwell: {cameras: []}
+
+server:
+  host: 0.0.0.0
+  port: 7860
+  stream_fps: 4
+  max_ws_clients: 40
+  rate_limit_per_min: 600
+  public_demo: true
+  auth:
+    enabled: true
+    token_ttl_s: 14400
+
+storage:
+  retention_days: 1
