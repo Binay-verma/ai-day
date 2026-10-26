@@ -341,3 +341,34 @@ def test_deploy_script_stages_only_what_the_space_needs(tmp_path):
         assert {"Dockerfile", "README.md", "pyproject.toml", "deploy/hf_space/start.py", "configs/cloud_demo.yaml"} <= files
         assert not any(f.endswith(".pt") or f.startswith("data/") for f in files)
         assert (tmp_path / "s" / "README.md").read_text().startswith("---\ntitle:")
+
+
+def test_live_feed_accepts_the_forwarded_public_host_only(env):  # noqa: F811
+    from starlette.websockets import WebSocketDisconnect
+    c, _ = env
+    tok = login(c, "vik", "viewer pass 12")
+    pub = "my-space-7860.app.github.dev"
+    with c.websocket_connect(f"/ws?token={tok}", headers={"origin": f"https://{pub}", "x-forwarded-host": pub}) as ws:
+        assert ws.receive_json()["type"] == "hello"
+    with pytest.raises(WebSocketDisconnect), c.websocket_connect(
+            f"/ws?token={tok}", headers={"origin": "https://evil.example", "x-forwarded-host": pub}) as ws:
+        ws.receive_text()
+
+
+def test_start_script_adds_the_codespace_origin(monkeypatch):
+    import importlib.util
+    import os as _os
+    from edgecopilot.config_schema import load_validated
+    spec = importlib.util.spec_from_file_location("start2", "deploy/hf_space/start.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    monkeypatch.setenv("DEMO_PASSWORD", "judge-pass-2026")
+    monkeypatch.setenv("CODESPACE_NAME", "fluffy-space-abc")
+    monkeypatch.setattr(mod.os, "execvp", lambda f, args: None)
+    monkeypatch.setattr(mod.os, "chdir", lambda _p: None)
+    mod.main()
+    runtime = _os.path.join(mod.ROOT, "configs", "_cloud_runtime.yaml")
+    try:
+        assert load_validated(runtime).server.cors_origins == ["https://fluffy-space-abc-7860.app.github.dev"]
+    finally:
+        _os.remove(runtime)

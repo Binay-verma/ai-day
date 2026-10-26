@@ -93,9 +93,9 @@ image benchmark and the frozen-system external check are not.
 
 ## Hosted demo
 
-`python scripts/deploy_hf_space.py --space <hf-user>/edge-copilot` deploys the public demo (recorded
-reel, login on, `configs/cloud_demo.yaml`) to a free Hugging Face Space; see
-[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md#7b-host-it-on-the-cloud-for-the-judges-free-hugging-face-space).
+Free and live: open a GitHub Codespace on this repo and run `bash scripts/codespace_demo.sh` (public link,
+login on, `configs/cloud_demo.yaml`). With Hugging Face PRO: `python scripts/deploy_hf_space.py --space
+<hf-user>/edge-copilot`. Steps: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md#7b-host-it-on-the-cloud-for-the-judges).
 
 ## Production features
 

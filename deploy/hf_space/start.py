@@ -31,6 +31,10 @@ def main() -> None:
              "server:", "  auth:", "    users:"]
     for u in users:
         lines.append(f'      - {{username: {u["username"]}, role: {u["role"]}, password_hash: "{u["password_hash"]}"}}')
+    cs = os.environ.get("CODESPACE_NAME")
+    if cs:  # GitHub Codespaces: the browser talks to https://<codespace>-<port>.<forwarding domain>
+        dom = os.environ.get("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
+        lines.append(f'  cors_origins: ["https://{cs}-{os.environ.get("PORT", "7860")}.{dom}"]')
     path = os.path.join(ROOT, "configs", "_cloud_runtime.yaml")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")

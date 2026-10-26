@@ -595,7 +595,9 @@ def create_app(service: EdgeService, auth: AuthManager, cfg: dict) -> FastAPI:
         if origin is None:
             return True  # non-browser clients (scripts) send no Origin; they still need a token
         host = sock.headers.get("host", "")
-        return origin in allowed_origins or origin.split("://", 1)[-1] == host
+        fwd = sock.headers.get("x-forwarded-host", "")  # behind a forwarding proxy (Codespaces, Spaces) the public host
+        target = origin.split("://", 1)[-1]
+        return origin in allowed_origins or target == host or (bool(fwd) and target == fwd)
 
     @app.websocket("/ws")
     async def ws(sock: WebSocket):

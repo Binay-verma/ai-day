@@ -1,0 +1,9 @@
+{
+  "name": "Explainable Edge AI Copilot (cloud demo)",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+  "hostRequirements": {"cpus": 2, "memory": "8gb"},
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0 unzip && pip install --upgrade pip 'setuptools>=83' && pip install -e .",
+  "forwardPorts": [7860],
+  "portsAttributes": {"7860": {"label": "Edge Copilot console", "onAutoForward": "notify"}},
+  "customizations": {"codespaces": {"openFiles": ["docs/GETTING_STARTED.md"]}}
+}
